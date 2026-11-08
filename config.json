@@ -1,0 +1,63 @@
+{
+  "model": "gemini-2.5-flash",
+
+  "systemInstruction": "You are a senior, certified IELTS examiner with 15+ years of experience assessing IELTS Academic Writing Task 2 essays. You strictly adhere to the official IELTS Writing Task 2 band descriptors published by the British Council, IDP, and Cambridge Assessment English. Your evaluations are fair, precise, and constructive. You always provide actionable, specific feedback referencing exact phrases or patterns from the candidate's essay. Score each criterion independently on a scale of 0.0 to 9.0 in 0.5 increments.",
+
+  "scoringCriteria": {
+    "taskResponse": {
+      "name": "Task Response",
+      "abbreviation": "TR",
+      "weight": 0.25,
+      "prompt": "Evaluate the essay's Task Response. Consider: (1) Does the essay fully address all parts of the task prompt? (2) Does the writer present a clear, well-developed position throughout the essay? (3) Are main ideas extended and supported with relevant, specific examples and evidence? (4) Is the response at least 250 words? Penalise significantly if the essay is under-length, off-topic, or only partially addresses the prompt. Score from 0.0 to 9.0 in 0.5 increments. Provide specific diagnostic feedback referencing actual phrases from the essay."
+    },
+    "coherenceAndCohesion": {
+      "name": "Coherence and Cohesion",
+      "abbreviation": "CC",
+      "weight": 0.25,
+      "prompt": "Evaluate the essay's Coherence and Cohesion. Consider: (1) Is information and ideas logically organized with clear progression throughout? (2) Is paragraphing used appropriately (introduction, body paragraphs, conclusion)? (3) Are cohesive devices (linking words, referencing, substitution) used effectively without being mechanical or overused? (4) Does each paragraph have a clear central topic? Score from 0.0 to 9.0 in 0.5 increments. Provide specific diagnostic feedback referencing actual transitions and paragraph structure from the essay."
+    },
+    "lexicalResource": {
+      "name": "Lexical Resource",
+      "abbreviation": "LR",
+      "weight": 0.25,
+      "prompt": "Evaluate the essay's Lexical Resource. Consider: (1) Does the writer use a sufficient range of vocabulary for the task? (2) Are less common lexical items used with awareness of style and collocation? (3) Are there errors in word choice, word formation, or spelling, and do they impede communication? (4) Does the writer paraphrase effectively rather than repeating the same words? Score from 0.0 to 9.0 in 0.5 increments. Provide specific diagnostic feedback quoting actual vocabulary usage and errors from the essay."
+    },
+    "grammaticalRangeAndAccuracy": {
+      "name": "Grammatical Range and Accuracy",
+      "abbreviation": "GRA",
+      "weight": 0.25,
+      "prompt": "Evaluate the essay's Grammatical Range and Accuracy. Consider: (1) Does the writer use a variety of complex sentence structures (relative clauses, conditionals, passive voice, noun clauses)? (2) Are the majority of sentences error-free? (3) Do grammatical errors impede communication? (4) Is punctuation used accurately? Score from 0.0 to 9.0 in 0.5 increments. Provide specific diagnostic feedback quoting actual sentence patterns and grammatical errors from the essay."
+    }
+  },
+
+  "responseFormat": "Respond with a valid JSON object following this exact schema: { \"criteria\": [ { \"name\": \"<full criterion name>\", \"abbreviation\": \"<TR|CC|LR|GRA>\", \"score\": <number 0.0-9.0>, \"band_descriptor\": \"<one-line band descriptor for this score>\", \"feedback\": \"<detailed feedback paragraph with specific examples from the essay>\" } ], \"overall_band\": <number 0.0-9.0>, \"overall_feedback\": \"<comprehensive paragraph summarizing the essay's strengths and weaknesses>\", \"suggestions\": [ \"<specific actionable suggestion 1>\", \"<specific actionable suggestion 2>\", \"<specific actionable suggestion 3>\", \"<specific actionable suggestion 4>\" ] }. The overall_band should be the arithmetic mean of the four criteria scores, rounded to the nearest 0.5. Respond ONLY with the JSON object, no markdown code fences.",
+
+  "sampleTopics": [
+    {
+      "id": "wt2-01",
+      "category": "Education & Technology",
+      "taskType": "Agree or Disagree",
+      "prompt": "Some people believe that online education will eventually replace traditional classroom learning in universities. To what extent do you agree or disagree?",
+      "instructions": "Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words."
+    },
+    {
+      "id": "wt2-02",
+      "category": "Environment & Urban Planning",
+      "taskType": "Problem and Solution",
+      "prompt": "Many cities around the world are facing severe traffic congestion and rising air pollution. What are the causes of these problems, and what measures can governments take to resolve them?",
+      "instructions": "Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words."
+    },
+    {
+      "id": "wt2-03",
+      "category": "Youth & Career",
+      "taskType": "Discuss Both Views",
+      "prompt": "Some people think that young people should be encouraged to work or travel for a year before attending university. Others believe it is better to go straight to university. Discuss both views and give your own opinion.",
+      "instructions": "Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words."
+    }
+  ],
+
+  "wordCountRequirements": {
+    "min": 250,
+    "recommended": 280
+  }
+}

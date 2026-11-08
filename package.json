@@ -1,0 +1,18 @@
+{
+  "name": "ielts-master",
+  "version": "1.0.0",
+  "description": "IELTS self-study platform with AI-powered Writing assessment",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/smoke.test.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0"
+  }
+}
