@@ -59,6 +59,25 @@ function countWords(text) {
 }
 
 /**
+ * Call Gemini, retrying temporary failures (HTTP 429 rate limit / 503 overloaded).
+ * Waits 2s, 4s, 8s between attempts.
+ */
+async function generateWithRetry(ai, request, maxAttempts = 4) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await ai.models.generateContent(request);
+    } catch (err) {
+      const status = err?.status ?? err?.code;
+      const retryable = status === 429 || status === 503 || /UNAVAILABLE|RESOURCE_EXHAUSTED/.test(err?.message || '');
+      if (!retryable || attempt >= maxAttempts) throw err;
+      const delay = 2000 * 2 ** (attempt - 1);
+      console.warn(`[WARN] Gemini busy (${status}), retry ${attempt}/${maxAttempts - 1} in ${delay / 1000}s...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+/**
  * Helper to build evaluation prompt for Gemini
  */
 function buildEvaluationPrompt(essay, topic) {
@@ -158,8 +177,8 @@ app.post('/api/writing/score', async (req, res) => {
     const ai = new GoogleGenAI({ apiKey });
     const promptText = buildEvaluationPrompt(essay, topic);
 
-    // Call Gemini API
-    const response = await ai.models.generateContent({
+    // Call Gemini API (retries transient 429/503 errors with exponential backoff)
+    const response = await generateWithRetry(ai, {
       model: config.model,
       contents: promptText,
       config: { responseMimeType: 'application/json' }

@@ -86,7 +86,7 @@ On the other hand, traditional classrooms provide experiences that are difficult
 
 In my view, the most likely future is a blended model in which universities combine online materials with in-person seminars and practical sessions. This approach keeps the convenience of digital tools while preserving the social and practical value of physical classrooms.
 
-In conclusion, although online education will continue to expand and transform universities, I believe it will complement rather than replace traditional classroom learning, because human interaction and practical training remain central to higher education.`;
+In conclusion, although online education will continue to expand and transform universities, I believe it will complement rather than replace traditional classroom learning, because human interaction and practical training remain central to higher education. Universities that successfully balance both approaches will be best placed to serve the next generation of students.`;
     const res = await fetch(`${BASE}/api/writing/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
