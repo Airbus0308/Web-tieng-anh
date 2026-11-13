@@ -3,7 +3,7 @@
 - **Trạng thái:** ✅ DONE
 - **Người thực hiện:** Claude Code
 - **Ngày:** 2026-11-13
-- **Commit triển khai:** xem bảng `PROGRESS.md`
+- **Commit triển khai:** `a8462cc`
 
 ## Mục tiêu
 
