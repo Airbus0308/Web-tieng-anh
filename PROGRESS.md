@@ -11,11 +11,11 @@
 
 | Phase | Hạng mục (Milestone) | Trạng thái | Người thực hiện | Báo cáo chi tiết | Commit |
 | :--- | :--- | :---: | :---: | :--- | :---: |
-| **Phase 1** | **Placement Test (Reading & Listening)** — 15 câu MCQ, chấm Band, lưu Mock DB | ✅ DONE | Antigravity | [phase-01-placement-test.md](progress/phase-01-placement-test.md) | `d7f50f9` |
+| **Phase 1** | **Placement Test (Reading & Listening)** — 15 câu MCQ, Audio thật khóa tua ngược, mở Transcript sau khi nộp | ✅ DONE | Antigravity | [phase-01-placement-test.md](progress/phase-01-placement-test.md) | `d7f50f9`, `c840741` |
 | **Phase 2** | **Writing Task 2 AI Grader** — Giao diện viết, chấm 4 tiêu chí qua Gemini API, `config.json` | ✅ DONE | Antigravity | [phase-02-writing-task2-ai.md](progress/phase-02-writing-task2-ai.md) | `38baa5d` |
-| **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Trang phân tích năng lực & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0` |
-| **Phase 4** | **Speaking Practice & Real Listening Audio** — Thu âm Speaking chấm bằng Gemini + Audio cho Listening | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-04-speaking-and-audio.md` *(chờ tạo)* | — |
-| **Phase 5** | **Inline Essay Correction & Writing Task 1** — Bôi đỏ lỗi trực tiếp trên câu + Học biểu đồ Task 1 | ⚪ PLANNED | Claude Code / Codex | `progress/phase-05-inline-correction-task1.md` *(chờ tạo)* | — |
+| **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Skill Breakdown 4 tiêu chí Writing & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0`, `8d7d3fa` |
+| **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-04-speaking-practice.md` *(chờ tạo)* | — |
+| **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | ⚪ PLANNED | Claude Code / Codex | `progress/phase-05-inline-and-security.md` *(chờ tạo)* | — |
 
 ---
 
@@ -34,27 +34,34 @@ Mỗi khi hoàn thành một Phase, Agent thực thi (**Claude Code** hoặc **C
 
 ## 📋 Nhiệm Vụ Đang Mở: Phase 4 (Giao cho Claude Code / Codex)
 
-### Mục tiêu Phase 4: Speaking Practice & Real Listening Audio (`speaking.html`)
+### Mục tiêu Phase 4: Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`) & Đồng bộ 4 Kỹ năng lên Analytics
 
-#### 1. Bổ sung trình phát Audio thực tế cho phần Listening ở Placement Test (`js/ui.js` & `js/questions.js`)
-- Thêm trình điều khiển phát âm thanh (sử dụng Web Speech API `speechSynthesis` phân vai giọng đọc cho Dr. Patel và Sarah, kèm thanh điều khiển Play / Pause / Replay và tùy chọn ẩn/hiện Transcript) để phần thi Listening mang trải nghiệm nghe thực sự thay vì chỉ đọc văn bản.
+> *Lưu ý:* Phần Audio thật cho bài Listening trong Placement Test (`assets/audio/placement-listening.mp3`, khóa tua ngược, chỉ hiện Transcript sau khi nộp bài) đã được hoàn thành ở commit `c840741`. Phase 4 tập trung hoàn thiện kỹ năng thứ 4: **Speaking**.
 
-#### 2. Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`, `css/speaking.css`, `js/speaking.js`)
-- Cập nhật thanh điều hướng (`nav-links`) trên tất cả các trang để có: **Placement Test** | **Writing Practice** | **Speaking Practice** | **Analytics**.
-- Giao diện `speaking.html` hỗ trợ luyện tập **Speaking Part 2 (Cue Card)** & **Part 3**:
-  - Hiển thị chủ đề (Cue Card), đồng hồ đếm ngược 1 phút chuẩn bị và 2 phút nói.
-  - Cho phép ghi âm giọng nói (qua `MediaRecorder` / Web Speech Recognition) hoặc nhập bản transcript câu trả lời để gửi chấm điểm.
-  - Hiển thị điểm 4 tiêu chí Speaking chính thức: **Fluency & Coherence (FC)**, **Lexical Resource (LR)**, **Grammatical Range & Accuracy (GRA)**, **Pronunciation (PR)**.
+#### 1. Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`, `css/speaking.css`, `js/speaking.js`)
+- Cập nhật thanh điều hướng (`nav-links`) trên tất cả các trang (`index.html`, `writing.html`, `speaking.html`, `analytics.html`) để có đủ 4 mục: **Placement Test** | **Writing Practice** | **Speaking Practice** | **Analytics**.
+- Giao diện `speaking.html` hỗ trợ luyện tập **Speaking Part 2 (Cue Card) & Part 3**:
+  - Hiển thị chủ đề Cue Card (cho phép đổi đề bài từ danh sách đề mẫu), đồng hồ bấm giờ (1 phút chuẩn bị + 2 phút nói).
+  - Hỗ trợ thu âm/chuyển giọng nói thành văn bản bằng **Web Speech Recognition API** (`webkitSpeechRecognition` / `SpeechRecognition`) kết hợp ô nhập/chỉnh sửa văn bản (`textarea`) để học viên trên mọi trình duyệt đều có thể gửi bài nói chấm điểm.
+  - Hiển thị kết quả chấm AI chi tiết theo **4 tiêu chí Speaking chính thức**:
+    - `FC` — Fluency and Coherence (25%)
+    - `LR` — Lexical Resource (25%)
+    - `GRA` — Grammatical Range and Accuracy (25%)
+    - `PR` — Pronunciation / Delivery (25%)
+  - Lưu lịch sử luyện nói ở cả `localStorage` (`ielts_speaking_history`) và Backend (`results/speaking_results.json`).
 
-#### 3. Mở rộng `config.json` & `server.js`
-- Thêm `speakingCriteria`, `sampleSpeakingTopics`, và `speakingSystemInstruction` vào `config.json`.
-- Thêm các endpoint vào `server.js`:
-  - `GET /api/speaking/config` — Trả về chủ đề mẫu và tiêu chí chấm Speaking.
-  - `POST /api/speaking/score` — Chấm điểm bài nói qua Gemini (`generateWithRetry`) và lưu lịch sử vào `results/speaking_results.json`.
-  - `GET /api/speaking/history` — Trả về danh sách các lần luyện Speaking.
+#### 2. Mở rộng `config.json` & `server.js`
+- Thêm `speakingCriteria` (`FC`, `LR`, `GRA`, `PR`), `sampleSpeakingTopics`, `speakingSystemInstruction`, và `speakingResponseFormat` vào `config.json`.
+- Thêm 3 endpoint vào `server.js`:
+  - `GET /api/speaking/config` — Trả về danh sách chủ đề Speaking mẫu và 4 tiêu chí chấm.
+  - `POST /api/speaking/score` — Kiểm tra độ dài câu trả lời (tối thiểu 40 từ), gọi Gemini qua `generateWithRetry`, lưu vào `results/speaking_results.json` và trả về kết quả chấm.
+  - `GET /api/speaking/history` — Trả về lịch sử các lần luyện Speaking.
+
+#### 3. Tích hợp điểm Speaking vào trang `analytics.html` & `js/analytics.js`
+- Cập nhật `analytics.html` và `js/analytics.js` để đọc thêm `/api/speaking/history` (fallback `ielts_speaking_history`), hiển thị điểm trung bình **Speaking** và đưa các lượt luyện Speaking vào biểu đồ tiến độ chung.
 
 #### 4. Nghiệm thu (Definition of Done)
-- Bổ sung kiểm thử cho `/speaking.html`, `/api/speaking/config`, `/api/speaking/history`, `/api/speaking/score` vào `tests/smoke.test.js`.
+- Bổ sung kiểm thử cho `/speaking.html`, `GET /api/speaking/config`, `GET /api/speaking/history`, `POST /api/speaking/score` (kiểm tra lỗi khi rỗng / dưới số từ tối thiểu) vào `tests/smoke.test.js`.
 - Chạy `npm test` PASS 100%.
-- Tạo báo cáo `progress/phase-04-speaking-and-audio.md` và cập nhật bảng trên trong `PROGRESS.md`.
+- Tạo báo cáo `progress/phase-04-speaking-practice.md` và cập nhật bảng trên trong `PROGRESS.md` (chuyển Phase 4 sang `✅ DONE` và mở Phase 5).
 - Commit và push lên nhánh `main`.
