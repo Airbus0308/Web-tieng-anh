@@ -14,8 +14,8 @@
 | **Phase 1** | **Placement Test (Reading & Listening)** — 15 câu MCQ, Audio thật khóa tua ngược, mở Transcript sau khi nộp | ✅ DONE | Antigravity | [phase-01-placement-test.md](progress/phase-01-placement-test.md) | `d7f50f9`, `c840741` |
 | **Phase 2** | **Writing Task 2 AI Grader** — Giao diện viết, chấm 4 tiêu chí qua Gemini API, `config.json` | ✅ DONE | Antigravity | [phase-02-writing-task2-ai.md](progress/phase-02-writing-task2-ai.md) | `38baa5d` |
 | **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Skill Breakdown 4 tiêu chí Writing & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0`, `8d7d3fa` |
-| **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-04-speaking-practice.md` *(chờ tạo)* | — |
-| **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | ⚪ PLANNED | Claude Code / Codex | `progress/phase-05-inline-and-security.md` *(chờ tạo)* | — |
+| **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | ✅ DONE | Claude Code | [phase-04-speaking-practice.md](progress/phase-04-speaking-practice.md) | `574872a` |
+| **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-05-inline-and-security.md` *(chờ tạo)* | — |
 
 ---
 
