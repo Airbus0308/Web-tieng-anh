@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test tests/smoke.test.js"
+    "test": "node --test tests/smoke.test.js",
+    "import:youtube": "node scripts/import-youtube-listening.js"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",

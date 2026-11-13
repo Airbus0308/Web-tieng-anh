@@ -5,7 +5,10 @@
  *   • 8 Reading questions (passage comprehension, vocabulary, inference)
  *   • 7 Listening questions (note completion, detail recognition, inference)
  * 
- * Each question object follows a consistent schema for easy extensibility.
+ * Supports 3-in-1 Hybrid Listening Audio Modes:
+ *   1. Pre-generated / Curriculum Audio File (`audioUrl`: MP3 extracted from YouTube or Neural TTS)
+ *   2. Direct YouTube Curriculum Stream (`youtubeId` / URL with optional start/end timestamps)
+ *   3. Browser Multi-Voice Speech Synthesis (`dialogue` array with speaker gender assignment)
  */
 
 const QuestionBank = (() => {
@@ -119,9 +122,9 @@ Cities around the world are now implementing innovative strategies to mitigate U
   ];
 
 
-  /* ── Listening Section ──────────────────────────────── */
+  /* ── Listening Section (3-in-1 Hybrid Audio Configuration) ── */
 
-  const listeningScenario = `You will read a transcript of a conversation between a university student (Sarah) and her academic advisor (Dr. Patel) about selecting courses for the upcoming semester. Answer the questions based on the information provided.
+  const listeningScenario = `You will hear a conversation between a university student (Sarah) and her academic advisor (Dr. Patel) about selecting courses for the upcoming semester. Answer the questions based on the information provided.
 
 Dr. Patel: "Good morning, Sarah. I see you're planning your courses for next semester. You need 4 courses to maintain full-time status. Have you decided on your major electives?"
 
@@ -136,6 +139,60 @@ Dr. Patel: "What about Spanish? The intermediate class meets on Tuesday and Thur
 Sarah: "Oh, the evening French class could work! That way I can keep my Friday job. For my fourth course, I'll take the mandatory Statistics 201."
 
 Dr. Patel: "Good choice. Just remember, the registration deadline is November 15th, and you'll need to submit your course plan online through the student portal by then."`;
+
+  const listeningConfig = {
+    title: 'IELTS Listening Section 3 — Academic Course Advising (Sarah & Dr. Patel)',
+    instructions: 'Listen to the conversation between a university student (Sarah) and her academic advisor (Dr. Patel) and answer questions 9–15. Transcript is hidden by default to simulate real exam conditions.',
+    // Mode 1: Local MP3 audio (generated or extracted from YouTube via `npm run import:youtube`)
+    audioUrl: 'assets/audio/placement-listening.mp3',
+    // Mode 2: Optional YouTube video ID & clip boundaries for curriculum tests
+    youtubeId: '',
+    youtubeStart: 0,
+    // Mode 3: Structured dialogue for Browser Multi-Voice Web Speech API
+    dialogue: [
+      {
+        speaker: 'Narrator',
+        gender: 'female',
+        text: 'IELTS Listening Placement Section. You will hear a conversation between a university student, Sarah, and her academic advisor, Doctor Patel, about selecting courses for the upcoming semester.'
+      },
+      {
+        speaker: 'Dr. Patel',
+        gender: 'male',
+        text: 'Good morning, Sarah. I see you are planning your courses for next semester. You need 4 courses to maintain full-time status. Have you decided on your major electives?'
+      },
+      {
+        speaker: 'Sarah',
+        gender: 'female',
+        text: 'Hi, Doctor Patel. Yes, I definitely want to take Environmental Policy on Tuesdays and Thursdays. I am also considering either Data Analytics or Research Methods — both are offered on Mondays and Wednesdays.'
+      },
+      {
+        speaker: 'Dr. Patel',
+        gender: 'male',
+        text: 'I would recommend Data Analytics. It has a stronger practical component, and the professor, Doctor Chen, received excellent student evaluations last year — 4.8 out of 5. Research Methods is more theoretical.'
+      },
+      {
+        speaker: 'Sarah',
+        gender: 'female',
+        text: 'That sounds good. I also need a language requirement. I was thinking about French, but the advanced class conflicts with my part-time job at the campus library on Friday afternoons.'
+      },
+      {
+        speaker: 'Dr. Patel',
+        gender: 'male',
+        text: 'What about Spanish? The intermediate class meets on Tuesday and Thursday mornings, right before your Environmental Policy class. And there is a new evening section of French on Wednesdays from 6 to 8 PM.'
+      },
+      {
+        speaker: 'Sarah',
+        gender: 'female',
+        text: 'Oh, the evening French class could work! That way I can keep my Friday job. For my fourth course, I will take the mandatory Statistics 201.'
+      },
+      {
+        speaker: 'Dr. Patel',
+        gender: 'male',
+        text: 'Good choice. Just remember, the registration deadline is November 15th, and you will need to submit your course plan online through the student portal by then.'
+      }
+    ],
+    transcript: listeningScenario
+  };
 
   const listeningQuestions = [
     {
@@ -229,6 +286,7 @@ Dr. Patel: "Good choice. Just remember, the registration deadline is November 15
   return {
     getReadingPassage: () => readingPassage,
     getListeningScenario: () => listeningScenario,
+    getListeningConfig: () => ({ ...listeningConfig }),
     getReadingQuestions: () => [...readingQuestions],
     getListeningQuestions: () => [...listeningQuestions],
     getAllQuestions: () => [...readingQuestions, ...listeningQuestions],

@@ -2,6 +2,7 @@
  * IELTS Placement Test — UI Rendering Module
  * 
  * Handles all DOM manipulation, rendering questions,
+ * 3-in-1 Adaptive Listening Audio Player (MP3 + Web Speech + YouTube),
  * collecting answers, and displaying results.
  */
 
@@ -9,15 +10,29 @@ const UI = (() => {
 
   let _startTime = null;
   let _timerInterval = null;
+  let _audioEl = null;
+  let _ttsActive = false;
+  let _ttsLineIndex = 0;
 
   /* ── Helpers ────────────────────────────────────────── */
 
   function _el(id) { return document.getElementById(id); }
 
   function _formatTime(seconds) {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
+    const sec = Math.max(0, Math.floor(Number(seconds) || 0));
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  }
+
+  function _stopAllAudio() {
+    if (_audioEl) {
+      _audioEl.pause();
+    }
+    _ttsActive = false;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
   }
 
   /* ── Timer ──────────────────────────────────────────── */
@@ -33,14 +48,23 @@ const UI = (() => {
 
   function stopTimer() {
     clearInterval(_timerInterval);
+    _stopAllAudio();
     return Math.floor((Date.now() - _startTime) / 1000);
   }
 
   /* ── Render the Test ────────────────────────────────── */
 
   function renderTest() {
+    _stopAllAudio();
     const readingPassage = QuestionBank.getReadingPassage();
     const listeningScenario = QuestionBank.getListeningScenario();
+    const listeningConfig = QuestionBank.getListeningConfig ? QuestionBank.getListeningConfig() : {
+      title: 'IELTS Listening Section',
+      audioUrl: 'assets/audio/placement-listening.mp3',
+      youtubeId: '',
+      dialogue: [],
+      transcript: listeningScenario
+    };
     const readingQuestions = QuestionBank.getReadingQuestions();
     const listeningQuestions = QuestionBank.getListeningQuestions();
 
@@ -76,7 +100,7 @@ const UI = (() => {
       readingList.appendChild(_createQuestionCard(q, i + 1));
     });
 
-    // ─── Listening Section ───
+    // ─── Listening Section (3-in-1 Real Audio Player) ───
     const listeningSection = document.createElement('section');
     listeningSection.className = 'test-section';
     listeningSection.innerHTML = `
@@ -89,19 +113,106 @@ const UI = (() => {
         </div>
         <div>
           <h2 class="section-title">Listening Comprehension</h2>
-          <p class="section-subtitle">${listeningQuestions.length} questions · Read the transcript and answer</p>
+          <p class="section-subtitle">${listeningQuestions.length} questions · Listen to the audio recording and answer Q${readingQuestions.length + 1}–Q${readingQuestions.length + listeningQuestions.length}</p>
         </div>
       </div>
-      <div class="passage-card listening-card">
-        <div class="passage-label">Audio Transcript</div>
-        <div class="passage-text transcript-text">${listeningScenario.split('\n\n').map(p => {
-          // Highlight speaker names
-          return `<p>${p.replace(/(Dr\. Patel|Sarah):/g, '<strong class="speaker">$1:</strong>')}</p>`;
-        }).join('')}</div>
+
+      <div class="passage-card listening-card" id="listening-player-card">
+        <div class="listening-top-bar">
+          <div class="passage-label">IELTS Listening Audio Player</div>
+          <div class="audio-mode-tabs" role="tablist" aria-label="Audio Source Mode">
+            <button type="button" class="audio-mode-tab active" data-mode="mp3" onclick="UI.switchAudioMode('mp3')">
+              1. Studio MP3
+            </button>
+            <button type="button" class="audio-mode-tab" data-mode="tts" onclick="UI.switchAudioMode('tts')">
+              2. AI Multi-Voice
+            </button>
+            <button type="button" class="audio-mode-tab" data-mode="youtube" onclick="UI.switchAudioMode('youtube')">
+              3. YouTube Curriculum
+            </button>
+          </div>
+        </div>
+
+        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between Sarah and Dr. Patel. Answer the questions while listening.'}</p>
+
+        <!-- Mode 1: Studio MP3 Audio Player -->
+        <div class="audio-mode-panel" id="audio-panel-mp3">
+          <audio id="ielts-audio-element" preload="metadata" src="${listeningConfig.audioUrl || 'assets/audio/placement-listening.mp3'}"></audio>
+          <div class="custom-audio-box">
+            <button type="button" class="audio-play-btn" id="audio-play-btn" onclick="UI.toggleMp3Playback()" aria-label="Play or Pause Listening Audio">
+              <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+
+            <div class="audio-Timeline-wrap">
+              <div class="audio-title-row">
+                <span class="audio-track-title" id="audio-status-label">${listeningConfig.title}</span>
+                <span class="audio-time-badge"><span id="audio-current-time">00:00</span> / <span id="audio-duration">01:15</span></span>
+              </div>
+              <input type="range" id="audio-seek-bar" class="audio-seek-slider" min="0" max="100" value="0" step="0.1" aria-label="Seek audio timeline">
+            </div>
+
+            <select id="audio-speed-select" class="audio-speed-select" onchange="UI.changeAudioSpeed(this.value)" aria-label="Playback Speed">
+              <option value="0.85">0.85x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.15">1.15x</option>
+              <option value="1.25">1.25x</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Mode 2: Browser Multi-Voice Web Speech Synthesis -->
+        <div class="audio-mode-panel" id="audio-panel-tts" hidden>
+          <div class="custom-audio-box">
+            <button type="button" class="audio-play-btn" id="tts-play-btn" onclick="UI.toggleTtsPlayback()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            </button>
+            <div class="audio-Timeline-wrap">
+              <div class="audio-title-row">
+                <span class="audio-track-title" id="tts-speaker-status">Browser Multi-Voice Dialogue (Dr. Patel & Sarah)</span>
+                <span class="audio-time-badge" id="tts-turn-counter">Turn 0 / ${(listeningConfig.dialogue || []).length}</span>
+              </div>
+              <div class="tts-progress-track">
+                <div class="tts-progress-fill" id="tts-progress-fill" style="width: 0%"></div>
+              </div>
+            </div>
+            <button type="button" class="btn-transcript-toggle" onclick="UI.stopTtsPlayback()">Reset</button>
+          </div>
+        </div>
+
+        <!-- Mode 3: YouTube Curriculum Audio Stream / Importer -->
+        <div class="audio-mode-panel" id="audio-panel-youtube" hidden>
+          <div class="youtube-loader-row">
+            <input type="text" id="youtube-url-input" class="youtube-url-input"
+                   placeholder="Paste any YouTube IELTS Listening URL or Video ID (e.g. https://youtu.be/...)"
+                   value="${listeningConfig.youtubeId || ''}">
+            <button type="button" class="btn-load-youtube" onclick="UI.loadYoutubeStream()">Load YouTube Audio</button>
+          </div>
+          <div id="youtube-embed-container" class="youtube-embed-container">
+            <p class="youtube-hint">Tip: You can stream any Cambridge IELTS Listening video here, or extract its MP3 offline via <code>npm run import:youtube -- "&lt;URL&gt;"</code>.</p>
+          </div>
+        </div>
+
+        <!-- Exam Mode Notice & Collapsible Transcript -->
+        <div class="transcript-control-bar">
+          <span class="exam-mode-indicator">🎧 Real Listening Mode — Transcript is hidden while testing</span>
+          <button type="button" class="btn-transcript-toggle" id="btn-toggle-transcript" onclick="UI.toggleTranscript()">
+            👁️ Show Transcript (Practice Mode)
+          </button>
+        </div>
+
+        <div class="passage-text transcript-text" id="listening-transcript-box" hidden>
+          ${listeningScenario.split('\n\n').map(p => {
+            return `<p>${p.replace(/(Dr\. Patel|Sarah):/g, '<strong class="speaker">$1:</strong>')}</p>`;
+          }).join('')}
+        </div>
       </div>
+
       <div class="questions-list" id="listening-questions"></div>
     `;
     container.appendChild(listeningSection);
+
+    _bindMp3Events();
 
     const listeningList = listeningSection.querySelector('#listening-questions');
     listeningQuestions.forEach((q, i) => {
@@ -132,6 +243,212 @@ const UI = (() => {
 
     // Update progress
     _updateProgress();
+  }
+
+  /* ── 3-in-1 Audio Player Controllers ────────────────── */
+
+  function _bindMp3Events() {
+    _audioEl = _el('ielts-audio-element');
+    if (!_audioEl) return;
+
+    const seekBar = _el('audio-seek-bar');
+    const curTimeEl = _el('audio-current-time');
+    const durEl = _el('audio-duration');
+    const playIcon = _el('icon-play');
+    const pauseIcon = _el('icon-pause');
+    const statusLabel = _el('audio-status-label');
+
+    _audioEl.addEventListener('loadedmetadata', () => {
+      if (_audioEl.duration && isFinite(_audioEl.duration)) {
+        durEl.textContent = _formatTime(_audioEl.duration);
+      }
+    });
+
+    _audioEl.addEventListener('timeupdate', () => {
+      if (!_audioEl.duration) return;
+      const pct = (_audioEl.currentTime / _audioEl.duration) * 100;
+      if (seekBar) seekBar.value = pct;
+      if (curTimeEl) curTimeEl.textContent = _formatTime(_audioEl.currentTime);
+    });
+
+    _audioEl.addEventListener('play', () => {
+      if (playIcon) playIcon.style.display = 'none';
+      if (pauseIcon) pauseIcon.style.display = 'block';
+    });
+
+    _audioEl.addEventListener('pause', () => {
+      if (playIcon) playIcon.style.display = 'block';
+      if (pauseIcon) pauseIcon.style.display = 'none';
+    });
+
+    _audioEl.addEventListener('ended', () => {
+      if (playIcon) playIcon.style.display = 'block';
+      if (pauseIcon) pauseIcon.style.display = 'none';
+      if (statusLabel) statusLabel.textContent = 'Audio playback completed — You may replay or answer questions below';
+    });
+
+    // Automatic fallback to Mode 2 (Web Speech TTS) if the MP3 file is missing
+    _audioEl.addEventListener('error', () => {
+      showToast('MP3 file unavailable — automatically switching to Multi-Voice AI Reader.', 'info');
+      switchAudioMode('tts');
+    });
+
+    if (seekBar) {
+      seekBar.addEventListener('input', () => {
+        if (_audioEl && _audioEl.duration) {
+          _audioEl.currentTime = (Number(seekBar.value) / 100) * _audioEl.duration;
+        }
+      });
+    }
+  }
+
+  function switchAudioMode(mode) {
+    _stopAllAudio();
+    document.querySelectorAll('.audio-mode-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+    });
+    ['mp3', 'tts', 'youtube'].forEach(key => {
+      const panel = _el(`audio-panel-${key}`);
+      if (panel) panel.hidden = key !== mode;
+    });
+  }
+
+  function toggleMp3Playback() {
+    if (!_audioEl) _audioEl = _el('ielts-audio-element');
+    if (!_audioEl) return;
+    if (_audioEl.paused) {
+      _audioEl.play().catch(() => {
+        showToast('Switching to Browser Multi-Voice reader.', 'info');
+        switchAudioMode('tts');
+        toggleTtsPlayback();
+      });
+    } else {
+      _audioEl.pause();
+    }
+  }
+
+  function changeAudioSpeed(rate) {
+    if (_audioEl) {
+      _audioEl.playbackRate = parseFloat(rate) || 1.0;
+    }
+  }
+
+  function toggleTtsPlayback() {
+    if (!('speechSynthesis' in window)) {
+      showToast('Your browser does not support Web Speech synthesis.', 'warning');
+      return;
+    }
+    if (_ttsActive) {
+      stopTtsPlayback();
+      return;
+    }
+
+    const config = QuestionBank.getListeningConfig ? QuestionBank.getListeningConfig() : { dialogue: [] };
+    const dialogue = config.dialogue || [];
+    if (!dialogue.length) return;
+
+    _ttsActive = true;
+    _ttsLineIndex = 0;
+    window.speechSynthesis.cancel();
+
+    const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+    const maleVoice = voices.find(v => /david|mark|daniel|george|guy|ryan|male/i.test(v.name)) || voices[0];
+    const femaleVoice = voices.find(v => /zira|hazel|susan|samantha|jenny|aria|female/i.test(v.name)) || voices[1] || voices[0];
+
+    const speakNext = () => {
+      if (!_ttsActive || _ttsLineIndex >= dialogue.length) {
+        _ttsActive = false;
+        const statusEl = _el('tts-speaker-status');
+        if (statusEl) statusEl.textContent = 'Dialogue finished — Answer questions below';
+        return;
+      }
+
+      const item = dialogue[_ttsLineIndex];
+      const statusEl = _el('tts-speaker-status');
+      const counterEl = _el('tts-turn-counter');
+      const fillEl = _el('tts-progress-fill');
+
+      if (statusEl) statusEl.textContent = `Speaking: ${item.speaker}`;
+      if (counterEl) counterEl.textContent = `Turn ${_ttsLineIndex + 1} / ${dialogue.length}`;
+      if (fillEl) fillEl.style.width = `${Math.round(((_ttsLineIndex + 1) / dialogue.length) * 100)}%`;
+
+      const utter = new SpeechSynthesisUtterance(item.text);
+      utter.lang = 'en-US';
+      if (item.gender === 'male' && maleVoice) {
+        utter.voice = maleVoice;
+        utter.pitch = 0.92;
+      } else if (femaleVoice) {
+        utter.voice = femaleVoice;
+        utter.pitch = 1.08;
+      }
+      utter.rate = 0.96;
+
+      utter.onend = () => {
+        _ttsLineIndex++;
+        if (_ttsActive) setTimeout(speakNext, 450);
+      };
+      utter.onerror = () => { _ttsActive = false; };
+      window.speechSynthesis.speak(utter);
+    };
+
+    speakNext();
+  }
+
+  function stopTtsPlayback() {
+    _ttsActive = false;
+    _ttsLineIndex = 0;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    const statusEl = _el('tts-speaker-status');
+    const counterEl = _el('tts-turn-counter');
+    const fillEl = _el('tts-progress-fill');
+    if (statusEl) statusEl.textContent = 'Browser Multi-Voice Dialogue (Dr. Patel & Sarah)';
+    if (counterEl) counterEl.textContent = 'Reset';
+    if (fillEl) fillEl.style.width = '0%';
+  }
+
+  function loadYoutubeStream() {
+    const input = _el('youtube-url-input');
+    const container = _el('youtube-embed-container');
+    if (!input || !container) return;
+
+    const raw = input.value.trim();
+    if (!raw) {
+      showToast('Please enter a YouTube URL or 11-character Video ID.', 'warning');
+      return;
+    }
+
+    // Extract 11-char video ID from standard YouTube URLs or raw ID
+    const match = raw.match(/(?:v=|youtu\.be\/|embed\/|^)([A-Za-z0-9_-]{11})/);
+    if (!match) {
+      showToast('Invalid YouTube URL or Video ID.', 'warning');
+      return;
+    }
+
+    const videoId = match[1];
+    container.innerHTML = `
+      <div class="youtube-audio-frame-wrap">
+        <iframe
+          width="100%"
+          height="190"
+          src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0"
+          title="IELTS YouTube Curriculum Audio"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+    `;
+    showToast('Loaded YouTube IELTS Listening stream.', 'success');
+  }
+
+  function toggleTranscript() {
+    const box = _el('listening-transcript-box');
+    const btn = _el('btn-toggle-transcript');
+    if (!box || !btn) return;
+    box.hidden = !box.hidden;
+    btn.textContent = box.hidden
+      ? '👁️ Show Transcript (Practice Mode)'
+      : '🙈 Hide Transcript (Exam Mode)';
   }
 
   /* ── Create a single question card ──────────────────── */
@@ -447,7 +764,14 @@ const UI = (() => {
     onAnswerSelect,
     startTimer,
     stopTimer,
-    showToast
+    showToast,
+    switchAudioMode,
+    toggleMp3Playback,
+    changeAudioSpeed,
+    toggleTtsPlayback,
+    stopTtsPlayback,
+    loadYoutubeStream,
+    toggleTranscript
   };
 
 })();
