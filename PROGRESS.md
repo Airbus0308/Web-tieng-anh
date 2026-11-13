@@ -16,7 +16,7 @@
 | **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Skill Breakdown 4 tiêu chí Writing & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0`, `8d7d3fa` |
 | **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | ✅ DONE | Claude Code | [phase-04-speaking-practice.md](progress/phase-04-speaking-practice.md) | `574872a`, `56b9f63` |
 | **Phase 5** | **Inline Essay Correction, Security & 3-Tier AI Engine** — Chữa lỗi trực tiếp + Khóa file nhạy cảm + AI 3 tầng (Gemini Pool → GitHub Models → Pollinations Free AI) | ✅ DONE | Codex & Antigravity | [phase-05-inline-and-security.md](progress/phase-05-inline-and-security.md) | `6940a77`, `0fd6800` |
-| **Phase 6** | **Anti-Copy DRM & Exam Proctoring Security (`js/exam-security.js`)** — Chặn copy đề, chặn paste bài mẫu, chặn phím tắt/chuột phải, cảnh báo chuyển tab & đo tốc độ gõ phím thực tế | 🟡 READY FOR HANDOFF | Codex / Antigravity | `progress/phase-06-exam-security.md` *(chờ tạo)* | — |
+| **Phase 6** | **Anti-Copy DRM & Exam Proctoring Security (`js/exam-security.js`)** — Chặn copy đề, chặn paste bài mẫu, chặn phím tắt/chuột phải, cảnh báo chuyển tab & đo tốc độ gõ phím thực tế | ✅ DONE | Codex | [phase-06-exam-security.md](progress/phase-06-exam-security.md) | `a69b37e` |
 | **Phase 7** | **Astra AI Textbook & Personalized Mastery Hub (`study.html`)** — Kho giáo trình chuẩn + Upload tài liệu/YouTube + Đếm ngược ngày thi + Chuỗi 5 bước học tương tác (0% → 100% Mastery) | 🟡 READY FOR HANDOFF | Claude Code / Antigravity | `progress/phase-07-astra-study-hub.md` *(chờ tạo)* | — |
 
 ---
