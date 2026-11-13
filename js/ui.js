@@ -3,7 +3,7 @@
  * 
  * Handles all DOM manipulation, rendering questions,
  * strict non-rewindable IELTS Listening Audio Player,
- * collecting answers, and displaying results.
+ * collecting answers, and displaying results (including post-test transcript).
  */
 
 const UI = (() => {
@@ -103,7 +103,7 @@ const UI = (() => {
       readingList.appendChild(_createQuestionCard(q, i + 1));
     });
 
-    // ─── Listening Section (Strict Exam Mode: Non-Rewindable Audio) ───
+    // ─── Listening Section (Strict Exam Mode: Non-Rewindable Audio, No Transcript During Test) ───
     const listeningSection = document.createElement('section');
     listeningSection.className = 'test-section';
     listeningSection.innerHTML = `
@@ -125,7 +125,7 @@ const UI = (() => {
           <div class="passage-label">Listening Audio Recording</div>
           <span class="no-rewind-badge">🔒 Exam Mode: No Rewind · 1 Play Only</span>
         </div>
-        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between Sarah and Dr. Patel. Just like in the real IELTS exam, the audio plays forward only and cannot be rewound.'}</p>
+        <p class="listening-instructions">Listen carefully to the conversation between a university student (Sarah) and her academic advisor (Dr. Patel). The audio plays forward only and the transcript will be unlocked after you submit the test.</p>
 
         <audio id="ielts-audio-element" preload="metadata" src="${listeningConfig.audioUrl || 'assets/audio/placement-listening.mp3'}"></audio>
         <div class="custom-audio-box">
@@ -146,20 +146,6 @@ const UI = (() => {
           </div>
 
           <span class="audio-speed-locked" title="Playback speed is locked to 1.0x during the test">1.0x</span>
-        </div>
-
-        <!-- Exam Mode Notice & Collapsible Transcript -->
-        <div class="transcript-control-bar">
-          <span class="exam-mode-indicator">🎧 Real Exam Mode — Rewinding is locked & transcript is hidden</span>
-          <button type="button" class="btn-transcript-toggle" id="btn-toggle-transcript" onclick="UI.toggleTranscript()">
-            👁️ Show Transcript
-          </button>
-        </div>
-
-        <div class="passage-text transcript-text" id="listening-transcript-box" hidden>
-          ${listeningScenario.split('\n\n').map(p => {
-            return `<p>${p.replace(/(Dr\. Patel|Sarah):/g, '<strong class="speaker">$1:</strong>')}</p>`;
-          }).join('')}
         </div>
       </div>
 
@@ -328,16 +314,6 @@ const UI = (() => {
     speakNext();
   }
 
-  function toggleTranscript() {
-    const box = _el('listening-transcript-box');
-    const btn = _el('btn-toggle-transcript');
-    if (!box || !btn) return;
-    box.hidden = !box.hidden;
-    btn.textContent = box.hidden
-      ? '👁️ Show Transcript'
-      : '🙈 Hide Transcript';
-  }
-
   /* ── Create a single question card ──────────────────── */
 
   function _createQuestionCard(question, number) {
@@ -434,13 +410,14 @@ const UI = (() => {
     }
   }
 
-  /* ── Render Results ─────────────────────────────────── */
+  /* ── Render Results (Reveals Listening Transcript) ──── */
 
   function renderResults(result) {
     const container = _el('test-content');
     const s = result.score;
     const rb = result.sectionBreakdown;
     const recommendation = ScoringEngine.getRecommendation(result.estimatedBand);
+    const listeningScenario = QuestionBank.getListeningScenario();
 
     // Band color
     const bandNum = parseFloat(result.estimatedBand);
@@ -544,6 +521,16 @@ const UI = (() => {
           <div>
             <h4 class="rec-title">Study Recommendation</h4>
             <p class="rec-text">${recommendation}</p>
+          </div>
+        </div>
+
+        <!-- Post-Test Unlocked Listening Transcript -->
+        <div class="passage-card listening-card" id="post-test-transcript">
+          <div class="passage-label">Unlocked Audio Transcript (Listening Section)</div>
+          <div class="passage-text transcript-text">
+            ${listeningScenario.split('\n\n').map(p => {
+              return `<p>${p.replace(/(Dr\. Patel|Sarah):/g, '<strong class="speaker">$1:</strong>')}</p>`;
+            }).join('')}
           </div>
         </div>
 
@@ -652,8 +639,7 @@ const UI = (() => {
     startTimer,
     stopTimer,
     showToast,
-    toggleMp3Playback,
-    toggleTranscript
+    toggleMp3Playback
   };
 
 })();
