@@ -2,7 +2,7 @@
  * IELTS Placement Test — UI Rendering Module
  * 
  * Handles all DOM manipulation, rendering questions,
- * 3-in-1 Adaptive Listening Audio Player (MP3 + Web Speech + YouTube),
+ * dedicated IELTS Listening Audio Player (MP3 with silent TTS fallback),
  * collecting answers, and displaying results.
  */
 
@@ -59,9 +59,8 @@ const UI = (() => {
     const readingPassage = QuestionBank.getReadingPassage();
     const listeningScenario = QuestionBank.getListeningScenario();
     const listeningConfig = QuestionBank.getListeningConfig ? QuestionBank.getListeningConfig() : {
-      title: 'IELTS Listening Section',
+      title: 'IELTS Listening Section 3 — Academic Course Advising (Sarah & Dr. Patel)',
       audioUrl: 'assets/audio/placement-listening.mp3',
-      youtubeId: '',
       dialogue: [],
       transcript: listeningScenario
     };
@@ -100,7 +99,7 @@ const UI = (() => {
       readingList.appendChild(_createQuestionCard(q, i + 1));
     });
 
-    // ─── Listening Section (3-in-1 Real Audio Player) ───
+    // ─── Listening Section (Option 1: Dedicated MP3 Audio Player) ───
     const listeningSection = document.createElement('section');
     listeningSection.className = 'test-section';
     listeningSection.innerHTML = `
@@ -118,86 +117,37 @@ const UI = (() => {
       </div>
 
       <div class="passage-card listening-card" id="listening-player-card">
-        <div class="listening-top-bar">
-          <div class="passage-label">IELTS Listening Audio Player</div>
-          <div class="audio-mode-tabs" role="tablist" aria-label="Audio Source Mode">
-            <button type="button" class="audio-mode-tab active" data-mode="mp3" onclick="UI.switchAudioMode('mp3')">
-              1. Studio MP3
-            </button>
-            <button type="button" class="audio-mode-tab" data-mode="tts" onclick="UI.switchAudioMode('tts')">
-              2. AI Multi-Voice
-            </button>
-            <button type="button" class="audio-mode-tab" data-mode="youtube" onclick="UI.switchAudioMode('youtube')">
-              3. YouTube Curriculum
-            </button>
-          </div>
-        </div>
+        <div class="passage-label">Listening Audio Recording</div>
+        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between a university student (Sarah) and her academic advisor (Dr. Patel), then answer the questions below.'}</p>
 
-        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between Sarah and Dr. Patel. Answer the questions while listening.'}</p>
+        <audio id="ielts-audio-element" preload="metadata" src="${listeningConfig.audioUrl || 'assets/audio/placement-listening.mp3'}"></audio>
+        <div class="custom-audio-box">
+          <button type="button" class="audio-play-btn" id="audio-play-btn" onclick="UI.toggleMp3Playback()" aria-label="Play or Pause Listening Audio">
+            <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
 
-        <!-- Mode 1: Studio MP3 Audio Player -->
-        <div class="audio-mode-panel" id="audio-panel-mp3">
-          <audio id="ielts-audio-element" preload="metadata" src="${listeningConfig.audioUrl || 'assets/audio/placement-listening.mp3'}"></audio>
-          <div class="custom-audio-box">
-            <button type="button" class="audio-play-btn" id="audio-play-btn" onclick="UI.toggleMp3Playback()" aria-label="Play or Pause Listening Audio">
-              <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-              <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            </button>
-
-            <div class="audio-Timeline-wrap">
-              <div class="audio-title-row">
-                <span class="audio-track-title" id="audio-status-label">${listeningConfig.title}</span>
-                <span class="audio-time-badge"><span id="audio-current-time">00:00</span> / <span id="audio-duration">01:15</span></span>
-              </div>
-              <input type="range" id="audio-seek-bar" class="audio-seek-slider" min="0" max="100" value="0" step="0.1" aria-label="Seek audio timeline">
+          <div class="audio-Timeline-wrap">
+            <div class="audio-title-row">
+              <span class="audio-track-title" id="audio-status-label">${listeningConfig.title}</span>
+              <span class="audio-time-badge"><span id="audio-current-time">00:00</span> / <span id="audio-duration">01:15</span></span>
             </div>
+            <input type="range" id="audio-seek-bar" class="audio-seek-slider" min="0" max="100" value="0" step="0.1" aria-label="Seek audio timeline">
+          </div>
 
-            <select id="audio-speed-select" class="audio-speed-select" onchange="UI.changeAudioSpeed(this.value)" aria-label="Playback Speed">
-              <option value="0.85">0.85x</option>
-              <option value="1" selected>1.0x</option>
-              <option value="1.15">1.15x</option>
-              <option value="1.25">1.25x</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Mode 2: Browser Multi-Voice Web Speech Synthesis -->
-        <div class="audio-mode-panel" id="audio-panel-tts" hidden>
-          <div class="custom-audio-box">
-            <button type="button" class="audio-play-btn" id="tts-play-btn" onclick="UI.toggleTtsPlayback()">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-            </button>
-            <div class="audio-Timeline-wrap">
-              <div class="audio-title-row">
-                <span class="audio-track-title" id="tts-speaker-status">Browser Multi-Voice Dialogue (Dr. Patel & Sarah)</span>
-                <span class="audio-time-badge" id="tts-turn-counter">Turn 0 / ${(listeningConfig.dialogue || []).length}</span>
-              </div>
-              <div class="tts-progress-track">
-                <div class="tts-progress-fill" id="tts-progress-fill" style="width: 0%"></div>
-              </div>
-            </div>
-            <button type="button" class="btn-transcript-toggle" onclick="UI.stopTtsPlayback()">Reset</button>
-          </div>
-        </div>
-
-        <!-- Mode 3: YouTube Curriculum Audio Stream / Importer -->
-        <div class="audio-mode-panel" id="audio-panel-youtube" hidden>
-          <div class="youtube-loader-row">
-            <input type="text" id="youtube-url-input" class="youtube-url-input"
-                   placeholder="Paste any YouTube IELTS Listening URL or Video ID (e.g. https://youtu.be/...)"
-                   value="${listeningConfig.youtubeId || ''}">
-            <button type="button" class="btn-load-youtube" onclick="UI.loadYoutubeStream()">Load YouTube Audio</button>
-          </div>
-          <div id="youtube-embed-container" class="youtube-embed-container">
-            <p class="youtube-hint">Tip: You can stream any Cambridge IELTS Listening video here, or extract its MP3 offline via <code>npm run import:youtube -- "&lt;URL&gt;"</code>.</p>
-          </div>
+          <select id="audio-speed-select" class="audio-speed-select" onchange="UI.changeAudioSpeed(this.value)" aria-label="Playback Speed">
+            <option value="0.85">0.85x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.15">1.15x</option>
+            <option value="1.25">1.25x</option>
+          </select>
         </div>
 
         <!-- Exam Mode Notice & Collapsible Transcript -->
         <div class="transcript-control-bar">
-          <span class="exam-mode-indicator">🎧 Real Listening Mode — Transcript is hidden while testing</span>
+          <span class="exam-mode-indicator">🎧 Real Exam Mode — Transcript is hidden during listening</span>
           <button type="button" class="btn-transcript-toggle" id="btn-toggle-transcript" onclick="UI.toggleTranscript()">
-            👁️ Show Transcript (Practice Mode)
+            👁️ Show Transcript
           </button>
         </div>
 
@@ -245,7 +195,7 @@ const UI = (() => {
     _updateProgress();
   }
 
-  /* ── 3-in-1 Audio Player Controllers ────────────────── */
+  /* ── Dedicated Audio Player Controllers ─────────────── */
 
   function _bindMp3Events() {
     _audioEl = _el('ielts-audio-element');
@@ -287,12 +237,6 @@ const UI = (() => {
       if (statusLabel) statusLabel.textContent = 'Audio playback completed — You may replay or answer questions below';
     });
 
-    // Automatic fallback to Mode 2 (Web Speech TTS) if the MP3 file is missing
-    _audioEl.addEventListener('error', () => {
-      showToast('MP3 file unavailable — automatically switching to Multi-Voice AI Reader.', 'info');
-      switchAudioMode('tts');
-    });
-
     if (seekBar) {
       seekBar.addEventListener('input', () => {
         if (_audioEl && _audioEl.duration) {
@@ -302,25 +246,13 @@ const UI = (() => {
     }
   }
 
-  function switchAudioMode(mode) {
-    _stopAllAudio();
-    document.querySelectorAll('.audio-mode-tab').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
-    });
-    ['mp3', 'tts', 'youtube'].forEach(key => {
-      const panel = _el(`audio-panel-${key}`);
-      if (panel) panel.hidden = key !== mode;
-    });
-  }
-
   function toggleMp3Playback() {
     if (!_audioEl) _audioEl = _el('ielts-audio-element');
     if (!_audioEl) return;
     if (_audioEl.paused) {
       _audioEl.play().catch(() => {
-        showToast('Switching to Browser Multi-Voice reader.', 'info');
-        switchAudioMode('tts');
-        toggleTtsPlayback();
+        // Silent fallback to Web Speech synthesis only if MP3 cannot be played
+        _fallbackTtsPlayback();
       });
     } else {
       _audioEl.pause();
@@ -333,16 +265,13 @@ const UI = (() => {
     }
   }
 
-  function toggleTtsPlayback() {
-    if (!('speechSynthesis' in window)) {
-      showToast('Your browser does not support Web Speech synthesis.', 'warning');
-      return;
-    }
+  function _fallbackTtsPlayback() {
+    if (!('speechSynthesis' in window)) return;
     if (_ttsActive) {
-      stopTtsPlayback();
+      _ttsActive = false;
+      window.speechSynthesis.cancel();
       return;
     }
-
     const config = QuestionBank.getListeningConfig ? QuestionBank.getListeningConfig() : { dialogue: [] };
     const dialogue = config.dialogue || [];
     if (!dialogue.length) return;
@@ -358,87 +287,20 @@ const UI = (() => {
     const speakNext = () => {
       if (!_ttsActive || _ttsLineIndex >= dialogue.length) {
         _ttsActive = false;
-        const statusEl = _el('tts-speaker-status');
-        if (statusEl) statusEl.textContent = 'Dialogue finished — Answer questions below';
         return;
       }
-
       const item = dialogue[_ttsLineIndex];
-      const statusEl = _el('tts-speaker-status');
-      const counterEl = _el('tts-turn-counter');
-      const fillEl = _el('tts-progress-fill');
-
-      if (statusEl) statusEl.textContent = `Speaking: ${item.speaker}`;
-      if (counterEl) counterEl.textContent = `Turn ${_ttsLineIndex + 1} / ${dialogue.length}`;
-      if (fillEl) fillEl.style.width = `${Math.round(((_ttsLineIndex + 1) / dialogue.length) * 100)}%`;
-
       const utter = new SpeechSynthesisUtterance(item.text);
       utter.lang = 'en-US';
-      if (item.gender === 'male' && maleVoice) {
-        utter.voice = maleVoice;
-        utter.pitch = 0.92;
-      } else if (femaleVoice) {
-        utter.voice = femaleVoice;
-        utter.pitch = 1.08;
-      }
-      utter.rate = 0.96;
-
+      if (item.gender === 'male' && maleVoice) utter.voice = maleVoice;
+      else if (femaleVoice) utter.voice = femaleVoice;
       utter.onend = () => {
         _ttsLineIndex++;
         if (_ttsActive) setTimeout(speakNext, 450);
       };
-      utter.onerror = () => { _ttsActive = false; };
       window.speechSynthesis.speak(utter);
     };
-
     speakNext();
-  }
-
-  function stopTtsPlayback() {
-    _ttsActive = false;
-    _ttsLineIndex = 0;
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    const statusEl = _el('tts-speaker-status');
-    const counterEl = _el('tts-turn-counter');
-    const fillEl = _el('tts-progress-fill');
-    if (statusEl) statusEl.textContent = 'Browser Multi-Voice Dialogue (Dr. Patel & Sarah)';
-    if (counterEl) counterEl.textContent = 'Reset';
-    if (fillEl) fillEl.style.width = '0%';
-  }
-
-  function loadYoutubeStream() {
-    const input = _el('youtube-url-input');
-    const container = _el('youtube-embed-container');
-    if (!input || !container) return;
-
-    const raw = input.value.trim();
-    if (!raw) {
-      showToast('Please enter a YouTube URL or 11-character Video ID.', 'warning');
-      return;
-    }
-
-    // Extract 11-char video ID from standard YouTube URLs or raw ID
-    const match = raw.match(/(?:v=|youtu\.be\/|embed\/|^)([A-Za-z0-9_-]{11})/);
-    if (!match) {
-      showToast('Invalid YouTube URL or Video ID.', 'warning');
-      return;
-    }
-
-    const videoId = match[1];
-    container.innerHTML = `
-      <div class="youtube-audio-frame-wrap">
-        <iframe
-          width="100%"
-          height="190"
-          src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0"
-          title="IELTS YouTube Curriculum Audio"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen>
-        </iframe>
-      </div>
-    `;
-    showToast('Loaded YouTube IELTS Listening stream.', 'success');
   }
 
   function toggleTranscript() {
@@ -447,8 +309,8 @@ const UI = (() => {
     if (!box || !btn) return;
     box.hidden = !box.hidden;
     btn.textContent = box.hidden
-      ? '👁️ Show Transcript (Practice Mode)'
-      : '🙈 Hide Transcript (Exam Mode)';
+      ? '👁️ Show Transcript'
+      : '🙈 Hide Transcript';
   }
 
   /* ── Create a single question card ──────────────────── */
@@ -765,12 +627,8 @@ const UI = (() => {
     startTimer,
     stopTimer,
     showToast,
-    switchAudioMode,
     toggleMp3Playback,
     changeAudioSpeed,
-    toggleTtsPlayback,
-    stopTtsPlayback,
-    loadYoutubeStream,
     toggleTranscript
   };
 

@@ -55,7 +55,7 @@ const App = (() => {
             </div>
             <div>
               <strong>7 Listening Questions</strong>
-              <span>Transcript analysis & detail recognition</span>
+              <span>Audio conversation & detail recognition</span>
             </div>
           </div>
           <div class="intro-feature">
