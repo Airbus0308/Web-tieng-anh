@@ -11,7 +11,13 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import app from '../server.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const testResultsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ielts-master-test-'));
+process.env.IELTS_RESULTS_DIR = testResultsDir;
+const { default: app } = await import('../server.js');
 
 let server;
 let BASE;
@@ -24,13 +30,16 @@ before(async () => {
   BASE = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(() => server?.close());
+after(async () => {
+  await new Promise(resolve => server?.close(resolve));
+  fs.rmSync(testResultsDir, { recursive: true, force: true });
+});
 
 const sampleEssay = (words) =>
   Array.from({ length: words }, (_, i) => (i % 12 === 11 ? 'technology.' : 'education')).join(' ');
 
-test('serves writing.html and index.html', async () => {
-  for (const page of ['/writing.html', '/index.html']) {
+test('serves all application pages', async () => {
+  for (const page of ['/writing.html', '/index.html', '/analytics.html']) {
     const res = await fetch(BASE + page);
     assert.equal(res.status, 200, page);
   }
@@ -42,6 +51,7 @@ test('config.json contains the 4 IELTS criteria', async () => {
   const abbrs = Object.values(cfg.scoringCriteria).map(c => c.abbreviation).sort();
   assert.deepEqual(abbrs, ['CC', 'GRA', 'LR', 'TR']);
   assert.ok(cfg.systemInstruction && cfg.responseFormat && cfg.model);
+  assert.ok(cfg.analyticsRoadmapPrompt);
 });
 
 test('GET /api/writing/config returns topics and criteria', async () => {
@@ -53,6 +63,36 @@ test('GET /api/writing/config returns topics and criteria', async () => {
 test('GET /api/writing/history returns an array', async () => {
   const data = await (await fetch(`${BASE}/api/writing/history`)).json();
   assert.ok(Array.isArray(data));
+});
+
+test('POST /api/placement/results saves and de-duplicates a valid result', async () => {
+  const result = {
+    id: 'attempt_smoke_test', timestamp: '2026-01-01T00:00:00.000Z', answers: { r1: 0 },
+    score: { correct: 1, total: 2, percentage: 50 }, estimatedBand: '5.0',
+    sectionBreakdown: { reading: { percentage: 50 }, listening: { percentage: 50 } },
+    weakAreas: [{ questionId: 'r2', section: 'reading', difficulty: 'B1' }]
+  };
+  const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
+  assert.equal((await fetch(`${BASE}/api/placement/results`, options)).status, 201);
+  assert.equal((await fetch(`${BASE}/api/placement/results`, options)).status, 200);
+
+  const history = await (await fetch(`${BASE}/api/placement/history`)).json();
+  assert.equal(history.length, 1);
+  assert.equal(history[0].id, result.id);
+});
+
+test('POST /api/placement/results rejects incomplete data', async () => {
+  const res = await fetch(`${BASE}/api/placement/results`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estimatedBand: '5.0' })
+  });
+  assert.equal(res.status, 400);
+});
+
+test('POST /api/analytics/roadmap validates weak areas before calling Gemini', async () => {
+  const res = await fetch(`${BASE}/api/analytics/roadmap`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weakAreas: [] })
+  });
+  assert.equal(res.status, 400);
 });
 
 test('POST /api/writing/score rejects an empty essay', async () => {

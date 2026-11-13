@@ -14,6 +14,9 @@ const App = (() => {
   function init() {
     console.log('[App] IELTS Placement Test initialized.');
     _showIntro();
+    MockDatabase.syncWithServer().then(() => {
+      if (_currentState === 'intro') _showIntro();
+    });
   }
 
   /* ── Show Intro Screen ──────────────────────────────── */

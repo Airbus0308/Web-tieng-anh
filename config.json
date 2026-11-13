@@ -59,5 +59,7 @@
   "wordCountRequirements": {
     "min": 250,
     "recommended": 280
-  }
+  },
+
+  "analyticsRoadmapPrompt": "You are an expert IELTS learning coach. Create a practical, personalized 4-week study roadmap based on the learner summary and weak areas supplied below. Prioritize the weakest CEFR levels and skills. Return ONLY valid JSON using this schema: { \"overview\": \"short encouraging assessment\", \"targetBand\": number, \"weeks\": [{ \"week\": number, \"focus\": \"main focus\", \"activities\": [\"specific activity\"], \"milestone\": \"measurable outcome\" }], \"dailyMinutes\": number, \"successMetrics\": [\"measurable metric\"] }. Include exactly 4 weeks and keep every activity concrete and achievable."
 }

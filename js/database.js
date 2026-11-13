@@ -1,5 +1,5 @@
 /**
- * IELTS Placement Test — Mock Database Module
+ * IELTS Placement Test — Offline-first Database Module
  * 
  * Simulates a persistent data store using localStorage.
  * Stores test attempts, user scores, and analytics-ready data.
@@ -73,6 +73,10 @@ const MockDatabase = (() => {
       all.push(record);
       _saveAll(all);
 
+      // Local storage is the source of immediate UI feedback. Server sync runs
+      // in the background and can safely fail when the learner is offline.
+      _syncRecord(record);
+
       console.log('[MockDB] Result saved:', record.id);
       return record;
     },
@@ -116,7 +120,46 @@ const MockDatabase = (() => {
      */
     exportJSON() {
       return JSON.stringify(_getAll(), null, 2);
+    },
+
+    /** Merge server history into localStorage and upload any local-only records. */
+    async syncWithServer() {
+      try {
+        const response = await fetch('/api/placement/history');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const serverRecords = await response.json();
+        const localRecords = _getAll();
+        const merged = new Map();
+        [...serverRecords, ...localRecords].forEach(record => {
+          if (record?.id) merged.set(record.id, record);
+        });
+        const records = [...merged.values()].sort((a, b) =>
+          new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+        _saveAll(records);
+
+        const serverIds = new Set(serverRecords.map(record => record.id));
+        await Promise.all(localRecords.filter(record => !serverIds.has(record.id)).map(_syncRecord));
+        return records;
+      } catch (error) {
+        console.warn('[PlacementDB] Server unavailable; using localStorage.', error.message);
+        return _getAll();
+      }
     }
   };
+
+  async function _syncRecord(record) {
+    try {
+      const response = await fetch('/api/placement/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.warn('[PlacementDB] Result queued locally for later sync.', error.message);
+      return null;
+    }
+  }
 
 })();

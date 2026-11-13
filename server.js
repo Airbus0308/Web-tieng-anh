@@ -28,8 +28,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Results storage paths
-const resultsDir = path.join(__dirname, 'results');
+const resultsDir = process.env.IELTS_RESULTS_DIR || path.join(__dirname, 'results');
 const resultsFile = path.join(resultsDir, 'writing_results.json');
+const placementResultsFile = path.join(resultsDir, 'placement_results.json');
 
 // Ensure results directory exists
 if (!fs.existsSync(resultsDir)) {
@@ -56,6 +57,26 @@ app.use(express.static(__dirname));
 function countWords(text) {
   if (!text || typeof text !== 'string') return 0;
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function readJsonArray(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const content = fs.readFileSync(filePath, 'utf-8');
+  if (!content.trim()) return [];
+  const parsed = JSON.parse(content);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function writeJsonArray(filePath, records) {
+  fs.writeFileSync(filePath, JSON.stringify(records, null, 2), 'utf-8');
+}
+
+function parseGeminiJson(response) {
+  let rawText = (response.text || '').trim();
+  if (rawText.startsWith('```json')) rawText = rawText.slice(7);
+  else if (rawText.startsWith('```')) rawText = rawText.slice(3);
+  if (rawText.endsWith('```')) rawText = rawText.slice(0, -3);
+  return JSON.parse(rawText.trim());
 }
 
 /**
@@ -134,6 +155,72 @@ app.get('/api/writing/config', (req, res) => {
       weight: c.weight
     }))
   });
+});
+
+/** Save a Placement Test attempt, de-duplicated by its client-generated id. */
+app.post('/api/placement/results', (req, res) => {
+  try {
+    const result = req.body;
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      return res.status(400).json({ error: 'A placement result object is required.' });
+    }
+    if (!result.score || !Number.isFinite(Number(result.score.total)) ||
+        !Number.isFinite(Number(result.score.correct)) || result.estimatedBand == null) {
+      return res.status(400).json({ error: 'score and estimatedBand are required.' });
+    }
+
+    const history = readJsonArray(placementResultsFile);
+    const requestedId = typeof result.id === 'string' && result.id.trim() ? result.id.trim() : null;
+    const existing = requestedId && history.find(item => item.id === requestedId);
+    if (existing) return res.status(200).json(existing);
+
+    const record = {
+      ...result,
+      id: requestedId || `attempt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      timestamp: result.timestamp || new Date().toISOString()
+    };
+    history.push(record);
+    writeJsonArray(placementResultsFile, history);
+    return res.status(201).json(record);
+  } catch (err) {
+    console.error('[ERROR] Failed to save placement result:', err);
+    return res.status(500).json({ error: 'Failed to save placement result.', details: err.message });
+  }
+});
+
+/** Return all Placement Test attempts. */
+app.get('/api/placement/history', (req, res) => {
+  try {
+    return res.json(readJsonArray(placementResultsFile));
+  } catch (err) {
+    console.error('[ERROR] Failed to fetch placement history:', err);
+    return res.status(500).json({ error: 'Failed to retrieve placement history.', details: err.message });
+  }
+});
+
+/** Generate a personalized study roadmap from the learner's aggregated weaknesses. */
+app.post('/api/analytics/roadmap', async (req, res) => {
+  try {
+    const { weakAreas, summary = {} } = req.body || {};
+    if (!Array.isArray(weakAreas) || weakAreas.length === 0) {
+      return res.status(400).json({ error: 'weakAreas must be a non-empty array.' });
+    }
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
+    }
+
+    const prompt = `${config.analyticsRoadmapPrompt}\n\nLearner summary:\n${JSON.stringify(summary, null, 2)}\n\nWeak areas:\n${JSON.stringify(weakAreas, null, 2)}`;
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const response = await generateWithRetry(ai, {
+      model: config.model,
+      contents: prompt,
+      config: { responseMimeType: 'application/json' }
+    });
+    return res.json(parseGeminiJson(response));
+  } catch (err) {
+    console.error('[ERROR] Failed to generate analytics roadmap:', err);
+    return res.status(500).json({ error: 'Failed to generate a study roadmap.', details: err.message });
+  }
 });
 
 /**
@@ -221,18 +308,9 @@ app.post('/api/writing/score', async (req, res) => {
 
     // Append to local results/writing_results.json
     try {
-      let history = [];
-      if (fs.existsSync(resultsFile)) {
-        const fileContent = fs.readFileSync(resultsFile, 'utf-8');
-        if (fileContent.trim()) {
-          const parsedHistory = JSON.parse(fileContent);
-          if (Array.isArray(parsedHistory)) {
-            history = parsedHistory;
-          }
-        }
-      }
+      const history = readJsonArray(resultsFile);
       history.push(record);
-      fs.writeFileSync(resultsFile, JSON.stringify(history, null, 2), 'utf-8');
+      writeJsonArray(resultsFile, history);
       console.log(`[INFO] Saved evaluation record ${record.id} to ${resultsFile}`);
     } catch (storageErr) {
       console.warn(`[WARN] Failed to save evaluation to ${resultsFile}:`, storageErr.message);
@@ -261,15 +339,7 @@ app.post('/api/writing/score', async (req, res) => {
  */
 app.get('/api/writing/history', (req, res) => {
   try {
-    if (!fs.existsSync(resultsFile)) {
-      return res.json([]);
-    }
-    const fileContent = fs.readFileSync(resultsFile, 'utf-8');
-    if (!fileContent.trim()) {
-      return res.json([]);
-    }
-    const history = JSON.parse(fileContent);
-    return res.json(Array.isArray(history) ? history : []);
+    return res.json(readJsonArray(resultsFile));
   } catch (err) {
     console.error('[ERROR] Failed to fetch writing history:', err);
     return res.status(500).json({
@@ -292,5 +362,8 @@ if (isDirectRun) app.listen(PORT, () => {
   console.log(` - POST http://localhost:${PORT}/api/writing/score`);
   console.log(` - GET  http://localhost:${PORT}/api/writing/history`);
   console.log(` - GET  http://localhost:${PORT}/api/writing/config`);
+  console.log(` - POST http://localhost:${PORT}/api/placement/results`);
+  console.log(` - GET  http://localhost:${PORT}/api/placement/history`);
+  console.log(` - POST http://localhost:${PORT}/api/analytics/roadmap`);
   console.log(`====================================================`);
 });

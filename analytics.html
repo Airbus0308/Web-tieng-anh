@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="IELTS Master analytics dashboard with skill insights, progress tracking, and a personalized AI study roadmap.">
+  <title>IELTS Master — Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/analytics.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='70' font-size='55' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>IM</text></svg>">
+</head>
+<body>
+  <header class="app-header">
+    <a class="logo" href="index.html">
+      <div class="logo-icon">IM</div><div class="logo-text">IELTS <span>Master</span></div>
+    </a>
+    <nav class="nav-links" aria-label="Main Navigation">
+      <a href="index.html" class="nav-link">Placement Test</a>
+      <a href="writing.html" class="nav-link">Writing Practice</a>
+      <a href="analytics.html" class="nav-link active" aria-current="page">Analytics</a>
+    </nav>
+    <div class="header-right"><span class="sync-status" id="sync-status">Loading data…</span></div>
+  </header>
+
+  <main class="analytics-container">
+    <section class="analytics-intro">
+      <span class="analytics-badge">Performance Analytics</span>
+      <h1>Your learning, made measurable.</h1>
+      <p>See your current level, identify recurring gaps, and turn every attempt into a focused next step.</p>
+    </section>
+
+    <section class="metric-grid" aria-label="Performance summary">
+      <article class="metric-card metric-primary"><span>Average Band</span><strong id="average-band">—</strong><small id="attempt-count">No attempts yet</small></article>
+      <article class="metric-card"><span>Reading</span><strong id="reading-score">—</strong><small>Average accuracy</small></article>
+      <article class="metric-card"><span>Listening</span><strong id="listening-score">—</strong><small>Average accuracy</small></article>
+      <article class="metric-card"><span>Writing</span><strong id="writing-score">—</strong><small>Average band</small></article>
+    </section>
+
+    <div class="analytics-grid">
+      <section class="analytics-card progress-card">
+        <div class="card-heading"><div><span class="eyebrow">All attempts</span><h2>Band progress</h2></div><span class="legend"><i></i> Estimated band</span></div>
+        <div class="chart-wrap"><canvas id="progress-chart" role="img" aria-label="Band score progress over time"></canvas><div class="empty-state" id="chart-empty">Complete a test to start your progress chart.</div></div>
+      </section>
+
+      <section class="analytics-card weakness-card">
+        <div class="card-heading"><div><span class="eyebrow">CEFR diagnosis</span><h2>Weak areas</h2></div></div>
+        <div id="weak-areas" class="weak-list"></div>
+      </section>
+    </div>
+
+    <section class="analytics-card roadmap-card">
+      <div class="roadmap-header">
+        <div><span class="eyebrow">Gemini-powered coach</span><h2>Personalized 4-week roadmap</h2><p>Generate a study plan based on your latest skill data and recurring weak areas.</p></div>
+        <button class="roadmap-button" id="roadmap-button" type="button">Generate roadmap</button>
+      </div>
+      <div id="roadmap-content" class="roadmap-content"><div class="roadmap-placeholder">Your personalized plan will appear here.</div></div>
+    </section>
+  </main>
+  <script src="js/analytics.js"></script>
+</body>
+</html>
