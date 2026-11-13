@@ -56,37 +56,36 @@ app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/analytics.html
   res.sendFile(path.join(__dirname, page));
 });
 app.get('/config.json', (req, res) => res.sendFile(configPath));
-for (const directory of ['css', 'js', 'assets']) {
-  app.use(`/${directory}`, express.static(path.join(__dirname, directory), { dotfiles: 'deny' }));
+for (const publicDir of ['css', 'js', 'assets']) {
+  app.use(`/${publicDir}`, express.static(path.join(__dirname, publicDir), { dotfiles: 'deny', index: false }));
 }
 
-// One shared budget across all Gemini endpoints, including the study-plan alias.
-// Express does not trust proxy headers by default, so clients cannot spoof req.ip.
-const aiRateWindowMs = 15 * 60 * 1000;
-const aiRateLimit = 10;
-const aiRequestsByIp = new Map();
-function limitAiRequests(req, res, next) {
+// Shared per-IP rate limit for all AI endpoints: 10 requests per 15 minutes.
+const GEMINI_RATE_WINDOW_MS = 15 * 60 * 1000;
+const GEMINI_RATE_MAX = 10;
+const geminiRateBuckets = new Map();
+
+function geminiRateLimit(req, res, next) {
   const now = Date.now();
-  for (const [ip, entry] of aiRequestsByIp) {
-    if (now >= entry.resetAt) aiRequestsByIp.delete(ip);
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const recent = (geminiRateBuckets.get(ip) || []).filter(ts => now - ts < GEMINI_RATE_WINDOW_MS);
+  if (recent.length >= GEMINI_RATE_MAX) {
+    const retryAfter = Math.max(1, Math.ceil((GEMINI_RATE_WINDOW_MS - (now - recent[0])) / 1000));
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({
+      error: 'Too many AI requests from this IP. Please try again later.',
+      retryAfterSeconds: retryAfter
+    });
   }
-  const ip = req.ip;
-  const entry = aiRequestsByIp.get(ip) || { count: 0, resetAt: now + aiRateWindowMs };
-  if (entry.count >= aiRateLimit) {
-    res.set('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
-    return res.status(429).json({ error: 'Too many AI requests. Please try again later.' });
-  }
-  entry.count += 1;
-  aiRequestsByIp.set(ip, entry);
+  recent.push(now);
+  geminiRateBuckets.set(ip, recent);
   next();
 }
-app.post([
-  '/api/writing/score', '/api/speaking/score',
-  '/api/analytics/roadmap', '/api/analytics/study-plan'
-], limitAiRequests);
+
+app.use(['/api/writing/score', '/api/speaking/score', '/api/analytics/roadmap', '/api/analytics/study-plan'], geminiRateLimit);
 
 /**
- * Helper to count words in a text string
+ * Helper to count words in a string
  */
 function countWords(text) {
   if (!text || typeof text !== 'string') return 0;
@@ -106,14 +105,29 @@ function writeJsonArray(filePath, records) {
 }
 
 function parseGeminiJson(response) {
-  let rawText = (response.text || '').trim();
+  let rawText = (response?.text || '').trim();
   if (rawText.startsWith('```json')) rawText = rawText.slice(7);
   else if (rawText.startsWith('```')) rawText = rawText.slice(3);
   if (rawText.endsWith('```')) rawText = rawText.slice(0, -3);
-  return JSON.parse(rawText.trim());
+  rawText = rawText.trim();
+  try {
+    return JSON.parse(rawText);
+  } catch (err) {
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      return JSON.parse(rawText.slice(firstBrace, lastBrace + 1));
+    }
+    throw err;
+  }
 }
 
-/* ── Multi-Key Pool & Auto-Rotation Engine ────────────── */
+/* ── 3-Tier Multi-Provider & Auto-Rotation Engine ──────────────
+ *
+ * Tier 1: Google Gemini API Key Pool (rotates across multiple Gemini keys on 429)
+ * Tier 2: GitHub Models (Official Azure AI Inference gpt-4o-mini via GitHub PAT)
+ * Tier 3: Pollinations.ai Zero-Key Free AI Fallback (works immediately without any key)
+ */
 
 const KEY_COOLDOWN_MS = 60 * 1000;
 const keyCooldownUntil = new Map();
@@ -127,20 +141,32 @@ function splitKeyString(raw) {
     .filter(Boolean);
 }
 
+function isGitHubToken(key) {
+  return /^(ghp_|github_pat_|gho_|ghs_)/i.test(String(key || '').trim());
+}
+
 function maskApiKey(key) {
   const k = String(key || '').trim();
   if (k.length <= 10) return '••••' + k.slice(-3);
   return `${k.slice(0, 6)}••••••••${k.slice(-4)}`;
 }
 
-function getEnvApiKeys() {
+function getEnvGeminiKeys() {
   return [
     ...splitKeyString(process.env.GEMINI_API_KEYS || ''),
     ...splitKeyString(process.env.GEMINI_API_KEY || '')
+  ].filter(k => !isGitHubToken(k));
+}
+
+function getEnvGitHubTokens() {
+  return [
+    ...splitKeyString(process.env.GITHUB_TOKENS || ''),
+    ...splitKeyString(process.env.GITHUB_TOKEN || ''),
+    ...splitKeyString(process.env.GEMINI_API_KEYS || '').filter(isGitHubToken)
   ];
 }
 
-function getRuntimeApiKeys() {
+function getRuntimeStoredKeys() {
   try {
     return readJsonArray(runtimeKeysFile).filter(k => typeof k === 'string' && k.trim());
   } catch {
@@ -148,37 +174,49 @@ function getRuntimeApiKeys() {
   }
 }
 
-function saveRuntimeApiKeys(keys) {
+function saveRuntimeStoredKeys(keys) {
   const unique = [...new Set(keys.map(k => String(k || '').trim()).filter(Boolean))];
   writeJsonArray(runtimeKeysFile, unique);
   return unique;
 }
 
-function collectAvailableKeys(req) {
-  const headerKeys = splitKeyString(req?.headers?.['x-gemini-api-key'] || '');
-  const bodyKeys = Array.isArray(req?.body?.apiKeys)
+function collectProviderKeys(req) {
+  const headerRaw = [
+    ...splitKeyString(req?.headers?.['x-gemini-api-key'] || ''),
+    ...splitKeyString(req?.headers?.['x-github-token'] || '')
+  ];
+  const bodyRaw = Array.isArray(req?.body?.apiKeys)
     ? req.body.apiKeys.flatMap(splitKeyString)
     : splitKeyString(req?.body?.apiKey || '');
-  const runtimeKeys = getRuntimeApiKeys();
-  const envKeys = getEnvApiKeys();
+  const runtimeRaw = getRuntimeStoredKeys();
 
-  return [...new Set([...headerKeys, ...bodyKeys, ...runtimeKeys, ...envKeys])];
+  const allUserSupplied = [...headerRaw, ...bodyRaw, ...runtimeRaw];
+  const userGemini = allUserSupplied.filter(k => !isGitHubToken(k));
+  const userGitHub = allUserSupplied.filter(isGitHubToken);
+
+  const geminiKeys = [...new Set([...userGemini, ...getEnvGeminiKeys()])];
+  const githubTokens = [...new Set([...userGitHub, ...getEnvGitHubTokens()])];
+
+  return { geminiKeys, githubTokens };
 }
 
 function buildKeyPoolStatus() {
   const now = Date.now();
-  const envKeys = getEnvApiKeys();
-  const runtimeKeys = getRuntimeApiKeys();
+  const envGemini = getEnvGeminiKeys();
+  const envGitHub = getEnvGitHubTokens();
+  const runtimeRaw = getRuntimeStoredKeys();
   const seen = new Set();
   const list = [];
 
-  for (const k of [...runtimeKeys, ...envKeys]) {
+  for (const k of [...runtimeRaw, ...envGemini, ...envGitHub]) {
     if (seen.has(k)) continue;
     seen.add(k);
     const cooldownAt = keyCooldownUntil.get(k) || 0;
+    const tier = isGitHubToken(k) ? 'Tier 2 · GitHub Models' : 'Tier 1 · Gemini';
     list.push({
       masked: maskApiKey(k),
-      source: runtimeKeys.includes(k) ? 'runtime' : 'env',
+      tier,
+      source: runtimeRaw.includes(k) ? 'runtime' : 'env',
       status: cooldownAt > now ? 'cooldown' : 'ready'
     });
   }
@@ -186,13 +224,18 @@ function buildKeyPoolStatus() {
   return {
     totalKeys: list.length,
     activeKeys: list.filter(x => x.status === 'ready').length,
+    tiers: {
+      tier1GeminiCount: list.filter(x => x.tier.startsWith('Tier 1')).length,
+      tier2GitHubCount: list.filter(x => x.tier.startsWith('Tier 2')).length,
+      tier3PollinationsFree: process.env.DISABLE_FREE_FALLBACK !== 'true'
+    },
     keys: list
   };
 }
 
 /**
  * GET /api/settings/keys
- * Returns masked status of all configured Gemini API keys in the rotation pool.
+ * Returns masked status of all configured keys & 3-tier fallback configuration.
  */
 app.get('/api/settings/keys', (req, res) => {
   res.json(buildKeyPoolStatus());
@@ -200,7 +243,7 @@ app.get('/api/settings/keys', (req, res) => {
 
 /**
  * POST /api/settings/keys
- * Adds one or multiple Gemini API keys to the server's runtime rotation pool.
+ * Adds one or multiple Gemini API keys or GitHub PATs to the server's runtime rotation pool.
  */
 app.post('/api/settings/keys', (req, res) => {
   const rawInput = req.body?.keys ?? req.body?.apiKey ?? '';
@@ -209,81 +252,190 @@ app.post('/api/settings/keys', (req, res) => {
     : splitKeyString(String(rawInput));
 
   if (!incoming.length) {
-    return res.status(400).json({ error: 'At least one valid Gemini API key is required.' });
+    return res.status(400).json({ error: 'At least one valid API key is required.' });
   }
 
-  const existing = getRuntimeApiKeys();
-  saveRuntimeApiKeys([...existing, ...incoming]);
+  const existing = getRuntimeStoredKeys();
+  saveRuntimeStoredKeys([...existing, ...incoming]);
   return res.status(200).json(buildKeyPoolStatus());
 });
 
 /**
  * DELETE /api/settings/keys
- * Clears runtime-added Gemini API keys.
+ * Clears runtime-added API keys.
  */
 app.delete('/api/settings/keys', (req, res) => {
-  saveRuntimeApiKeys([]);
+  saveRuntimeStoredKeys([]);
   keyCooldownUntil.clear();
   return res.status(200).json(buildKeyPoolStatus());
 });
 
 /**
- * Call Gemini using the key pool.
- * Automatically rotates to the next key immediately if a key hits 429 rate limit,
- * quota exhaustion, or invalid key errors.
+ * Tier 2 Caller: GitHub Models (Azure AI Inference Endpoint)
+ */
+async function callGitHubModels(token, promptText) {
+  const res = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'You are an official IELTS examiner. Respond ONLY with a valid JSON object matching the exact schema requested.' },
+        { role: 'user', content: promptText }
+      ],
+      temperature: 0.3
+    })
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    const err = new Error(`GitHub Models HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text.trim()) {
+    throw new Error('GitHub Models returned an empty response.');
+  }
+  return { text };
+}
+
+/**
+ * Tier 3 Caller: Pollinations.ai Zero-Key Free OpenAI-Compatible Endpoint
+ */
+async function callPollinationsFree(promptText) {
+  const res = await fetch('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'openai',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'You are an official IELTS examiner. Respond ONLY with a raw, valid JSON object matching the exact schema requested. Do not wrap in markdown.' },
+        { role: 'user', content: promptText }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    throw new Error(`Pollinations Free AI returned HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+  }
+
+  const rawBody = await res.text();
+  try {
+    const parsedEnvelope = JSON.parse(rawBody);
+    if (parsedEnvelope?.choices?.[0]?.message?.content) {
+      return { text: parsedEnvelope.choices[0].message.content };
+    }
+  } catch {
+    // If Pollinations returned direct JSON content instead of OpenAI envelope
+  }
+  return { text: rawBody };
+}
+
+/**
+ * 3-Tier Multi-Provider Execution with Key Pool Auto-Rotation:
+ *  - Tier 1: Google Gemini Key Pool (rotates through all available Gemini keys on 429/quota)
+ *  - Tier 2: GitHub Models Pool (rotates through GitHub PATs on 429/quota)
+ *  - Tier 3: Pollinations.ai Zero-Key Free AI Fallback
  */
 async function generateWithKeyPool(req, promptText) {
-  const allKeys = collectAvailableKeys(req);
-  if (!allKeys.length) {
-    return { missingKey: true };
-  }
-
+  const { geminiKeys, githubTokens } = collectProviderKeys(req);
   const now = Date.now();
-  // Order keys starting from roundRobinCursor, prioritizing non-cooldown keys
-  const rotated = [];
-  for (let i = 0; i < allKeys.length; i++) {
-    rotated.push(allKeys[(roundRobinCursor + i) % allKeys.length]);
-  }
-  roundRobinCursor = (roundRobinCursor + 1) % allKeys.length;
+  const errors = [];
 
-  const readyKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) <= now);
-  const cooldownKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) > now);
-  const orderedKeys = [...readyKeys, ...cooldownKeys];
+  // ── TIER 1: Google Gemini Key Pool ─────────────────────────────
+  if (geminiKeys.length > 0) {
+    const rotated = [];
+    for (let i = 0; i < geminiKeys.length; i++) {
+      rotated.push(geminiKeys[(roundRobinCursor + i) % geminiKeys.length]);
+    }
+    roundRobinCursor = (roundRobinCursor + 1) % geminiKeys.length;
 
-  let lastError = null;
+    const readyKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) <= now);
+    const cooldownKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) > now);
+    const orderedGemini = [...readyKeys, ...cooldownKeys];
 
-  for (let idx = 0; idx < orderedKeys.length; idx++) {
-    const apiKey = orderedKeys[idx];
-    const ai = new GoogleGenAI({ apiKey });
-    // If multiple keys exist, rotate immediately on 429; if only 1 key exists, retry with backoff
-    const maxAttemptsForThisKey = orderedKeys.length > 1 ? 1 : 3;
+    for (let idx = 0; idx < orderedGemini.length; idx++) {
+      const apiKey = orderedGemini[idx];
+      const ai = new GoogleGenAI({ apiKey });
+      const maxAttemptsForThisKey = orderedGemini.length > 1 ? 1 : 2;
 
-    try {
-      const response = await generateWithRetry(ai, {
-        model: config.model,
-        contents: promptText,
-        config: { responseMimeType: 'application/json' }
-      }, maxAttemptsForThisKey);
+      try {
+        const response = await generateWithRetry(ai, {
+          model: config.model,
+          contents: promptText,
+          config: { responseMimeType: 'application/json' }
+        }, maxAttemptsForThisKey);
 
-      keyCooldownUntil.delete(apiKey);
-      return { response, usedKeyMasked: maskApiKey(apiKey) };
-    } catch (err) {
-      lastError = err;
-      const status = err?.status ?? err?.code;
-      const msg = String(err?.message || '');
-      const isRateOrQuota = status === 429 || status === 503 || /RESOURCE_EXHAUSTED|UNAVAILABLE|quota|rate/i.test(msg);
-      const isAuthError = status === 400 || status === 401 || status === 403 || /API_KEY_INVALID|permission/i.test(msg);
-
-      if (isRateOrQuota || isAuthError) {
+        keyCooldownUntil.delete(apiKey);
+        return {
+          response,
+          provider: 'Tier 1: Google Gemini',
+          usedKeyMasked: maskApiKey(apiKey)
+        };
+      } catch (err) {
+        errors.push(`Gemini(${maskApiKey(apiKey)}): ${err?.status || err?.message}`);
         keyCooldownUntil.set(apiKey, Date.now() + KEY_COOLDOWN_MS);
-        console.warn(`[WARN] Key ${maskApiKey(apiKey)} hit limit/error (${status || msg}). Rotating to next key (${idx + 1}/${orderedKeys.length})...`);
-        continue;
+        console.warn(`[WARN] [Tier 1] Gemini key ${maskApiKey(apiKey)} failed (${err?.status || err?.message}). Rotating...`);
       }
-      throw err;
     }
   }
 
-  throw lastError || new Error('All configured Gemini API keys exhausted their quota.');
+  // ── TIER 2: GitHub Models (Official Azure AI Inference) ────────
+  if (githubTokens.length > 0) {
+    const readyTokens = githubTokens.filter(t => (keyCooldownUntil.get(t) || 0) <= now);
+    const cooldownTokens = githubTokens.filter(t => (keyCooldownUntil.get(t) || 0) > now);
+    const orderedTokens = [...readyTokens, ...cooldownTokens];
+
+    for (const token of orderedTokens) {
+      try {
+        console.log(`[INFO] [Tier 2] Attempting GitHub Models with token ${maskApiKey(token)}...`);
+        const response = await callGitHubModels(token, promptText);
+        keyCooldownUntil.delete(token);
+        return {
+          response,
+          provider: 'Tier 2: GitHub Models (gpt-4o-mini)',
+          usedKeyMasked: maskApiKey(token)
+        };
+      } catch (err) {
+        errors.push(`GitHubModels(${maskApiKey(token)}): ${err?.status || err?.message}`);
+        keyCooldownUntil.set(token, Date.now() + KEY_COOLDOWN_MS);
+        console.warn(`[WARN] [Tier 2] GitHub token ${maskApiKey(token)} failed (${err?.message}). Rotating...`);
+      }
+    }
+  }
+
+  // ── TIER 3: Pollinations.ai (Zero-Key Free AI Fallback) ────────
+  if (process.env.DISABLE_FREE_FALLBACK !== 'true') {
+    try {
+      console.log(`[INFO] [Tier 3] Falling back to Pollinations.ai Zero-Key Free AI...`);
+      const response = await callPollinationsFree(promptText);
+      return {
+        response,
+        provider: 'Tier 3: Pollinations Free AI (Zero-Key)',
+        usedKeyMasked: 'zero-key-fallback'
+      };
+    } catch (err) {
+      errors.push(`PollinationsFree: ${err?.message}`);
+      console.error(`[ERROR] [Tier 3] Pollinations Free AI fallback failed:`, err.message);
+    }
+  }
+
+  if (!geminiKeys.length && !githubTokens.length) {
+    return { missingKey: true, errors };
+  }
+
+  throw new Error(`All AI tiers failed: ${errors.join(' | ')}`);
 }
 
 /**
@@ -421,7 +573,8 @@ async function handleAnalyticsRoadmap(req, res) {
       return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
     }
 
-    return res.json(parseGeminiJson(gen.response));
+    const parsed = parseGeminiJson(gen.response);
+    return res.json({ ...parsed, provider: gen.provider });
   } catch (err) {
     console.error('[ERROR] Failed to generate analytics roadmap:', err);
     return res.status(500).json({ error: 'Failed to generate a study roadmap.', details: err.message });
@@ -433,7 +586,7 @@ app.post('/api/analytics/study-plan', handleAnalyticsRoadmap);
 
 /**
  * POST /api/writing/score
- * Evaluates an IELTS Writing Task 2 essay using Google GenAI SDK with Multi-Key Rotation
+ * Evaluates an IELTS Writing Task 2 essay using 3-Tier Multi-Provider Engine
  */
 app.post('/api/writing/score', async (req, res) => {
   try {
@@ -460,21 +613,21 @@ app.post('/api/writing/score', async (req, res) => {
     const promptText = buildEvaluationPrompt(essay, topic);
     const gen = await generateWithKeyPool(req, promptText);
     if (gen.missingKey) {
-      console.error('[ERROR] No Gemini API keys available in environment or key pool.');
+      console.error('[ERROR] No AI provider available.');
       return res.status(500).json({
         error: 'Server configuration error: GEMINI_API_KEY is missing.'
       });
     }
 
-    console.log(`[INFO] Evaluated essay (${wordCount} words) using key ${gen.usedKeyMasked} (Model: ${config.model})`);
+    console.log(`[INFO] Evaluated essay (${wordCount} words) via ${gen.provider} [${gen.usedKeyMasked}]`);
 
     let result;
     try {
       result = parseGeminiJson(gen.response);
     } catch (parseErr) {
-      console.error('[ERROR] Failed to parse Gemini response as JSON.');
+      console.error('[ERROR] Failed to parse AI response as JSON.');
       return res.status(502).json({
-        error: 'Failed to parse assessment result from Gemini as JSON.',
+        error: 'Failed to parse assessment result from AI as JSON.',
         raw: gen.response?.text || ''
       });
     }
@@ -493,6 +646,7 @@ app.post('/api/writing/score', async (req, res) => {
       timestamp: new Date().toISOString(),
       topic: topic ? topic.trim() : null,
       wordCount,
+      provider: gen.provider,
       essay: essay.trim(),
       result
     };
@@ -510,6 +664,7 @@ app.post('/api/writing/score', async (req, res) => {
     // Return the parsed scoring result along with metadata
     return res.status(200).json({
       ...result,
+      provider: gen.provider,
       id: record.id,
       timestamp: record.timestamp,
       wordCount
@@ -598,7 +753,7 @@ app.get('/api/speaking/config', (req, res) => {
 
 /**
  * POST /api/speaking/score
- * Evaluates an IELTS Speaking transcript (min 40 words) with Gemini and stores the result.
+ * Evaluates an IELTS Speaking transcript (min 40 words) with 3-Tier AI Engine and stores the result.
  */
 app.post('/api/speaking/score', async (req, res) => {
   try {
@@ -618,18 +773,18 @@ app.post('/api/speaking/score', async (req, res) => {
 
     const gen = await generateWithKeyPool(req, buildSpeakingPrompt(transcript, topic, part));
     if (gen.missingKey) {
-      console.error('[ERROR] No Gemini API keys available in environment or key pool.');
+      console.error('[ERROR] No AI provider available.');
       return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
     }
 
-    console.log(`[INFO] Evaluated speaking transcript (${wordCount} words) using key ${gen.usedKeyMasked} (Model: ${config.model})`);
+    console.log(`[INFO] Evaluated speaking transcript (${wordCount} words) via ${gen.provider} [${gen.usedKeyMasked}]`);
 
     let result;
     try {
       result = parseGeminiJson(gen.response);
     } catch (parseErr) {
-      console.error('[ERROR] Failed to parse Gemini speaking response as JSON.');
-      return res.status(502).json({ error: 'Failed to parse assessment result from Gemini as JSON.', raw: gen.response?.text });
+      console.error('[ERROR] Failed to parse AI speaking response as JSON.');
+      return res.status(502).json({ error: 'Failed to parse assessment result from AI as JSON.', raw: gen.response?.text });
     }
 
     const record = {
@@ -639,6 +794,7 @@ app.post('/api/speaking/score', async (req, res) => {
       part: part ? String(part) : null,
       wordCount,
       durationSeconds: Number.isFinite(Number(durationSeconds)) ? Number(durationSeconds) : null,
+      provider: gen.provider,
       transcript: transcript.trim(),
       result
     };
@@ -650,7 +806,7 @@ app.post('/api/speaking/score', async (req, res) => {
       console.warn(`[WARN] Failed to save speaking evaluation:`, storageErr.message);
     }
 
-    return res.status(200).json({ ...result, id: record.id, timestamp: record.timestamp, wordCount });
+    return res.status(200).json({ ...result, provider: gen.provider, id: record.id, timestamp: record.timestamp, wordCount });
   } catch (error) {
     console.error('[ERROR] Error processing speaking evaluation:', error);
     return res.status(500).json({ error: 'An error occurred while evaluating the speaking response.', details: error.message });
