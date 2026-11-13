@@ -27,6 +27,7 @@ try {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Results storage paths
@@ -57,6 +58,7 @@ app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/study.html', '
   const page = req.path === '/' ? 'index.html' : req.path.slice(1);
   res.sendFile(path.join(__dirname, page));
 });
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/config.json', (req, res) => res.sendFile(configPath));
 for (const publicDir of ['css', 'js', 'assets']) {
   app.use(`/${publicDir}`, express.static(path.join(__dirname, publicDir), { dotfiles: 'deny', index: false }));
