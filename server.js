@@ -49,8 +49,40 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from project root
-app.use(express.static(__dirname));
+// Only publish application assets. Never expose source, environment, tests or results.
+app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/analytics.html'], (req, res) => {
+  const page = req.path === '/' ? 'index.html' : req.path.slice(1);
+  res.sendFile(path.join(__dirname, page));
+});
+app.get('/config.json', (req, res) => res.sendFile(configPath));
+for (const directory of ['css', 'js', 'assets']) {
+  app.use(`/${directory}`, express.static(path.join(__dirname, directory), { dotfiles: 'deny' }));
+}
+
+// One shared budget across all Gemini endpoints, including the study-plan alias.
+// Express does not trust proxy headers by default, so clients cannot spoof req.ip.
+const aiRateWindowMs = 15 * 60 * 1000;
+const aiRateLimit = 10;
+const aiRequestsByIp = new Map();
+function limitAiRequests(req, res, next) {
+  const now = Date.now();
+  for (const [ip, entry] of aiRequestsByIp) {
+    if (now >= entry.resetAt) aiRequestsByIp.delete(ip);
+  }
+  const ip = req.ip;
+  const entry = aiRequestsByIp.get(ip) || { count: 0, resetAt: now + aiRateWindowMs };
+  if (entry.count >= aiRateLimit) {
+    res.set('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
+    return res.status(429).json({ error: 'Too many AI requests. Please try again later.' });
+  }
+  entry.count += 1;
+  aiRequestsByIp.set(ip, entry);
+  next();
+}
+app.post([
+  '/api/writing/score', '/api/speaking/score',
+  '/api/analytics/roadmap', '/api/analytics/study-plan'
+], limitAiRequests);
 
 /**
  * Helper to count words in a text string
@@ -300,6 +332,14 @@ app.post('/api/writing/score', async (req, res) => {
         raw: rawText
       });
     }
+
+    // Keep only corrections that point to text actually present in this essay.
+    result.inline_corrections = Array.isArray(result.inline_corrections)
+      ? result.inline_corrections.filter(item =>
+        item && typeof item.original === 'string' && item.original.trim() &&
+        essay.includes(item.original) && typeof item.correction === 'string' &&
+        item.correction.trim() && typeof item.explanation === 'string')
+      : [];
 
     // Prepare log record
     const record = {

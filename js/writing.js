@@ -455,7 +455,42 @@ const WritingApp = (() => {
       });
     }
 
-    // 4. Suggestions List
+    // 4. Exact phrase corrections returned by Gemini (older results may omit them).
+    const correctionsSection = _el('inline-corrections');
+    const correctionsList = _el('inline-corrections-list');
+    if (correctionsSection && correctionsList) {
+      correctionsList.replaceChildren();
+      const corrections = Array.isArray(data.inline_corrections) ? data.inline_corrections : [];
+      corrections.forEach(item => {
+        if (!item || typeof item.original !== 'string' || !item.original.trim() ||
+            typeof item.correction !== 'string' || !item.correction.trim()) return;
+        const card = document.createElement('div');
+        card.className = 'inline-correction-item';
+        const pair = document.createElement('div');
+        pair.className = 'inline-correction-pair';
+        for (const [tag, className, value] of [
+          ['del', 'inline-correction-original', item.original],
+          ['span', 'inline-correction-arrow', '→'],
+          ['ins', 'inline-correction-revised', item.correction]
+        ]) {
+          const element = document.createElement(tag);
+          element.className = className;
+          element.textContent = value;
+          pair.appendChild(element);
+        }
+        card.appendChild(pair);
+        if (typeof item.explanation === 'string' && item.explanation.trim()) {
+          const explanation = document.createElement('p');
+          explanation.className = 'inline-correction-explanation';
+          explanation.textContent = item.explanation;
+          card.appendChild(explanation);
+        }
+        correctionsList.appendChild(card);
+      });
+      correctionsSection.hidden = correctionsList.childElementCount === 0;
+    }
+
+    // 5. Suggestions List
     const suggestionsList = _el('suggestions-list');
     if (suggestionsList) {
       suggestionsList.innerHTML = '';
@@ -478,7 +513,7 @@ const WritingApp = (() => {
       });
     }
 
-    // 5. Show results area with smooth fade-in
+    // 6. Show results area with smooth fade-in
     resultsArea.style.display = 'flex';
     resultsArea.classList.remove('fade-in');
     void resultsArea.offsetWidth; // Trigger reflow
@@ -660,7 +695,8 @@ const WritingApp = (() => {
     listEl.innerHTML = '';
 
     items.forEach((item, index) => {
-      const bandNum = parseFloat(item.overallBand || 6.5);
+      const savedResult = item.result || item;
+      const bandNum = parseFloat(savedResult.overall_band ?? savedResult.overallBand ?? 6.5);
       const colorClass = _getColorClass(bandNum);
 
       let formattedDate = 'Recent';
@@ -682,9 +718,9 @@ const WritingApp = (() => {
 
       // Extract criterion mini scores if available
       let miniCriteria = '';
-      if (Array.isArray(item.criteria)) {
-        miniCriteria = item.criteria.map(c => `
-          <span class="criteria-mini-tag">${c.abbreviation || 'C'}: ${c.score}</span>
+      if (Array.isArray(savedResult.criteria)) {
+        miniCriteria = savedResult.criteria.map(c => `
+          <span class="criteria-mini-tag">${_escapeHtml(c.abbreviation || 'C')}: ${_escapeHtml(String(c.score))}</span>
         `).join('');
       }
 
@@ -701,7 +737,7 @@ const WritingApp = (() => {
       `;
 
       card.addEventListener('click', () => {
-        renderResults(item);
+        renderResults({ ...savedResult, timestamp: item.timestamp, wordCount: item.wordCount });
         showToast(`Loaded review for attempt from ${formattedDate}.`, 'info');
       });
 
@@ -730,8 +766,9 @@ const WritingApp = (() => {
         overallBand: resultData.overall_band || resultData.overallBand || 6.5,
         bandLabel: resultData.bandLabel || _getBandDescriptorLabel(resultData.overall_band || resultData.overallBand || 6.5),
         criteria: _normalizeCriteria(resultData),
-        overallFeedback: resultData.overallFeedback || '',
+        overallFeedback: resultData.overall_feedback || resultData.overallFeedback || '',
         suggestions: resultData.suggestions || [],
+        inline_corrections: Array.isArray(resultData.inline_corrections) ? resultData.inline_corrections : [],
         wordCount: countWords(essayText)
       };
 

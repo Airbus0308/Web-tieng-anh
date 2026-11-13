@@ -1633,6 +1633,26 @@
 .score-red .criterion-score-num   { color: var(--accent-red); }
 
 /* ── Suggestions Card Enhancements ────────────────────── */
+.inline-corrections {
+  padding: 20px 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+.inline-corrections[hidden] { display: none; }
+.inline-corrections-list { display: grid; gap: 12px; }
+.inline-correction-item {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  line-height: 1.6;
+}
+.inline-correction-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.inline-correction-original { color: var(--accent-red); text-decoration: line-through; }
+.inline-correction-arrow { color: var(--text-muted); }
+.inline-correction-revised { color: var(--accent-green); font-weight: 600; }
+.inline-correction-explanation { margin: 6px 0 0; color: var(--text-secondary); font-size: 13px; }
+
 .suggestions-header {
   display: flex;
   align-items: center;

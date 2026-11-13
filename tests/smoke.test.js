@@ -52,6 +52,21 @@ test('serves all application pages and analytics skill breakdown section', async
   assert.ok(analyticsHtml.includes('TR, CC, LR, GRA'), 'analytics.html should mention 4 Writing criteria');
 });
 
+test('does not expose private source, environment, results or project documents', async () => {
+  for (const file of [
+    '/.env', '/.env.example', '/server.js', '/package.json', '/package-lock.json',
+    '/CLAUDE.md', '/AGENTS.md', '/PROGRESS.md', '/results/writing_results.json',
+    '/progress/phase-04-speaking-practice.md', '/tests/smoke.test.js',
+    '/scripts/import-youtube-listening.js'
+  ]) {
+    const res = await fetch(BASE + file);
+    assert.ok([403, 404].includes(res.status), `${file}: ${res.status}`);
+  }
+  for (const file of ['/css/writing.css', '/js/writing.js', '/config.json']) {
+    assert.equal((await fetch(BASE + file)).status, 200, file);
+  }
+});
+
 test('config.json contains the 4 IELTS criteria and study plan prompts', async () => {
   const res = await fetch(`${BASE}/config.json`);
   const cfg = await res.json();
@@ -59,6 +74,14 @@ test('config.json contains the 4 IELTS criteria and study plan prompts', async (
   assert.deepEqual(abbrs, ['CC', 'GRA', 'LR', 'TR']);
   assert.ok(cfg.systemInstruction && cfg.responseFormat && cfg.model);
   assert.ok(cfg.analyticsRoadmapPrompt && cfg.studyPlanPrompt);
+  assert.ok(cfg.responseFormat.includes('inline_corrections'));
+});
+
+test('Writing result page contains an inline correction comparison', async () => {
+  const html = await (await fetch(`${BASE}/writing.html`)).text();
+  const script = await (await fetch(`${BASE}/js/writing.js`)).text();
+  assert.ok(html.includes('id="inline-corrections-list"'));
+  assert.ok(script.includes('data.inline_corrections'));
 });
 
 test('GET /api/writing/config returns topics and criteria', async () => {
@@ -145,6 +168,7 @@ In conclusion, although online education will continue to expand and transform u
     const data = await res.json();
     assert.equal(data.criteria.length, 4);
     assert.ok(data.overall_band >= 0 && data.overall_band <= 9);
+    assert.ok(Array.isArray(data.inline_corrections));
   }
 );
 
@@ -227,3 +251,18 @@ test('POST /api/speaking/score scores a valid transcript with Gemini',
     assert.ok(history.length >= 1);
   }
 );
+
+test('Gemini endpoints share a 10-request limit per 15 minutes', async () => {
+  const paths = ['/api/writing/score', '/api/speaking/score',
+    '/api/analytics/roadmap', '/api/analytics/study-plan'];
+  const statuses = [];
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(BASE + paths[i % paths.length], {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+    });
+    statuses.push(res.status);
+    if (res.status === 429) assert.ok(Number(res.headers.get('retry-after')) > 0);
+  }
+  assert.equal(statuses.at(-1), 429);
+  assert.ok(statuses.includes(429));
+});
