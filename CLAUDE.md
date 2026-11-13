@@ -13,6 +13,7 @@ Trước khi viết bất kỳ dòng code nào, hãy đọc:
 - **Frontend:** Vanilla HTML5, CSS3, ES6 JavaScript. Mỗi file JS trong `js/` viết theo mẫu **IIFE Module** (`const ModuleName = (() => { ... return { ... }; })();`).
 - **Giao diện:** Tuân thủ hệ thống biến màu Dark Theme & Glassmorphism trong `css/main.css` (`--bg-primary`, `--bg-card`, `--accent-primary`, `--accent-teal`, `--accent-green`, `--accent-amber`, `--accent-red`).
 - **Bảo mật:** Không bao giờ commit file `.env`, `node_modules/`, hoặc `results/`.
+- **GitHub push:** Token dùng cho repo này nằm tại `/home/adminairbus/.config/ielts-master/github-token.txt` trên máy hiện tại (ngoài repository, quyền file `600`). Chỉ đọc khi cần push và đã được người dùng cho phép; không in token ra log, không nhúng vào remote URL, không commit token.
 
 ## 3. Quy trình Bàn giao Bắt buộc sau khi hoàn thành 1 Phase
 Khi bạn hoàn thành nhiệm vụ của một Phase, **bắt buộc** thực hiện đủ 4 bước sau:
