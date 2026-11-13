@@ -2,7 +2,7 @@
  * IELTS Placement Test — UI Rendering Module
  * 
  * Handles all DOM manipulation, rendering questions,
- * dedicated IELTS Listening Audio Player (MP3 with silent TTS fallback),
+ * strict non-rewindable IELTS Listening Audio Player,
  * collecting answers, and displaying results.
  */
 
@@ -11,6 +11,8 @@ const UI = (() => {
   let _startTime = null;
   let _timerInterval = null;
   let _audioEl = null;
+  let _maxPlayedTime = 0;
+  let _audioCompleted = false;
   let _ttsActive = false;
   let _ttsLineIndex = 0;
 
@@ -29,6 +31,8 @@ const UI = (() => {
     if (_audioEl) {
       _audioEl.pause();
     }
+    _maxPlayedTime = 0;
+    _audioCompleted = false;
     _ttsActive = false;
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -99,7 +103,7 @@ const UI = (() => {
       readingList.appendChild(_createQuestionCard(q, i + 1));
     });
 
-    // ─── Listening Section (Option 1: Dedicated MP3 Audio Player) ───
+    // ─── Listening Section (Strict Exam Mode: Non-Rewindable Audio) ───
     const listeningSection = document.createElement('section');
     listeningSection.className = 'test-section';
     listeningSection.innerHTML = `
@@ -112,17 +116,20 @@ const UI = (() => {
         </div>
         <div>
           <h2 class="section-title">Listening Comprehension</h2>
-          <p class="section-subtitle">${listeningQuestions.length} questions · Listen to the audio recording and answer Q${readingQuestions.length + 1}–Q${readingQuestions.length + listeningQuestions.length}</p>
+          <p class="section-subtitle">${listeningQuestions.length} questions · Listen once and answer Q${readingQuestions.length + 1}–Q${readingQuestions.length + listeningQuestions.length}</p>
         </div>
       </div>
 
       <div class="passage-card listening-card" id="listening-player-card">
-        <div class="passage-label">Listening Audio Recording</div>
-        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between a university student (Sarah) and her academic advisor (Dr. Patel), then answer the questions below.'}</p>
+        <div class="listening-top-bar">
+          <div class="passage-label">Listening Audio Recording</div>
+          <span class="no-rewind-badge">🔒 Exam Mode: No Rewind · 1 Play Only</span>
+        </div>
+        <p class="listening-instructions">${listeningConfig.instructions || 'Listen carefully to the conversation between Sarah and Dr. Patel. Just like in the real IELTS exam, the audio plays forward only and cannot be rewound.'}</p>
 
         <audio id="ielts-audio-element" preload="metadata" src="${listeningConfig.audioUrl || 'assets/audio/placement-listening.mp3'}"></audio>
         <div class="custom-audio-box">
-          <button type="button" class="audio-play-btn" id="audio-play-btn" onclick="UI.toggleMp3Playback()" aria-label="Play or Pause Listening Audio">
+          <button type="button" class="audio-play-btn" id="audio-play-btn" onclick="UI.toggleMp3Playback()" aria-label="Start Listening Audio">
             <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
             <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
           </button>
@@ -132,20 +139,18 @@ const UI = (() => {
               <span class="audio-track-title" id="audio-status-label">${listeningConfig.title}</span>
               <span class="audio-time-badge"><span id="audio-current-time">00:00</span> / <span id="audio-duration">01:15</span></span>
             </div>
-            <input type="range" id="audio-seek-bar" class="audio-seek-slider" min="0" max="100" value="0" step="0.1" aria-label="Seek audio timeline">
+            <!-- Read-only progress bar: prevents dragging/rewinding -->
+            <div class="audio-locked-track" title="Seeking and rewinding are disabled in IELTS Exam Mode" aria-label="Audio playback progress (rewinding disabled)">
+              <div class="audio-locked-fill" id="audio-progress-fill" style="width: 0%"></div>
+            </div>
           </div>
 
-          <select id="audio-speed-select" class="audio-speed-select" onchange="UI.changeAudioSpeed(this.value)" aria-label="Playback Speed">
-            <option value="0.85">0.85x</option>
-            <option value="1" selected>1.0x</option>
-            <option value="1.15">1.15x</option>
-            <option value="1.25">1.25x</option>
-          </select>
+          <span class="audio-speed-locked" title="Playback speed is locked to 1.0x during the test">1.0x</span>
         </div>
 
         <!-- Exam Mode Notice & Collapsible Transcript -->
         <div class="transcript-control-bar">
-          <span class="exam-mode-indicator">🎧 Real Exam Mode — Transcript is hidden during listening</span>
+          <span class="exam-mode-indicator">🎧 Real Exam Mode — Rewinding is locked & transcript is hidden</span>
           <button type="button" class="btn-transcript-toggle" id="btn-toggle-transcript" onclick="UI.toggleTranscript()">
             👁️ Show Transcript
           </button>
@@ -195,15 +200,19 @@ const UI = (() => {
     _updateProgress();
   }
 
-  /* ── Dedicated Audio Player Controllers ─────────────── */
+  /* ── Strict Non-Rewindable Audio Player Controllers ─── */
 
   function _bindMp3Events() {
     _audioEl = _el('ielts-audio-element');
     if (!_audioEl) return;
 
-    const seekBar = _el('audio-seek-bar');
+    _maxPlayedTime = 0;
+    _audioCompleted = false;
+
+    const progressFill = _el('audio-progress-fill');
     const curTimeEl = _el('audio-current-time');
     const durEl = _el('audio-duration');
+    const playBtn = _el('audio-play-btn');
     const playIcon = _el('icon-play');
     const pauseIcon = _el('icon-pause');
     const statusLabel = _el('audio-status-label');
@@ -216,9 +225,27 @@ const UI = (() => {
 
     _audioEl.addEventListener('timeupdate', () => {
       if (!_audioEl.duration) return;
-      const pct = (_audioEl.currentTime / _audioEl.duration) * 100;
-      if (seekBar) seekBar.value = pct;
-      if (curTimeEl) curTimeEl.textContent = _formatTime(_audioEl.currentTime);
+      if (!_audioEl.seeking && _audioEl.currentTime > _maxPlayedTime) {
+        _maxPlayedTime = _audioEl.currentTime;
+      }
+      const pct = Math.min(100, (_maxPlayedTime / _audioEl.duration) * 100);
+      if (progressFill) progressFill.style.width = `${pct}%`;
+      if (curTimeEl) curTimeEl.textContent = _formatTime(_maxPlayedTime);
+    });
+
+    // Guard against programmatic or media-key rewinding/seeking
+    _audioEl.addEventListener('seeking', () => {
+      if (Math.abs(_audioEl.currentTime - _maxPlayedTime) > 0.35) {
+        _audioEl.currentTime = _maxPlayedTime;
+        showToast('Rewinding and seeking are disabled in IELTS Listening exam mode.', 'warning');
+      }
+    });
+
+    // Guard against playback rate tampering
+    _audioEl.addEventListener('ratechange', () => {
+      if (_audioEl.playbackRate !== 1.0) {
+        _audioEl.playbackRate = 1.0;
+      }
     });
 
     _audioEl.addEventListener('play', () => {
@@ -232,36 +259,34 @@ const UI = (() => {
     });
 
     _audioEl.addEventListener('ended', () => {
+      _audioCompleted = true;
       if (playIcon) playIcon.style.display = 'block';
       if (pauseIcon) pauseIcon.style.display = 'none';
-      if (statusLabel) statusLabel.textContent = 'Audio playback completed — You may replay or answer questions below';
+      if (progressFill) progressFill.style.width = '100%';
+      if (playBtn) {
+        playBtn.disabled = true;
+        playBtn.classList.add('audio-btn-completed');
+        playBtn.title = 'Audio has already been played once';
+      }
+      if (statusLabel) {
+        statusLabel.textContent = '🔒 Audio completed (1 play only) — Complete your answers below';
+      }
     });
-
-    if (seekBar) {
-      seekBar.addEventListener('input', () => {
-        if (_audioEl && _audioEl.duration) {
-          _audioEl.currentTime = (Number(seekBar.value) / 100) * _audioEl.duration;
-        }
-      });
-    }
   }
 
   function toggleMp3Playback() {
+    if (_audioCompleted) {
+      showToast('In IELTS Exam Mode, the recording can only be played once.', 'warning');
+      return;
+    }
     if (!_audioEl) _audioEl = _el('ielts-audio-element');
     if (!_audioEl) return;
     if (_audioEl.paused) {
       _audioEl.play().catch(() => {
-        // Silent fallback to Web Speech synthesis only if MP3 cannot be played
         _fallbackTtsPlayback();
       });
     } else {
       _audioEl.pause();
-    }
-  }
-
-  function changeAudioSpeed(rate) {
-    if (_audioEl) {
-      _audioEl.playbackRate = parseFloat(rate) || 1.0;
     }
   }
 
@@ -277,7 +302,6 @@ const UI = (() => {
     if (!dialogue.length) return;
 
     _ttsActive = true;
-    _ttsLineIndex = 0;
     window.speechSynthesis.cancel();
 
     const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
@@ -287,6 +311,7 @@ const UI = (() => {
     const speakNext = () => {
       if (!_ttsActive || _ttsLineIndex >= dialogue.length) {
         _ttsActive = false;
+        _audioCompleted = true;
         return;
       }
       const item = dialogue[_ttsLineIndex];
@@ -628,7 +653,6 @@ const UI = (() => {
     stopTimer,
     showToast,
     toggleMp3Playback,
-    changeAudioSpeed,
     toggleTranscript
   };
 

@@ -1402,3 +1402,50 @@ details[open] .review-toggle svg {
   padding-top: 14px;
   border-top: 1px dashed var(--border-subtle);
 }
+
+
+/* ── Strict Non-Rewindable Audio Bar ──────────────────── */
+.no-rewind-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.audio-locked-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 20px;
+  background: var(--bg-card);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  border: 1px solid var(--border-subtle);
+}
+
+.audio-locked-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal));
+  transition: width 0.2s linear;
+}
+
+.audio-speed-locked {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  user-select: none;
+}
+
+.audio-btn-completed {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
