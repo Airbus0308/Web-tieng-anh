@@ -14,7 +14,7 @@
 | **Phase 1** | **Placement Test (Reading & Listening)** — 15 câu MCQ, Audio thật khóa tua ngược, mở Transcript sau khi nộp | ✅ DONE | Antigravity | [phase-01-placement-test.md](progress/phase-01-placement-test.md) | `d7f50f9`, `c840741` |
 | **Phase 2** | **Writing Task 2 AI Grader** — Giao diện viết, chấm 4 tiêu chí qua Gemini API, `config.json` | ✅ DONE | Antigravity | [phase-02-writing-task2-ai.md](progress/phase-02-writing-task2-ai.md) | `38baa5d` |
 | **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Skill Breakdown 4 tiêu chí Writing & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0`, `8d7d3fa` |
-| **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | ✅ DONE | Claude Code | [phase-04-speaking-practice.md](progress/phase-04-speaking-practice.md) | `574872a` |
+| **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | ✅ DONE | Claude Code | [phase-04-speaking-practice.md](progress/phase-04-speaking-practice.md) | `574872a`, `56b9f63` |
 | **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-05-inline-and-security.md` *(chờ tạo)* | — |
 
 ---
@@ -32,36 +32,36 @@ Mỗi khi hoàn thành một Phase, Agent thực thi (**Claude Code** hoặc **C
 
 ---
 
-## 📋 Nhiệm Vụ Đang Mở: Phase 4 (Giao cho Claude Code / Codex)
+## 📋 Nhiệm Vụ Đang Mở: Phase 5 (Giao cho Codex / Claude Code)
 
-### Mục tiêu Phase 4: Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`) & Đồng bộ 4 Kỹ năng lên Analytics
+### Mục tiêu Phase 5: Inline Essay Correction & Production Security Hardening
 
-> *Lưu ý:* Phần Audio thật cho bài Listening trong Placement Test (`assets/audio/placement-listening.mp3`, khóa tua ngược, chỉ hiện Transcript sau khi nộp bài) đã được hoàn thành ở commit `c840741`. Phase 4 tập trung hoàn thiện kỹ năng thứ 4: **Speaking**.
+#### 1. Vá lỗ hổng bảo mật Server & Rate Limiting trong `server.js` (Chuẩn bị Public Launch)
+- **Bảo vệ file nhạy cảm khỏi truy cập tĩnh (`express.static`)**:
+  - Thêm middleware hoặc cấu hình chặn truy cập trực tiếp (trả về `403` hoặc `404`) đối với các đường dẫn nhạy cảm: `/.env`, `/.env.example`, `/server.js`, `/package.json`, `/package-lock.json`, `/CLAUDE.md`, `/AGENTS.md`, `/PROGRESS.md`, và các thư mục `/results/*`, `/progress/*`, `/tests/*`, `/scripts/*`.
+  - Đảm bảo các trang frontend (`/index.html`, `/writing.html`, `/speaking.html`, `/analytics.html`), `/css/*`, `/js/*`, `/assets/*`, và `/config.json` vẫn phục vụ bình thường để không làm hỏng các bài kiểm thử hiện có.
+- **Thêm Rate Limiting cho các API gọi Gemini**:
+  - Viết middleware giới hạn tốc độ ngay trong `server.js` (sử dụng `Map` theo IP, cho phép cấu hình qua `process.env.RATE_LIMIT_MAX` mặc định 15 request / 15 phút) áp dụng cho `/api/writing/score`, `/api/speaking/score`, `/api/analytics/roadmap`, `/api/analytics/study-plan`.
 
-#### 1. Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`, `css/speaking.css`, `js/speaking.js`)
-- Cập nhật thanh điều hướng (`nav-links`) trên tất cả các trang (`index.html`, `writing.html`, `speaking.html`, `analytics.html`) để có đủ 4 mục: **Placement Test** | **Writing Practice** | **Speaking Practice** | **Analytics**.
-- Giao diện `speaking.html` hỗ trợ luyện tập **Speaking Part 2 (Cue Card) & Part 3**:
-  - Hiển thị chủ đề Cue Card (cho phép đổi đề bài từ danh sách đề mẫu), đồng hồ bấm giờ (1 phút chuẩn bị + 2 phút nói).
-  - Hỗ trợ thu âm/chuyển giọng nói thành văn bản bằng **Web Speech Recognition API** (`webkitSpeechRecognition` / `SpeechRecognition`) kết hợp ô nhập/chỉnh sửa văn bản (`textarea`) để học viên trên mọi trình duyệt đều có thể gửi bài nói chấm điểm.
-  - Hiển thị kết quả chấm AI chi tiết theo **4 tiêu chí Speaking chính thức**:
-    - `FC` — Fluency and Coherence (25%)
-    - `LR` — Lexical Resource (25%)
-    - `GRA` — Grammatical Range and Accuracy (25%)
-    - `PR` — Pronunciation / Delivery (25%)
-  - Lưu lịch sử luyện nói ở cả `localStorage` (`ielts_speaking_history`) và Backend (`results/speaking_results.json`).
+#### 2. Bổ sung tính năng Chữa bài Chi tiết theo Câu — Inline Essay Corrections (`config.json`, `writing.html`, `js/writing.js`, `css/writing.css`)
+- Mở rộng `responseFormat` trong `config.json` để yêu cầu Gemini trả thêm mảng `"corrections"` (tối đa 5 lỗi tiêu biểu trong bài viết):
+  ```json
+  "corrections": [
+    {
+      "original": "<exact phrase or sentence with error from essay>",
+      "corrected": "<improved IELTS Band 8+ version>",
+      "explanation": "<brief explanation of grammar/lexical fix>"
+    }
+  ]
+  ```
+- Trong `writing.html`, `js/writing.js`, và `css/writing.css`:
+  - Thêm khu vực **"Sentence-Level Corrections & Upgrades"** ngay trong phần kết quả chấm Writing.
+  - Hiển thị trực quan cụm từ gốc bị lỗi (gạch ngang màu đỏ) → cụm từ đã sửa (màu xanh lá) kèm giải thích ngữ pháp/từ vựng.
 
-#### 2. Mở rộng `config.json` & `server.js`
-- Thêm `speakingCriteria` (`FC`, `LR`, `GRA`, `PR`), `sampleSpeakingTopics`, `speakingSystemInstruction`, và `speakingResponseFormat` vào `config.json`.
-- Thêm 3 endpoint vào `server.js`:
-  - `GET /api/speaking/config` — Trả về danh sách chủ đề Speaking mẫu và 4 tiêu chí chấm.
-  - `POST /api/speaking/score` — Kiểm tra độ dài câu trả lời (tối thiểu 40 từ), gọi Gemini qua `generateWithRetry`, lưu vào `results/speaking_results.json` và trả về kết quả chấm.
-  - `GET /api/speaking/history` — Trả về lịch sử các lần luyện Speaking.
-
-#### 3. Tích hợp điểm Speaking vào trang `analytics.html` & `js/analytics.js`
-- Cập nhật `analytics.html` và `js/analytics.js` để đọc thêm `/api/speaking/history` (fallback `ielts_speaking_history`), hiển thị điểm trung bình **Speaking** và đưa các lượt luyện Speaking vào biểu đồ tiến độ chung.
-
-#### 4. Nghiệm thu (Definition of Done)
-- Bổ sung kiểm thử cho `/speaking.html`, `GET /api/speaking/config`, `GET /api/speaking/history`, `POST /api/speaking/score` (kiểm tra lỗi khi rỗng / dưới số từ tối thiểu) vào `tests/smoke.test.js`.
+#### 3. Nghiệm thu (Definition of Done)
+- Bổ sung kiểm thử vào `tests/smoke.test.js`:
+  - Kiểm tra `GET /.env`, `GET /server.js`, `GET /package.json` trả về `403` hoặc `404`.
+  - Kiểm tra schema `responseFormat` trong `config.json` có trường `corrections` và `writing.html` có vùng hiển thị chữa lỗi câu.
 - Chạy `npm test` PASS 100%.
-- Tạo báo cáo `progress/phase-04-speaking-practice.md` và cập nhật bảng trên trong `PROGRESS.md` (chuyển Phase 4 sang `✅ DONE` và mở Phase 5).
+- Tạo báo cáo `progress/phase-05-inline-and-security.md` và cập nhật bảng trong `PROGRESS.md` (chuyển Phase 5 sang `✅ DONE`).
 - Commit và push lên nhánh `main`.
