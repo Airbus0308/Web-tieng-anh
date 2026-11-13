@@ -104,6 +104,27 @@ function writeJsonArray(filePath, records) {
   fs.writeFileSync(filePath, JSON.stringify(records, null, 2), 'utf-8');
 }
 
+function readExamIntegrity(req) {
+  let supplied = req.body?.integrity;
+  if (supplied == null && typeof req.get('X-Exam-Integrity') === 'string') {
+    const header = req.get('X-Exam-Integrity');
+    if (header.length > 4096) return null;
+    try { supplied = JSON.parse(header); } catch { return null; }
+  }
+  if (!supplied || typeof supplied !== 'object' || Array.isArray(supplied)) return null;
+  const count = value => Number.isSafeInteger(value) && value >= 0 ? Math.min(value, 1000000) : 0;
+  const tabSwitches = count(supplied.tabSwitches);
+  const pasteAttempts = count(supplied.pasteAttempts);
+  const keystrokes = count(supplied.keystrokes);
+  const wpm = Number.isFinite(supplied.wpm) && supplied.wpm >= 0
+    ? Math.min(Math.round(supplied.wpm), 1000) : 0;
+  const burstDetected = supplied.burstDetected === true;
+  return {
+    tabSwitches, pasteAttempts, keystrokes, wpm, burstDetected,
+    flagged: tabSwitches > 0 || pasteAttempts > 0 || burstDetected
+  };
+}
+
 function parseGeminiJson(response) {
   let rawText = (response?.text || '').trim();
   if (rawText.startsWith('```json')) rawText = rawText.slice(7);
@@ -533,8 +554,11 @@ app.post('/api/placement/results', (req, res) => {
     const existing = requestedId && history.find(item => item.id === requestedId);
     if (existing) return res.status(200).json(existing);
 
+    const integrity = readExamIntegrity(req);
+    const { integrity: _untrustedIntegrity, ...safeResult } = result;
     const record = {
-      ...result,
+      ...safeResult,
+      ...(integrity ? { integrity } : {}),
       id: requestedId || `attempt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       timestamp: result.timestamp || new Date().toISOString()
     };
@@ -591,6 +615,7 @@ app.post('/api/analytics/study-plan', handleAnalyticsRoadmap);
 app.post('/api/writing/score', async (req, res) => {
   try {
     const { essay, topic } = req.body;
+    const integrity = readExamIntegrity(req);
 
     // Validate essay presence
     if (!essay || typeof essay !== 'string' || !essay.trim()) {
@@ -648,6 +673,7 @@ app.post('/api/writing/score', async (req, res) => {
       wordCount,
       provider: gen.provider,
       essay: essay.trim(),
+      ...(integrity ? { integrity } : {}),
       result
     };
 
@@ -667,7 +693,8 @@ app.post('/api/writing/score', async (req, res) => {
       provider: gen.provider,
       id: record.id,
       timestamp: record.timestamp,
-      wordCount
+      wordCount,
+      ...(integrity ? { integrity } : {})
     });
 
   } catch (error) {
@@ -758,6 +785,7 @@ app.get('/api/speaking/config', (req, res) => {
 app.post('/api/speaking/score', async (req, res) => {
   try {
     const { transcript, topic, part, durationSeconds } = req.body || {};
+    const integrity = readExamIntegrity(req);
     if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
       return res.status(400).json({ error: 'Speaking transcript is required.' });
     }
@@ -796,6 +824,7 @@ app.post('/api/speaking/score', async (req, res) => {
       durationSeconds: Number.isFinite(Number(durationSeconds)) ? Number(durationSeconds) : null,
       provider: gen.provider,
       transcript: transcript.trim(),
+      ...(integrity ? { integrity } : {}),
       result
     };
     try {
@@ -806,7 +835,8 @@ app.post('/api/speaking/score', async (req, res) => {
       console.warn(`[WARN] Failed to save speaking evaluation:`, storageErr.message);
     }
 
-    return res.status(200).json({ ...result, provider: gen.provider, id: record.id, timestamp: record.timestamp, wordCount });
+    return res.status(200).json({ ...result, provider: gen.provider, id: record.id, timestamp: record.timestamp, wordCount,
+      ...(integrity ? { integrity } : {}) });
   } catch (error) {
     console.error('[ERROR] Error processing speaking evaluation:', error);
     return res.status(500).json({ error: 'An error occurred while evaluating the speaking response.', details: error.message });

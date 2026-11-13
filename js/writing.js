@@ -329,7 +329,8 @@ const WritingApp = (() => {
         },
         body: JSON.stringify({
           essay: essay,
-          topic: topicText
+          topic: topicText,
+          integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null
         })
       });
 

@@ -67,6 +67,15 @@ test('does not expose private source, environment, results or project documents'
   }
 });
 
+test('Exam Security script is public and loaded on all four pages', async () => {
+  const script = await fetch(`${BASE}/js/exam-security.js`);
+  assert.equal(script.status, 200);
+  for (const page of ['/index.html', '/writing.html', '/speaking.html', '/analytics.html']) {
+    const html = await (await fetch(BASE + page)).text();
+    assert.ok(html.includes('src="js/exam-security.js"'), page);
+  }
+});
+
 test('config.json contains the 4 IELTS criteria and study plan prompts', async () => {
   const res = await fetch(`${BASE}/config.json`);
   const cfg = await res.json();
@@ -116,6 +125,21 @@ test('POST /api/placement/results rejects incomplete data', async () => {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estimatedBand: '5.0' })
   });
   assert.equal(res.status, 400);
+});
+
+test('Placement results persist and return normalized integrity from body', async () => {
+  const res = await fetch(`${BASE}/api/placement/results`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: 'integrity_placement', score: { correct: 1, total: 2 },
+      estimatedBand: '5.0', integrity: { tabSwitches: 1, pasteAttempts: 0,
+        keystrokes: 23, wpm: 35, burstDetected: false, flagged: false } })
+  });
+  assert.equal(res.status, 201);
+  const saved = await res.json();
+  assert.deepEqual(saved.integrity, { tabSwitches: 1, pasteAttempts: 0,
+    keystrokes: 23, wpm: 35, burstDetected: false, flagged: true });
+  const history = await (await fetch(`${BASE}/api/placement/history`)).json();
+  assert.deepEqual(history.find(item => item.id === saved.id).integrity, saved.integrity);
 });
 
 test('POST /api/analytics/roadmap and /api/analytics/study-plan validate weak areas before calling Gemini', async () => {
@@ -251,6 +275,53 @@ test('POST /api/speaking/score scores a valid transcript with Gemini',
     assert.ok(history.length >= 1);
   }
 );
+
+test('Writing and Speaking persist and return integrity from body or header', async () => {
+  const originalFetch = global.fetch;
+  const envNames = ['GEMINI_API_KEY', 'GEMINI_API_KEYS', 'GITHUB_TOKEN', 'GITHUB_TOKENS', 'DISABLE_FREE_FALLBACK'];
+  const previousEnv = Object.fromEntries(envNames.map(name => [name, process.env[name]]));
+  for (const name of envNames) delete process.env[name];
+  process.env.DISABLE_FREE_FALLBACK = 'false';
+  const mockResult = { criteria: [{ abbreviation: 'TR', score: 6 }, { abbreviation: 'CC', score: 6 },
+    { abbreviation: 'LR', score: 6 }, { abbreviation: 'GRA', score: 6 }], overall_band: 6,
+    inline_corrections: [{ original: 'education', correction: 'learning', explanation: 'Word choice' }] };
+  global.fetch = (url, options) => String(url) === 'https://text.pollinations.ai/openai'
+    ? Promise.resolve(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    : originalFetch(url, options);
+  try {
+    const writing = await originalFetch(`${BASE}/api/writing/score`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ essay: sampleEssay(250), integrity: { tabSwitches: 0,
+        pasteAttempts: 2, keystrokes: 120, wpm: 41, burstDetected: false } })
+    });
+    assert.equal(writing.status, 200, await writing.clone().text());
+    const writingData = await writing.json();
+    assert.equal(writingData.integrity.pasteAttempts, 2);
+    assert.equal(writingData.integrity.flagged, true);
+    const writingHistory = await (await originalFetch(`${BASE}/api/writing/history`)).json();
+    assert.deepEqual(writingHistory.find(item => item.id === writingData.id).integrity, writingData.integrity);
+
+    const speaking = await originalFetch(`${BASE}/api/speaking/score`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json',
+        'X-Exam-Integrity': JSON.stringify({ tabSwitches: 0, pasteAttempts: 0,
+          keystrokes: 80, wpm: 28, burstDetected: true }) },
+      body: JSON.stringify({ transcript: sampleEssay(40) })
+    });
+    assert.equal(speaking.status, 200, await speaking.clone().text());
+    const speakingData = await speaking.json();
+    assert.equal(speakingData.integrity.burstDetected, true);
+    assert.equal(speakingData.integrity.flagged, true);
+    const speakingHistory = await (await originalFetch(`${BASE}/api/speaking/history`)).json();
+    assert.deepEqual(speakingHistory.find(item => item.id === speakingData.id).integrity, speakingData.integrity);
+  } finally {
+    global.fetch = originalFetch;
+    for (const name of envNames) {
+      if (previousEnv[name] === undefined) delete process.env[name];
+      else process.env[name] = previousEnv[name];
+    }
+  }
+});
 
 test('Gemini endpoints share a 10-request limit per 15 minutes', async () => {
   const paths = ['/api/writing/score', '/api/speaking/score',

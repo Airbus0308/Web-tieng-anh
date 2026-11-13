@@ -292,7 +292,8 @@ const SpeakingApp = (() => {
       const res = await fetch('/api/speaking/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, topic: _topicText(), part: 'Part 2 & Part 3', durationSeconds: duration })
+        body: JSON.stringify({ transcript, topic: _topicText(), part: 'Part 2 & Part 3', durationSeconds: duration,
+          integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Scoring failed.');

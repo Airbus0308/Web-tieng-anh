@@ -63,6 +63,7 @@ const MockDatabase = (() => {
         timeSpentSeconds: result.timeSpentSeconds || null,
         sectionBreakdown: result.sectionBreakdown || null,
         weakAreas: result.weakAreas || [],
+        integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null,
         metadata: {
           totalQuestions: result.score.total,
           version: '1.0.0'
