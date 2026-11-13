@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="IELTS Master analytics dashboard with skill insights, progress tracking, and a personalized AI study roadmap.">
+  <meta name="description" content="IELTS Master analytics dashboard with skill insights, Writing criteria breakdown (TR, CC, LR, GRA), progress tracking, and a personalized AI study roadmap.">
   <title>IELTS Master — Analytics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,11 +29,16 @@
     <section class="analytics-intro">
       <span class="analytics-badge">Performance Analytics</span>
       <h1>Your learning, made measurable.</h1>
-      <p>See your current level, identify recurring gaps, and turn every attempt into a focused next step.</p>
+      <p>See your current level, compare Reading, Listening, and all 4 Writing criteria, and turn every attempt into a focused next step.</p>
     </section>
 
     <section class="metric-grid" aria-label="Performance summary">
-      <article class="metric-card metric-primary"><span>Average Band</span><strong id="average-band">—</strong><small id="attempt-count">No attempts yet</small></article>
+      <article class="metric-card metric-primary">
+        <span>Average Band</span>
+        <strong id="average-band">—</strong>
+        <small id="attempt-count">No attempts yet</small>
+        <small class="metric-submeta" id="practice-time">0m total practice</small>
+      </article>
       <article class="metric-card"><span>Reading</span><strong id="reading-score">—</strong><small>Average accuracy</small></article>
       <article class="metric-card"><span>Listening</span><strong id="listening-score">—</strong><small>Average accuracy</small></article>
       <article class="metric-card"><span>Writing</span><strong id="writing-score">—</strong><small>Average band</small></article>
@@ -46,14 +51,25 @@
       </section>
 
       <section class="analytics-card weakness-card">
-        <div class="card-heading"><div><span class="eyebrow">CEFR diagnosis</span><h2>Weak areas</h2></div></div>
+        <div class="card-heading"><div><span class="eyebrow">CEFR & Writing diagnosis</span><h2>Weak areas</h2></div></div>
         <div id="weak-areas" class="weak-list"></div>
       </section>
     </div>
 
+    <section class="analytics-card skill-breakdown-card" aria-label="Skill and Writing Criteria Breakdown">
+      <div class="card-heading">
+        <div>
+          <span class="eyebrow">Skill Breakdown</span>
+          <h2>Reading, Listening & Writing 4 Criteria (TR, CC, LR, GRA)</h2>
+        </div>
+        <span class="legend" id="writing-attempt-badge">Writing criteria on 0–9 band scale</span>
+      </div>
+      <div id="skill-breakdown" class="skill-breakdown-grid"></div>
+    </section>
+
     <section class="analytics-card roadmap-card">
       <div class="roadmap-header">
-        <div><span class="eyebrow">Gemini-powered coach</span><h2>Personalized 4-week roadmap</h2><p>Generate a study plan based on your latest skill data and recurring weak areas.</p></div>
+        <div><span class="eyebrow">Gemini-powered coach</span><h2>Personalized 4-week roadmap</h2><p>Generate a study plan based on your latest skill data, Writing criteria, and recurring weak areas.</p></div>
         <button class="roadmap-button" id="roadmap-button" type="button">Generate roadmap</button>
       </div>
       <div id="roadmap-content" class="roadmap-content"><div class="roadmap-placeholder">Your personalized plan will appear here.</div></div>

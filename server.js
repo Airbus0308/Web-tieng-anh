@@ -199,7 +199,7 @@ app.get('/api/placement/history', (req, res) => {
 });
 
 /** Generate a personalized study roadmap from the learner's aggregated weaknesses. */
-app.post('/api/analytics/roadmap', async (req, res) => {
+async function handleAnalyticsRoadmap(req, res) {
   try {
     const { weakAreas, summary = {} } = req.body || {};
     if (!Array.isArray(weakAreas) || weakAreas.length === 0) {
@@ -209,7 +209,8 @@ app.post('/api/analytics/roadmap', async (req, res) => {
       return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
     }
 
-    const prompt = `${config.analyticsRoadmapPrompt}\n\nLearner summary:\n${JSON.stringify(summary, null, 2)}\n\nWeak areas:\n${JSON.stringify(weakAreas, null, 2)}`;
+    const basePrompt = config.studyPlanPrompt || config.analyticsRoadmapPrompt;
+    const prompt = `${basePrompt}\n\nLearner summary:\n${JSON.stringify(summary, null, 2)}\n\nWeak areas:\n${JSON.stringify(weakAreas, null, 2)}`;
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await generateWithRetry(ai, {
       model: config.model,
@@ -221,7 +222,10 @@ app.post('/api/analytics/roadmap', async (req, res) => {
     console.error('[ERROR] Failed to generate analytics roadmap:', err);
     return res.status(500).json({ error: 'Failed to generate a study roadmap.', details: err.message });
   }
-});
+}
+
+app.post('/api/analytics/roadmap', handleAnalyticsRoadmap);
+app.post('/api/analytics/study-plan', handleAnalyticsRoadmap);
 
 /**
  * POST /api/writing/score
@@ -365,5 +369,6 @@ if (isDirectRun) app.listen(PORT, () => {
   console.log(` - POST http://localhost:${PORT}/api/placement/results`);
   console.log(` - GET  http://localhost:${PORT}/api/placement/history`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/roadmap`);
+  console.log(` - POST http://localhost:${PORT}/api/analytics/study-plan`);
   console.log(`====================================================`);
 });

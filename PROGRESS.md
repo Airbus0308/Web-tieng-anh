@@ -3,7 +3,7 @@
 > **Vai trò Điều phối (Project Coordinator):** Antigravity  
 > **Đội ngũ Thực thi (Execution Agents):** Antigravity, Claude Code, OpenAI Codex  
 > **Repository:** [Airbus0308/Web-tieng-anh](https://github.com/Airbus0308/Web-tieng-anh)  
-> **Cập nhật lần cuối:** 2026-11-12
+> **Cập nhật lần cuối:** 2026-11-13
 
 ---
 
@@ -13,8 +13,8 @@
 | :--- | :--- | :---: | :---: | :--- | :---: |
 | **Phase 1** | **Placement Test (Reading & Listening)** — 15 câu MCQ, chấm Band, lưu Mock DB | ✅ DONE | Antigravity | [phase-01-placement-test.md](progress/phase-01-placement-test.md) | `d7f50f9` |
 | **Phase 2** | **Writing Task 2 AI Grader** — Giao diện viết, chấm 4 tiêu chí qua Gemini API, `config.json` | ✅ DONE | Antigravity | [phase-02-writing-task2-ai.md](progress/phase-02-writing-task2-ai.md) | `38baa5d` |
-| **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Trang phân tích năng lực & lộ trình AI | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-03-analytics-dashboard.md` *(chờ tạo)* | — |
-| **Phase 4** | **Speaking Practice & Real Listening Audio** — Thu âm Speaking chấm bằng Gemini + Audio cho Listening | ⚪ PLANNED | Claude Code / Codex | `progress/phase-04-speaking-and-audio.md` *(chờ tạo)* | — |
+| **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Trang phân tích năng lực & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0` |
+| **Phase 4** | **Speaking Practice & Real Listening Audio** — Thu âm Speaking chấm bằng Gemini + Audio cho Listening | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-04-speaking-and-audio.md` *(chờ tạo)* | — |
 | **Phase 5** | **Inline Essay Correction & Writing Task 1** — Bôi đỏ lỗi trực tiếp trên câu + Học biểu đồ Task 1 | ⚪ PLANNED | Claude Code / Codex | `progress/phase-05-inline-correction-task1.md` *(chờ tạo)* | — |
 
 ---
@@ -32,31 +32,29 @@ Mỗi khi hoàn thành một Phase, Agent thực thi (**Claude Code** hoặc **C
 
 ---
 
-## 📋 Nhiệm Vụ Đang Mở: Phase 3 (Giao cho Claude Code / Codex)
+## 📋 Nhiệm Vụ Đang Mở: Phase 4 (Giao cho Claude Code / Codex)
 
-### Mục tiêu Phase 3: Đồng bộ Database & Trang Phân tích Năng lực (`analytics.html`)
+### Mục tiêu Phase 4: Speaking Practice & Real Listening Audio (`speaking.html`)
 
-#### 1. Đồng bộ hóa kết quả Placement Test về Backend (`server.js` & `js/database.js`)
-- Thêm 2 endpoint vào `server.js`:
-  - `POST /api/placement/results` — Nhận kết quả bài Placement Test và lưu nối vào `results/placement_results.json`.
-  - `GET /api/placement/history` — Trả về danh sách các lần làm bài Placement Test.
-- Cập nhật `MockDatabase` trong `js/database.js`:
-  - Khi gọi `saveResult(result)`, vừa lưu `localStorage` vừa gửi `POST /api/placement/results` (không làm hỏng luồng nếu chạy tĩnh không có server).
+#### 1. Bổ sung trình phát Audio thực tế cho phần Listening ở Placement Test (`js/ui.js` & `js/questions.js`)
+- Thêm trình điều khiển phát âm thanh (sử dụng Web Speech API `speechSynthesis` phân vai giọng đọc cho Dr. Patel và Sarah, kèm thanh điều khiển Play / Pause / Replay và tùy chọn ẩn/hiện Transcript) để phần thi Listening mang trải nghiệm nghe thực sự thay vì chỉ đọc văn bản.
 
-#### 2. Xây dựng trang Phân tích Năng lực (`analytics.html`, `css/analytics.css`, `js/analytics.js`)
-- Cập nhật thanh điều hướng (`nav-links`) ở `index.html`, `writing.html`, và `analytics.html` để có đủ 3 mục: **Placement Test** | **Writing Practice** | **Analytics**.
-- Trang `analytics.html` hiển thị:
-  1. **Overview Cards**: Estimated Overall Band (trung bình từ Reading, Listening, Writing), tổng số bài đã làm, thời gian luyện tập.
-  2. **Skill Breakdown**: Biểu đồ thanh hoặc Radar so sánh Reading %, Listening %, và 4 tiêu chí Writing (`TR`, `CC`, `LR`, `GRA`).
-  3. **Weak Areas Analysis**: Thống kê các câu làm sai theo cấp độ CEFR (`A2`, `B1`, `B2`) và tiêu chí Writing có điểm thấp nhất.
-  4. **AI Personalized Study Plan**: Nút *"Generate AI Study Plan"* gọi `POST /api/analytics/study-plan` để Gemini tạo lộ trình học 4 tuần dựa trên dữ liệu điểm thật của học viên.
+#### 2. Xây dựng trang Luyện Nói IELTS Speaking (`speaking.html`, `css/speaking.css`, `js/speaking.js`)
+- Cập nhật thanh điều hướng (`nav-links`) trên tất cả các trang để có: **Placement Test** | **Writing Practice** | **Speaking Practice** | **Analytics**.
+- Giao diện `speaking.html` hỗ trợ luyện tập **Speaking Part 2 (Cue Card)** & **Part 3**:
+  - Hiển thị chủ đề (Cue Card), đồng hồ đếm ngược 1 phút chuẩn bị và 2 phút nói.
+  - Cho phép ghi âm giọng nói (qua `MediaRecorder` / Web Speech Recognition) hoặc nhập bản transcript câu trả lời để gửi chấm điểm.
+  - Hiển thị điểm 4 tiêu chí Speaking chính thức: **Fluency & Coherence (FC)**, **Lexical Resource (LR)**, **Grammatical Range & Accuracy (GRA)**, **Pronunciation (PR)**.
 
 #### 3. Mở rộng `config.json` & `server.js`
-- Thêm mục `studyPlanPrompt` vào `config.json` để cấu hình prompt sinh lộ trình học tập.
-- Thêm endpoint `POST /api/analytics/study-plan` vào `server.js` sử dụng `generateWithRetry`.
+- Thêm `speakingCriteria`, `sampleSpeakingTopics`, và `speakingSystemInstruction` vào `config.json`.
+- Thêm các endpoint vào `server.js`:
+  - `GET /api/speaking/config` — Trả về chủ đề mẫu và tiêu chí chấm Speaking.
+  - `POST /api/speaking/score` — Chấm điểm bài nói qua Gemini (`generateWithRetry`) và lưu lịch sử vào `results/speaking_results.json`.
+  - `GET /api/speaking/history` — Trả về danh sách các lần luyện Speaking.
 
 #### 4. Nghiệm thu (Definition of Done)
-- Thêm tối thiểu 3 bài test mới vào `tests/smoke.test.js` (`POST /api/placement/results`, `GET /api/placement/history`, `GET /analytics.html`).
-- Chạy `npm test` PASS toàn bộ.
-- Tạo báo cáo `progress/phase-03-analytics-dashboard.md` và cập nhật bảng trên trong `PROGRESS.md`.
-- Push lên nhánh `main`.
+- Bổ sung kiểm thử cho `/speaking.html`, `/api/speaking/config`, `/api/speaking/history`, `/api/speaking/score` vào `tests/smoke.test.js`.
+- Chạy `npm test` PASS 100%.
+- Tạo báo cáo `progress/phase-04-speaking-and-audio.md` và cập nhật bảng trên trong `PROGRESS.md`.
+- Commit và push lên nhánh `main`.

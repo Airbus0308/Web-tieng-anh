@@ -5,6 +5,8 @@
  * Starts server.js on a test port, then checks:
  *  - static pages and config.json are served
  *  - /api/writing/config and /api/writing/history respond
+ *  - /api/placement/results and /api/placement/history sync & deduplicate
+ *  - /api/analytics/roadmap and /api/analytics/study-plan validate input
  *  - /api/writing/score validates input (empty / under 250 words)
  *  - /api/writing/score returns a full result when GEMINI_API_KEY is set
  *    (skipped otherwise)
@@ -38,20 +40,23 @@ after(async () => {
 const sampleEssay = (words) =>
   Array.from({ length: words }, (_, i) => (i % 12 === 11 ? 'technology.' : 'education')).join(' ');
 
-test('serves all application pages', async () => {
+test('serves all application pages and analytics skill breakdown section', async () => {
   for (const page of ['/writing.html', '/index.html', '/analytics.html']) {
     const res = await fetch(BASE + page);
     assert.equal(res.status, 200, page);
   }
+  const analyticsHtml = await (await fetch(`${BASE}/analytics.html`)).text();
+  assert.ok(analyticsHtml.includes('id="skill-breakdown"'), 'analytics.html should include #skill-breakdown');
+  assert.ok(analyticsHtml.includes('TR, CC, LR, GRA'), 'analytics.html should mention 4 Writing criteria');
 });
 
-test('config.json contains the 4 IELTS criteria', async () => {
+test('config.json contains the 4 IELTS criteria and study plan prompts', async () => {
   const res = await fetch(`${BASE}/config.json`);
   const cfg = await res.json();
   const abbrs = Object.values(cfg.scoringCriteria).map(c => c.abbreviation).sort();
   assert.deepEqual(abbrs, ['CC', 'GRA', 'LR', 'TR']);
   assert.ok(cfg.systemInstruction && cfg.responseFormat && cfg.model);
-  assert.ok(cfg.analyticsRoadmapPrompt);
+  assert.ok(cfg.analyticsRoadmapPrompt && cfg.studyPlanPrompt);
 });
 
 test('GET /api/writing/config returns topics and criteria', async () => {
@@ -88,11 +93,13 @@ test('POST /api/placement/results rejects incomplete data', async () => {
   assert.equal(res.status, 400);
 });
 
-test('POST /api/analytics/roadmap validates weak areas before calling Gemini', async () => {
-  const res = await fetch(`${BASE}/api/analytics/roadmap`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weakAreas: [] })
-  });
-  assert.equal(res.status, 400);
+test('POST /api/analytics/roadmap and /api/analytics/study-plan validate weak areas before calling Gemini', async () => {
+  for (const endpoint of ['/api/analytics/roadmap', '/api/analytics/study-plan']) {
+    const res = await fetch(`${BASE}${endpoint}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weakAreas: [] })
+    });
+    assert.equal(res.status, 400, endpoint);
+  }
 });
 
 test('POST /api/writing/score rejects an empty essay', async () => {
