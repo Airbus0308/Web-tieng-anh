@@ -15,7 +15,7 @@
 | **Phase 2** | **Writing Task 2 AI Grader** — Giao diện viết, chấm 4 tiêu chí qua Gemini API, `config.json` | ✅ DONE | Antigravity | [phase-02-writing-task2-ai.md](progress/phase-02-writing-task2-ai.md) | `38baa5d` |
 | **Phase 3** | **Backend Sync & Proficiency Analytics Dashboard** — Đồng bộ DB + Skill Breakdown 4 tiêu chí Writing & lộ trình AI | ✅ DONE | Codex & Antigravity | [phase-03-analytics-dashboard.md](progress/phase-03-analytics-dashboard.md) | `d9e97e0`, `8d7d3fa` |
 | **Phase 4** | **Speaking Practice & AI Examiner** — Luyện nói Part 2/3, thu âm / Speech-to-Text, chấm 4 tiêu chí (`FC`, `LR`, `GRA`, `PR`) | ✅ DONE | Claude Code | [phase-04-speaking-practice.md](progress/phase-04-speaking-practice.md) | `574872a`, `56b9f63` |
-| **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | 🟡 READY FOR HANDOFF | Claude Code / Codex | `progress/phase-05-inline-and-security.md` *(chờ tạo)* | — |
+| **Phase 5** | **Inline Essay Correction & Production Security** — Bôi đỏ sửa lỗi trực tiếp trên câu + Bảo mật Server & Rate Limit | ✅ DONE | Codex | [phase-05-inline-and-security.md](progress/phase-05-inline-and-security.md) | `6940a77` |
 
 ---
 
@@ -32,36 +32,11 @@ Mỗi khi hoàn thành một Phase, Agent thực thi (**Claude Code** hoặc **C
 
 ---
 
-## 📋 Nhiệm Vụ Đang Mở: Phase 5 (Giao cho Codex / Claude Code)
+## ✅ Phase 5 đã hoàn thành
 
-### Mục tiêu Phase 5: Inline Essay Correction & Production Security Hardening
+- Express chỉ phục vụ các trang HTML, `config.json` và tài nguyên trong `css/`, `js/`, `assets/`. File mã nguồn, môi trường, kết quả và tài liệu nội bộ không truy cập được qua HTTP.
+- Bốn endpoint Gemini dùng chung hạn mức 10 yêu cầu mỗi IP trong 15 phút.
+- Kết quả Writing hiển thị các cụm từ được sửa và giải thích; dữ liệu được lưu trong lịch sử.
+- Kết quả kiểm thử và giới hạn triển khai: [Báo cáo Phase 5](progress/phase-05-inline-and-security.md).
 
-#### 1. Vá lỗ hổng bảo mật Server & Rate Limiting trong `server.js` (Chuẩn bị Public Launch)
-- **Bảo vệ file nhạy cảm khỏi truy cập tĩnh (`express.static`)**:
-  - Thêm middleware hoặc cấu hình chặn truy cập trực tiếp (trả về `403` hoặc `404`) đối với các đường dẫn nhạy cảm: `/.env`, `/.env.example`, `/server.js`, `/package.json`, `/package-lock.json`, `/CLAUDE.md`, `/AGENTS.md`, `/PROGRESS.md`, và các thư mục `/results/*`, `/progress/*`, `/tests/*`, `/scripts/*`.
-  - Đảm bảo các trang frontend (`/index.html`, `/writing.html`, `/speaking.html`, `/analytics.html`), `/css/*`, `/js/*`, `/assets/*`, và `/config.json` vẫn phục vụ bình thường để không làm hỏng các bài kiểm thử hiện có.
-- **Thêm Rate Limiting cho các API gọi Gemini**:
-  - Viết middleware giới hạn tốc độ ngay trong `server.js` (sử dụng `Map` theo IP, cho phép cấu hình qua `process.env.RATE_LIMIT_MAX` mặc định 15 request / 15 phút) áp dụng cho `/api/writing/score`, `/api/speaking/score`, `/api/analytics/roadmap`, `/api/analytics/study-plan`.
-
-#### 2. Bổ sung tính năng Chữa bài Chi tiết theo Câu — Inline Essay Corrections (`config.json`, `writing.html`, `js/writing.js`, `css/writing.css`)
-- Mở rộng `responseFormat` trong `config.json` để yêu cầu Gemini trả thêm mảng `"corrections"` (tối đa 5 lỗi tiêu biểu trong bài viết):
-  ```json
-  "corrections": [
-    {
-      "original": "<exact phrase or sentence with error from essay>",
-      "corrected": "<improved IELTS Band 8+ version>",
-      "explanation": "<brief explanation of grammar/lexical fix>"
-    }
-  ]
-  ```
-- Trong `writing.html`, `js/writing.js`, và `css/writing.css`:
-  - Thêm khu vực **"Sentence-Level Corrections & Upgrades"** ngay trong phần kết quả chấm Writing.
-  - Hiển thị trực quan cụm từ gốc bị lỗi (gạch ngang màu đỏ) → cụm từ đã sửa (màu xanh lá) kèm giải thích ngữ pháp/từ vựng.
-
-#### 3. Nghiệm thu (Definition of Done)
-- Bổ sung kiểm thử vào `tests/smoke.test.js`:
-  - Kiểm tra `GET /.env`, `GET /server.js`, `GET /package.json` trả về `403` hoặc `404`.
-  - Kiểm tra schema `responseFormat` trong `config.json` có trường `corrections` và `writing.html` có vùng hiển thị chữa lỗi câu.
-- Chạy `npm test` PASS 100%.
-- Tạo báo cáo `progress/phase-05-inline-and-security.md` và cập nhật bảng trong `PROGRESS.md` (chuyển Phase 5 sang `✅ DONE`).
-- Commit và push lên nhánh `main`.
+Phase tiếp theo chưa được điều phối viên xác định.
