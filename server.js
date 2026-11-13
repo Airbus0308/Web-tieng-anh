@@ -31,6 +31,7 @@ const PORT = process.env.PORT || 3000;
 const resultsDir = process.env.IELTS_RESULTS_DIR || path.join(__dirname, 'results');
 const resultsFile = path.join(resultsDir, 'writing_results.json');
 const placementResultsFile = path.join(resultsDir, 'placement_results.json');
+const speakingResultsFile = path.join(resultsDir, 'speaking_results.json');
 
 // Ensure results directory exists
 if (!fs.existsSync(resultsDir)) {
@@ -353,6 +354,140 @@ app.get('/api/writing/history', (req, res) => {
   }
 });
 
+/**
+ * Build the Gemini prompt for IELTS Speaking Part 2/3 evaluation (all text lives in config.json)
+ */
+function buildSpeakingPrompt(transcript, topic, part) {
+  const criteriaList = Object.values(config.speakingCriteria)
+    .map(item => `### ${item.name} (${item.abbreviation}) [Weight: ${Math.round(item.weight * 100)}%]:\n${item.prompt}`)
+    .join('\n\n');
+  const responseFormatStr = typeof config.speakingResponseFormat === 'string'
+    ? config.speakingResponseFormat
+    : JSON.stringify(config.speakingResponseFormat, null, 2);
+
+  return `
+${config.speakingSystemInstruction}
+
+============================================================
+CRITERIA FOR EVALUATION:
+============================================================
+${criteriaList}
+
+============================================================
+RESPONSE FORMAT INSTRUCTIONS:
+============================================================
+${responseFormatStr}
+
+Respond ONLY with a valid JSON object matching the requested schema. Do NOT enclose in markdown code block markers and do not output any conversational prelude or epilogue.
+
+============================================================
+SPEAKING SUBMISSION FOR EVALUATION:
+============================================================
+Part: ${part || 'Part 2 (Cue Card) & Part 3'}
+Topic / Cue Card:
+${topic ? topic.trim() : 'IELTS Speaking Part 2'}
+
+Candidate's transcript (${countWords(transcript)} words):
+"""
+${transcript.trim()}
+"""
+`.trim();
+}
+
+/**
+ * GET /api/speaking/config
+ */
+app.get('/api/speaking/config', (req, res) => {
+  res.json({
+    model: config.model,
+    wordCountRequirements: config.speakingWordCountRequirements,
+    sampleTopics: config.sampleSpeakingTopics,
+    criteria: Object.values(config.speakingCriteria).map(c => ({
+      name: c.name,
+      abbreviation: c.abbreviation,
+      weight: c.weight
+    }))
+  });
+});
+
+/**
+ * POST /api/speaking/score
+ * Evaluates an IELTS Speaking transcript (min 40 words) with Gemini and stores the result.
+ */
+app.post('/api/speaking/score', async (req, res) => {
+  try {
+    const { transcript, topic, part, durationSeconds } = req.body || {};
+    if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
+      return res.status(400).json({ error: 'Speaking transcript is required.' });
+    }
+    const wordCount = countWords(transcript);
+    const minWords = config.speakingWordCountRequirements?.min || 40;
+    if (wordCount < minWords) {
+      return res.status(400).json({
+        error: `Transcript does not meet the minimum word count of ${minWords} words (current: ${wordCount} words).`,
+        wordCount,
+        minRequired: minWords
+      });
+    }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('[ERROR] GEMINI_API_KEY is not defined in environment variables.');
+      return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
+    }
+
+    console.log(`[INFO] Evaluating speaking transcript (${wordCount} words) using model: ${config.model}...`);
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await generateWithRetry(ai, {
+      model: config.model,
+      contents: buildSpeakingPrompt(transcript, topic, part),
+      config: { responseMimeType: 'application/json' }
+    });
+
+    let result;
+    try {
+      result = parseGeminiJson(response);
+    } catch (parseErr) {
+      console.error('[ERROR] Failed to parse Gemini speaking response as JSON.');
+      return res.status(502).json({ error: 'Failed to parse assessment result from Gemini as JSON.', raw: response.text });
+    }
+
+    const record = {
+      id: `speak_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      timestamp: new Date().toISOString(),
+      topic: topic ? String(topic).trim() : null,
+      part: part ? String(part) : null,
+      wordCount,
+      durationSeconds: Number.isFinite(Number(durationSeconds)) ? Number(durationSeconds) : null,
+      transcript: transcript.trim(),
+      result
+    };
+    try {
+      const history = readJsonArray(speakingResultsFile);
+      history.push(record);
+      writeJsonArray(speakingResultsFile, history);
+    } catch (storageErr) {
+      console.warn(`[WARN] Failed to save speaking evaluation:`, storageErr.message);
+    }
+
+    return res.status(200).json({ ...result, id: record.id, timestamp: record.timestamp, wordCount });
+  } catch (error) {
+    console.error('[ERROR] Error processing speaking evaluation:', error);
+    return res.status(500).json({ error: 'An error occurred while evaluating the speaking response.', details: error.message });
+  }
+});
+
+/**
+ * GET /api/speaking/history
+ */
+app.get('/api/speaking/history', (req, res) => {
+  try {
+    return res.json(readJsonArray(speakingResultsFile));
+  } catch (err) {
+    console.error('[ERROR] Failed to fetch speaking history:', err);
+    return res.status(500).json({ error: 'Failed to retrieve speaking evaluation history.', details: err.message });
+  }
+});
+
 // Export the app so tests can mount it in-process
 export default app;
 
@@ -366,6 +501,9 @@ if (isDirectRun) app.listen(PORT, () => {
   console.log(` - POST http://localhost:${PORT}/api/writing/score`);
   console.log(` - GET  http://localhost:${PORT}/api/writing/history`);
   console.log(` - GET  http://localhost:${PORT}/api/writing/config`);
+  console.log(` - POST http://localhost:${PORT}/api/speaking/score`);
+  console.log(` - GET  http://localhost:${PORT}/api/speaking/history`);
+  console.log(` - GET  http://localhost:${PORT}/api/speaking/config`);
   console.log(` - POST http://localhost:${PORT}/api/placement/results`);
   console.log(` - GET  http://localhost:${PORT}/api/placement/history`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/roadmap`);

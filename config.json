@@ -1,8 +1,6 @@
 {
   "model": "gemini-3.5-flash",
-
   "systemInstruction": "You are a senior, certified IELTS examiner with 15+ years of experience assessing IELTS Academic Writing Task 2 essays. You strictly adhere to the official IELTS Writing Task 2 band descriptors published by the British Council, IDP, and Cambridge Assessment English. Your evaluations are fair, precise, and constructive. You always provide actionable, specific feedback referencing exact phrases or patterns from the candidate's essay. Score each criterion independently on a scale of 0.0 to 9.0 in 0.5 increments.",
-
   "scoringCriteria": {
     "taskResponse": {
       "name": "Task Response",
@@ -29,9 +27,7 @@
       "prompt": "Evaluate the essay's Grammatical Range and Accuracy. Consider: (1) Does the writer use a variety of complex sentence structures (relative clauses, conditionals, passive voice, noun clauses)? (2) Are the majority of sentences error-free? (3) Do grammatical errors impede communication? (4) Is punctuation used accurately? Score from 0.0 to 9.0 in 0.5 increments. Provide specific diagnostic feedback quoting actual sentence patterns and grammatical errors from the essay."
     }
   },
-
   "responseFormat": "Respond with a valid JSON object following this exact schema: { \"criteria\": [ { \"name\": \"<full criterion name>\", \"abbreviation\": \"<TR|CC|LR|GRA>\", \"score\": <number 0.0-9.0>, \"band_descriptor\": \"<one-line band descriptor for this score>\", \"feedback\": \"<detailed feedback paragraph with specific examples from the essay>\" } ], \"overall_band\": <number 0.0-9.0>, \"overall_feedback\": \"<comprehensive paragraph summarizing the essay's strengths and weaknesses>\", \"suggestions\": [ \"<specific actionable suggestion 1>\", \"<specific actionable suggestion 2>\", \"<specific actionable suggestion 3>\", \"<specific actionable suggestion 4>\" ] }. The overall_band should be the arithmetic mean of the four criteria scores, rounded to the nearest 0.5. Respond ONLY with the JSON object, no markdown code fences.",
-
   "sampleTopics": [
     {
       "id": "wt2-01",
@@ -55,13 +51,134 @@
       "instructions": "Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words."
     }
   ],
-
   "wordCountRequirements": {
     "min": 250,
     "recommended": 280
   },
-
   "analyticsRoadmapPrompt": "You are an expert IELTS learning coach. Create a practical, personalized 4-week study roadmap based on the learner summary and weak areas supplied below. Prioritize the weakest CEFR levels and skills. Return ONLY valid JSON using this schema: { \"overview\": \"short encouraging assessment\", \"targetBand\": number, \"weeks\": [{ \"week\": number, \"focus\": \"main focus\", \"activities\": [\"specific activity\"], \"milestone\": \"measurable outcome\" }], \"dailyMinutes\": number, \"successMetrics\": [\"measurable metric\"] }. Include exactly 4 weeks and keep every activity concrete and achievable.",
-
-  "studyPlanPrompt": "You are an expert IELTS learning coach. Create a practical, personalized 4-week study roadmap based on the learner summary and weak areas supplied below. Prioritize the weakest CEFR levels and skills. Return ONLY valid JSON using this schema: { \"overview\": \"short encouraging assessment\", \"targetBand\": number, \"weeks\": [{ \"week\": number, \"focus\": \"main focus\", \"activities\": [\"specific activity\"], \"milestone\": \"measurable outcome\" }], \"dailyMinutes\": number, \"successMetrics\": [\"measurable metric\"] }. Include exactly 4 weeks and keep every activity concrete and achievable."
+  "studyPlanPrompt": "You are an expert IELTS learning coach. Create a practical, personalized 4-week study roadmap based on the learner summary and weak areas supplied below. Prioritize the weakest CEFR levels and skills. Return ONLY valid JSON using this schema: { \"overview\": \"short encouraging assessment\", \"targetBand\": number, \"weeks\": [{ \"week\": number, \"focus\": \"main focus\", \"activities\": [\"specific activity\"], \"milestone\": \"measurable outcome\" }], \"dailyMinutes\": number, \"successMetrics\": [\"measurable metric\"] }. Include exactly 4 weeks and keep every activity concrete and achievable.",
+  "speakingSystemInstruction": "You are a senior, certified IELTS Speaking examiner with 15+ years of experience. You assess a candidate's IELTS Speaking Part 2 (long turn) and Part 3 (discussion) response strictly according to the official IELTS Speaking band descriptors. The response is supplied as a transcript (speech-to-text or typed by the candidate), so you cannot hear the audio: judge Pronunciation / Delivery only from indirect textual evidence (transcription artefacts, hesitation markers, fillers, self-corrections, sentence rhythm, stress-sensitive word choice) and say clearly in the feedback that this criterion is estimated from the transcript. Be objective, specific and constructive; quote short phrases from the transcript as evidence. Scores use 0.0-9.0 in 0.5 increments.",
+  "speakingCriteria": {
+    "fluencyCoherence": {
+      "name": "Fluency and Coherence",
+      "abbreviation": "FC",
+      "weight": 0.25,
+      "prompt": "Evaluate Fluency and Coherence. Consider: (1) Can the candidate keep talking at length without noticeable effort, and does the answer cover the cue-card prompts? (2) Frequency of hesitation, repetition and self-correction. (3) Logical sequencing of ideas and use of discourse markers and cohesive devices. (4) For Part 2, does the talk approach the expected 1-2 minutes of speech? Score 0.0 to 9.0 in 0.5 increments with specific feedback quoting the transcript."
+    },
+    "lexicalResource": {
+      "name": "Lexical Resource",
+      "abbreviation": "LR",
+      "weight": 0.25,
+      "prompt": "Evaluate Lexical Resource. Consider: (1) Range and precision of vocabulary for the topic. (2) Use of idiomatic language, collocations and less common items. (3) Ability to paraphrase when lacking a word. (4) Word-choice errors and repetition. Score 0.0 to 9.0 in 0.5 increments with concrete examples from the transcript."
+    },
+    "grammaticalRangeAccuracy": {
+      "name": "Grammatical Range and Accuracy",
+      "abbreviation": "GRA",
+      "weight": 0.25,
+      "prompt": "Evaluate Grammatical Range and Accuracy. Consider: (1) Variety of structures (simple, compound, complex, conditionals, relative clauses, passive, tense range). (2) Accuracy and frequency of errors and whether they impede communication. Score 0.0 to 9.0 in 0.5 increments quoting specific errors and strong structures."
+    },
+    "pronunciation": {
+      "name": "Pronunciation",
+      "abbreviation": "PR",
+      "weight": 0.25,
+      "prompt": "Evaluate Pronunciation / Delivery from the transcript only (audio is unavailable, so state that the score is an estimate). Consider indirect evidence: transcription artefacts that suggest unclear articulation, fillers, sentence length and rhythm, chunking, and use of words that are difficult to pronounce. List 2-3 words or patterns the candidate should practise. Score 0.0 to 9.0 in 0.5 increments."
+    }
+  },
+  "speakingResponseFormat": "Respond with a valid JSON object following this exact schema: { \"criteria\": [ { \"name\": \"<full criterion name>\", \"abbreviation\": \"<FC|LR|GRA|PR>\", \"score\": <number 0.0-9.0>, \"band_descriptor\": \"<one-line band descriptor for this score>\", \"feedback\": \"<detailed feedback paragraph with specific examples from the transcript>\" } ], \"overall_band\": <number 0.0-9.0>, \"overall_feedback\": \"<comprehensive paragraph summarizing strengths and weaknesses>\", \"suggestions\": [ \"<actionable suggestion 1>\", \"<actionable suggestion 2>\", \"<actionable suggestion 3>\", \"<actionable suggestion 4>\" ] }. The overall_band should be the arithmetic mean of the four criteria scores, rounded to the nearest 0.5. Respond ONLY with the JSON object, no markdown code fences.",
+  "speakingWordCountRequirements": {
+    "min": 40,
+    "recommended": 120
+  },
+  "sampleSpeakingTopics": [
+    {
+      "id": "sp-01",
+      "category": "People",
+      "part2": {
+        "prompt": "Describe a teacher who has influenced you.",
+        "points": [
+          "Who this person is",
+          "How you know this person",
+          "What they taught you"
+        ],
+        "closing": "and explain why this person influenced you so much."
+      },
+      "part3": [
+        "Do you think teachers are as respected today as in the past?",
+        "How has technology changed the role of teachers?",
+        "What qualities make a good teacher?"
+      ]
+    },
+    {
+      "id": "sp-02",
+      "category": "Places",
+      "part2": {
+        "prompt": "Describe a place in your city where you like to relax.",
+        "points": [
+          "Where it is",
+          "How often you go there",
+          "What you do there"
+        ],
+        "closing": "and explain why it helps you relax."
+      },
+      "part3": [
+        "Why do people in cities need green spaces?",
+        "How do leisure habits differ between generations?",
+        "Should governments invest more in public parks?"
+      ]
+    },
+    {
+      "id": "sp-03",
+      "category": "Experiences",
+      "part2": {
+        "prompt": "Describe a time when you learned a new skill.",
+        "points": [
+          "What the skill was",
+          "How you learned it",
+          "Who or what helped you"
+        ],
+        "closing": "and explain how you felt about learning it."
+      },
+      "part3": [
+        "Is it better to learn skills at school or on the job?",
+        "Why do some people give up learning new skills?",
+        "How might learning change in the future?"
+      ]
+    },
+    {
+      "id": "sp-04",
+      "category": "Objects",
+      "part2": {
+        "prompt": "Describe an item of technology that you find useful.",
+        "points": [
+          "What it is",
+          "How long you have had it",
+          "How you use it"
+        ],
+        "closing": "and explain why it is useful to you."
+      },
+      "part3": [
+        "Are people too dependent on technology?",
+        "How has technology changed communication?",
+        "Will technology make jobs disappear?"
+      ]
+    },
+    {
+      "id": "sp-05",
+      "category": "Events",
+      "part2": {
+        "prompt": "Describe a memorable family celebration.",
+        "points": [
+          "What the occasion was",
+          "Who attended",
+          "What happened"
+        ],
+        "closing": "and explain why it was memorable."
+      },
+      "part3": [
+        "Why are family celebrations important in many cultures?",
+        "Have traditional celebrations changed in recent years?",
+        "Do you think people spend too much money on celebrations?"
+      ]
+    }
+  ]
 }

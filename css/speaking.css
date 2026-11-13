@@ -1,0 +1,24 @@
+/* IELTS Master — Speaking Practice extras (builds on css/main.css + css/writing.css) */
+.cue-label { margin: 14px 0 6px; font-weight: 600; color: var(--text-primary); }
+.cue-points { margin: 0 0 8px 20px; padding: 0; color: var(--text-secondary); line-height: 1.7; }
+.cue-closing { margin: 0; color: var(--text-secondary); }
+.part3-box { margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: var(--bg-elevated); border: 1px solid rgba(148, 163, 184, 0.15); }
+.part3-title { margin: 0 0 8px; font-size: 0.95rem; color: var(--accent-teal); }
+.part3-list { margin: 0 0 0 20px; padding: 0; color: var(--text-secondary); line-height: 1.7; }
+
+.speaking-timer-card { text-align: center; padding: 20px; margin-bottom: 20px; border-radius: 16px; background: var(--bg-card); border: 1px solid rgba(148, 163, 184, 0.15); backdrop-filter: blur(12px); }
+.phase-label { font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-secondary); }
+.timer-big { font-size: 3rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 6px 0 12px; color: var(--text-primary); }
+.speaking-timer-card.phase-prep .timer-big { color: var(--accent-amber); }
+.speaking-timer-card.phase-speak .timer-big { color: var(--accent-green); }
+.speaking-timer-card.phase-done .timer-big { color: var(--accent-red); }
+.timer-controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+.btn-record { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 600; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid rgba(99, 102, 241, 0.5); }
+.btn-record:hover { border-color: var(--accent-primary); }
+.btn-record .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-red); }
+.btn-record.recording { border-color: var(--accent-red); }
+.btn-record.recording .rec-dot { animation: rec-pulse 1s infinite; }
+@keyframes rec-pulse { 50% { opacity: 0.25; transform: scale(1.35); } }
+.speech-status { min-height: 1.2em; margin: 4px 0 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.speech-status.error { color: var(--accent-red); }

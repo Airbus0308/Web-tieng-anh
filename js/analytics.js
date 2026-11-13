@@ -2,6 +2,13 @@
 const AnalyticsApp = (() => {
   const PLACEMENT_KEY = 'ielts_placement_results';
   const WRITING_KEY = 'ielts_writing_history';
+  const SPEAKING_KEY = 'ielts_speaking_history';
+  const SPEAKING_CRITERIA_META = [
+    { key: 'FC', name: 'Fluency & Coherence' },
+    { key: 'LR', name: 'Lexical Resource' },
+    { key: 'GRA', name: 'Grammatical Range & Accuracy' },
+    { key: 'PR', name: 'Pronunciation' }
+  ];
   const WRITING_CRITERIA_META = [
     { key: 'TR', name: 'Task Response' },
     { key: 'CC', name: 'Coherence & Cohesion' },
@@ -28,6 +35,7 @@ const AnalyticsApp = (() => {
 
   const placementBand = record => parseFloat(String(record.estimatedBand || '').replace('+', ''));
   const writingBand = record => Number(record.result?.overall_band ?? record.overall_band ?? record.overallBand);
+  const speakingBand = record => Number(record.result?.overall_band ?? record.overall_band ?? record.overallBand);
   const average = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
   /**
@@ -66,6 +74,20 @@ const AnalyticsApp = (() => {
     return { averages, weakestCriterion, totalCriteriaSamples: scoredCriteria.length };
   }
 
+  function aggregateSpeakingCriteria(speakingRecords) {
+    const buckets = { FC: [], LR: [], GRA: [], PR: [] };
+    speakingRecords.forEach(record => {
+      extractCriteriaList(record).forEach(item => {
+        const abbr = String(item?.abbreviation || '').toUpperCase().trim();
+        const score = Number(item?.score);
+        if (abbr in buckets && Number.isFinite(score)) buckets[abbr].push(score);
+      });
+    });
+    const averages = {};
+    SPEAKING_CRITERIA_META.forEach(({ key }) => { averages[key] = average(buckets[key]); });
+    return { averages };
+  }
+
   function formatPracticeTime(totalSeconds) {
     if (!totalSeconds || totalSeconds <= 0) return '0m total practice';
     const minutes = Math.max(1, Math.round(totalSeconds / 60));
@@ -75,13 +97,15 @@ const AnalyticsApp = (() => {
     return remMins ? `${hours}h ${remMins}m total practice` : `${hours}h total practice`;
   }
 
-  function aggregate(placement, writing) {
+  function aggregate(placement, writing, speaking = []) {
     const reading = placement.map(r => Number(r.sectionBreakdown?.reading?.percentage)).filter(Number.isFinite);
     const listening = placement.map(r => Number(r.sectionBreakdown?.listening?.percentage)).filter(Number.isFinite);
     const writingBands = writing.map(writingBand).filter(Number.isFinite);
+    const speakingBands = speaking.map(speakingBand).filter(Number.isFinite);
     const attempts = [
       ...placement.map(r => ({ date: r.timestamp, band: placementBand(r), type: 'Placement' })),
-      ...writing.map(r => ({ date: r.timestamp, band: writingBand(r), type: 'Writing' }))
+      ...writing.map(r => ({ date: r.timestamp, band: writingBand(r), type: 'Writing' })),
+      ...speaking.map(r => ({ date: r.timestamp, band: speakingBand(r), type: 'Speaking' }))
     ].filter(a => Number.isFinite(a.band)).sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const weakCounts = { A2: 0, B1: 0, B2: 0 };
@@ -91,15 +115,19 @@ const AnalyticsApp = (() => {
     });
 
     const writingCriteria = aggregateWritingCriteria(writing);
+    const speakingCriteria = aggregateSpeakingCriteria(speaking);
 
     // Calculate total practice time (actual placement timeSpentSeconds + ~20m per scored essay if not recorded)
     const placementSeconds = placement.reduce((acc, r) => acc + (Number(r.timeSpentSeconds) || 600), 0);
     const writingSeconds = writing.reduce((acc, r) => acc + (Number(r.timeSpentSeconds) || 1200), 0);
-    const totalPracticeSeconds = (placement.length ? placementSeconds : 0) + (writing.length ? writingSeconds : 0);
+    const speakingSeconds = speaking.reduce((acc, r) => acc + (Number(r.durationSeconds) || 180), 0);
+    const totalPracticeSeconds = (placement.length ? placementSeconds : 0) + (writing.length ? writingSeconds : 0) + speakingSeconds;
 
     return {
       placement,
       writing,
+      speaking,
+      speakingCriteria,
       attempts,
       weakCounts,
       writingCriteria,
@@ -107,7 +135,8 @@ const AnalyticsApp = (() => {
       averageBand: average(attempts.map(a => a.band)),
       reading: average(reading),
       listening: average(listening),
-      writingBand: average(writingBands)
+      writingBand: average(writingBands),
+      speakingBand: average(speakingBands)
     };
   }
 
@@ -116,6 +145,8 @@ const AnalyticsApp = (() => {
     document.getElementById('reading-score').textContent = data.reading == null ? '—' : `${Math.round(data.reading)}%`;
     document.getElementById('listening-score').textContent = data.listening == null ? '—' : `${Math.round(data.listening)}%`;
     document.getElementById('writing-score').textContent = data.writingBand == null ? '—' : data.writingBand.toFixed(1);
+    const speakingEl = document.getElementById('speaking-score');
+    if (speakingEl) speakingEl.textContent = data.speakingBand == null ? '—' : data.speakingBand.toFixed(1);
     document.getElementById('attempt-count').textContent = data.attempts.length
       ? `${data.attempts.length} scored attempt${data.attempts.length === 1 ? '' : 's'}`
       : 'No attempts yet';
@@ -216,7 +247,23 @@ const AnalyticsApp = (() => {
       };
     });
 
-    const allBars = [...coreSkills, ...criteriaSkills];
+    const speakingSkills = SPEAKING_CRITERIA_META.map(({ key, name }) => {
+      const avgScore = data.speakingCriteria?.averages?.[key];
+      const pct = avgScore == null ? 0 : Math.round((avgScore / 9) * 100);
+      return {
+        pill: `S-${key}`,
+        pillClass: 'pill-teal',
+        name: `Speaking: ${name} (${key})`,
+        valueText: avgScore == null ? '—' : `Band ${avgScore.toFixed(1)} / 9.0`,
+        percent: pct,
+        fillClass: 'fill-writing',
+        metaLeft: 'Official IELTS Speaking Criterion (25%)',
+        metaRight: avgScore == null ? 'No data' : `${pct}% of Band 9`,
+        isWeakest: false
+      };
+    });
+
+    const allBars = [...coreSkills, ...criteriaSkills, ...speakingSkills];
     container.innerHTML = allBars.map(item => `
       <article class="skill-bar-card ${item.isWeakest ? 'is-weakest' : ''}" data-skill="${escapeHtml(item.pill)}">
         <div class="skill-bar-header">
@@ -311,6 +358,8 @@ const AnalyticsApp = (() => {
             reading: snapshot.reading,
             listening: snapshot.listening,
             writing: snapshot.writingBand,
+            speaking: snapshot.speakingBand,
+            speakingCriteria: snapshot.speakingCriteria?.averages || {},
             writingCriteria: snapshot.writingCriteria?.averages || {}
           }
         })
@@ -321,13 +370,13 @@ const AnalyticsApp = (() => {
   }
 
   async function init() {
-    const [placement, writing] = await Promise.all([fetchHistory('/api/placement/history', PLACEMENT_KEY), fetchHistory('/api/writing/history', WRITING_KEY)]);
-    snapshot = aggregate(placement.data, writing.data);
+    const [placement, writing, speaking] = await Promise.all([fetchHistory('/api/placement/history', PLACEMENT_KEY), fetchHistory('/api/writing/history', WRITING_KEY), fetchHistory('/api/speaking/history', SPEAKING_KEY)]);
+    snapshot = aggregate(placement.data, writing.data, speaking.data);
     renderMetrics(snapshot);
     renderWeakAreas(snapshot);
     renderSkillBreakdown(snapshot);
     renderChart(snapshot.attempts);
-    const online = placement.online && writing.online; const status = document.getElementById('sync-status'); status.textContent = online ? 'Server data synced' : 'Offline data'; status.className = `sync-status ${online ? 'online' : 'offline'}`;
+    const online = placement.online && writing.online && speaking.online; const status = document.getElementById('sync-status'); status.textContent = online ? 'Server data synced' : 'Offline data'; status.className = `sync-status ${online ? 'online' : 'offline'}`;
     document.getElementById('roadmap-button').addEventListener('click', generateRoadmap);
     window.addEventListener('resize', () => renderChart(snapshot.attempts));
   }

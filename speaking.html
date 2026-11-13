@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="IELTS Speaking Part 2 & 3 Practice — Cue card timer, speech-to-text recording and AI scoring across the 4 official Speaking criteria.">
+  <title>IELTS Master — Speaking Practice</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/writing.css">
+  <link rel="stylesheet" href="css/speaking.css">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='70' font-size='55' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>IM</text></svg>">
+</head>
+<body>
+
+  <header class="app-header" id="app-header">
+    <a class="logo" href="index.html">
+      <div class="logo-icon">IM</div>
+      <div class="logo-text">IELTS <span>Master</span></div>
+    </a>
+    <nav class="nav-links" aria-label="Main Navigation">
+      <a href="index.html" class="nav-link">Placement Test</a>
+      <a href="writing.html" class="nav-link">Writing Practice</a>
+      <a href="speaking.html" class="nav-link active" aria-current="page">Speaking Practice</a>
+      <a href="analytics.html" class="nav-link">Analytics</a>
+    </nav>
+    <div class="header-right">
+      <div class="writing-timer" id="speaking-timer" title="Part 2: 1 minute preparation, then up to 2 minutes speaking">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="timer-display">01:00</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="writing-container">
+    <section class="writing-intro">
+      <div class="writing-badge-row">
+        <span class="writing-badge">Speaking Part 2 &amp; 3</span>
+        <span class="writing-meta-chip">1 min prep + 2 min speaking</span>
+        <span class="writing-meta-chip">Min 40 Words</span>
+      </div>
+      <h1 class="writing-page-title">Speaking Practice &amp; AI Examiner</h1>
+      <p class="writing-page-desc">Prepare with the cue card, speak into your microphone (or type your answer), then get AI scoring on Fluency &amp; Coherence, Lexical Resource, Grammatical Range &amp; Accuracy and Pronunciation.</p>
+    </section>
+
+    <div class="writing-layout">
+      <div class="writing-main">
+
+        <section class="topic-card" id="topic-section">
+          <div class="topic-header">
+            <div class="topic-tags">
+              <span class="topic-category-tag" id="topic-category">People</span>
+              <span class="topic-type-tag">Part 2 – Cue Card</span>
+            </div>
+            <button type="button" class="btn-change-topic" id="btn-change-topic" onclick="SpeakingApp.changeTopic()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>Change Topic</span>
+            </button>
+          </div>
+          <div class="topic-prompt-box">
+            <p class="topic-prompt" id="topic-prompt">Loading cue card...</p>
+            <p class="cue-label">You should say:</p>
+            <ul class="cue-points" id="cue-points"></ul>
+            <p class="cue-closing" id="cue-closing"></p>
+          </div>
+          <div class="part3-box">
+            <h3 class="part3-title">Part 3 – Discussion questions</h3>
+            <ol class="part3-list" id="part3-list"></ol>
+          </div>
+        </section>
+
+        <section class="speaking-timer-card" id="timer-card">
+          <div class="phase-label" id="phase-label">Ready</div>
+          <div class="timer-big" id="timer-big">01:00</div>
+          <div class="timer-controls">
+            <button type="button" class="btn-text-action" id="btn-start-prep" onclick="SpeakingApp.startPrep()">Start 1-min Preparation</button>
+            <button type="button" class="btn-text-action" id="btn-start-speaking" onclick="SpeakingApp.startSpeaking()">Skip to Speaking</button>
+            <button type="button" class="btn-text-action" id="btn-reset-timer" onclick="SpeakingApp.resetTimer()">Reset</button>
+          </div>
+        </section>
+
+        <section class="editor-card" id="editor-section">
+          <div class="editor-header">
+            <div class="editor-title-group"><span class="editor-title">Your Answer (Transcript)</span></div>
+            <div class="editor-actions">
+              <button type="button" class="btn-record" id="btn-record" onclick="SpeakingApp.toggleRecording()" aria-pressed="false">
+                <span class="rec-dot"></span><span id="btn-record-text">Start Recording</span>
+              </button>
+              <button type="button" class="btn-text-action" id="btn-clear" onclick="SpeakingApp.clearDraft()">Clear</button>
+            </div>
+          </div>
+          <p class="speech-status" id="speech-status" aria-live="polite"></p>
+          <div class="textarea-wrapper">
+            <textarea id="speaking-input" class="essay-textarea" spellcheck="true" aria-label="Speaking transcript"
+              placeholder="Press Start Recording and speak, or type / edit your answer here.&#10;&#10;Tip: cover every point on the cue card and aim for about 120+ words (roughly 1-2 minutes of speech)."></textarea>
+          </div>
+          <div class="editor-footer">
+            <div class="char-limit-indicator"><span>Minimum 40 words · recommended 120+</span></div>
+            <div class="word-count-badge warning" id="word-count-badge" aria-live="polite">
+              <span class="word-count-dot"></span>
+              <span class="word-count-display"><strong id="word-count-number">0</strong> / 40 words</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="submit-section" id="submit-section">
+          <button type="button" class="btn-start btn-submit-essay" id="btn-submit" onclick="SpeakingApp.handleSubmit()" disabled>
+            <span class="btn-spinner" id="btn-spinner" style="display: none;"></span>
+            <span class="btn-text" id="btn-submit-text">Submit for AI Scoring</span>
+          </button>
+          <p class="submit-hint-text" id="submit-hint">Provide at least 40 words to enable submission.</p>
+        </section>
+
+        <section class="scoring-loader" id="scoring-loader" style="display: none;" aria-live="assertive">
+          <div class="spinner-ring"></div>
+          <h2 class="loader-title">Evaluating Your Response</h2>
+          <p class="loader-subtitle">Analyzing Fluency &amp; Coherence, Lexical Resource, Grammatical Range &amp; Accuracy and Pronunciation...</p>
+        </section>
+
+        <section class="results-area fade-in" id="results-area" style="display: none;">
+          <div class="writing-hero">
+            <div class="result-hero-bg"></div>
+            <div class="result-hero-content">
+              <p class="result-label">Your Estimated Speaking Band</p>
+              <div class="result-band-circle" id="result-band-circle"><span class="result-band-number" id="result-overall-band">0.0</span></div>
+              <p class="result-band-label" id="result-band-label"></p>
+              <div class="result-meta-row"><span class="result-meta-chip" id="result-word-count"></span></div>
+            </div>
+          </div>
+          <div class="feedback-card">
+            <div class="feedback-card-header"><h2 class="feedback-card-title">Overall Assessment</h2></div>
+            <p class="feedback-paragraph" id="result-overall-feedback"></p>
+          </div>
+          <div class="criteria-container">
+            <h2 class="criteria-section-title">Assessment Criteria Breakdown (FC, LR, GRA, PR)</h2>
+            <div class="criteria-grid" id="criteria-grid"></div>
+          </div>
+          <div class="suggestions-card">
+            <div class="suggestions-header"><h2 class="suggestions-title">Key Suggestions for Improvement</h2></div>
+            <ul class="suggestions-list" id="suggestions-list"></ul>
+          </div>
+          <div class="writing-result-actions">
+            <button type="button" class="btn-try-again" onclick="SpeakingApp.resetForm()"><span>Practice Another Topic</span></button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="writing-sidebar" aria-label="Sidebar">
+        <section class="sidebar-card" id="history-section">
+          <div class="sidebar-card-header">
+            <div class="sidebar-title-group"><h2 class="sidebar-title">Speaking History</h2></div>
+            <span class="history-count-pill" id="history-count-pill">0</span>
+          </div>
+          <div class="history-list" id="history-list"></div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Assessment Guide</h2></div></div>
+          <div class="tips-item"><div class="tips-icon">🗣️</div><div><strong style="color: var(--text-primary); display: block;">FC — Fluency &amp; Coherence (25%)</strong>Speak at length with few pauses and link ideas logically.</div></div>
+          <div class="tips-item"><div class="tips-icon">📚</div><div><strong style="color: var(--text-primary); display: block;">LR — Lexical Resource (25%)</strong>Use varied, precise vocabulary and natural collocations.</div></div>
+          <div class="tips-item"><div class="tips-icon">⚖️</div><div><strong style="color: var(--text-primary); display: block;">GRA — Grammar (25%)</strong>Mix simple and complex structures accurately.</div></div>
+          <div class="tips-item"><div class="tips-icon">🎧</div><div><strong style="color: var(--text-primary); display: block;">PR — Pronunciation (25%)</strong>Clear sounds, stress and rhythm. Estimated from the transcript.</div></div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Part 2 Strategy</h2></div></div>
+          <div class="tips-item"><div class="tips-icon">⏱️</div><div><strong style="color: var(--text-primary);">1 min: Prepare</strong><p>Note key words for each bullet point.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🎙️</div><div><strong style="color: var(--text-primary);">2 min: Speak</strong><p>Cover all points, add a story and your feelings.</p></div></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/speaking.js"></script>
+</body>
+</html>
