@@ -32,6 +32,7 @@ const resultsDir = process.env.IELTS_RESULTS_DIR || path.join(__dirname, 'result
 const resultsFile = path.join(resultsDir, 'writing_results.json');
 const placementResultsFile = path.join(resultsDir, 'placement_results.json');
 const speakingResultsFile = path.join(resultsDir, 'speaking_results.json');
+const runtimeKeysFile = path.join(resultsDir, 'gemini_keys.json');
 
 // Ensure results directory exists
 if (!fs.existsSync(resultsDir)) {
@@ -110,6 +111,179 @@ function parseGeminiJson(response) {
   else if (rawText.startsWith('```')) rawText = rawText.slice(3);
   if (rawText.endsWith('```')) rawText = rawText.slice(0, -3);
   return JSON.parse(rawText.trim());
+}
+
+/* ── Multi-Key Pool & Auto-Rotation Engine ────────────── */
+
+const KEY_COOLDOWN_MS = 60 * 1000;
+const keyCooldownUntil = new Map();
+let roundRobinCursor = 0;
+
+function splitKeyString(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+  return raw
+    .split(/[\n,;]+/)
+    .map(k => k.trim())
+    .filter(Boolean);
+}
+
+function maskApiKey(key) {
+  const k = String(key || '').trim();
+  if (k.length <= 10) return '••••' + k.slice(-3);
+  return `${k.slice(0, 6)}••••••••${k.slice(-4)}`;
+}
+
+function getEnvApiKeys() {
+  return [
+    ...splitKeyString(process.env.GEMINI_API_KEYS || ''),
+    ...splitKeyString(process.env.GEMINI_API_KEY || '')
+  ];
+}
+
+function getRuntimeApiKeys() {
+  try {
+    return readJsonArray(runtimeKeysFile).filter(k => typeof k === 'string' && k.trim());
+  } catch {
+    return [];
+  }
+}
+
+function saveRuntimeApiKeys(keys) {
+  const unique = [...new Set(keys.map(k => String(k || '').trim()).filter(Boolean))];
+  writeJsonArray(runtimeKeysFile, unique);
+  return unique;
+}
+
+function collectAvailableKeys(req) {
+  const headerKeys = splitKeyString(req?.headers?.['x-gemini-api-key'] || '');
+  const bodyKeys = Array.isArray(req?.body?.apiKeys)
+    ? req.body.apiKeys.flatMap(splitKeyString)
+    : splitKeyString(req?.body?.apiKey || '');
+  const runtimeKeys = getRuntimeApiKeys();
+  const envKeys = getEnvApiKeys();
+
+  return [...new Set([...headerKeys, ...bodyKeys, ...runtimeKeys, ...envKeys])];
+}
+
+function buildKeyPoolStatus() {
+  const now = Date.now();
+  const envKeys = getEnvApiKeys();
+  const runtimeKeys = getRuntimeApiKeys();
+  const seen = new Set();
+  const list = [];
+
+  for (const k of [...runtimeKeys, ...envKeys]) {
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const cooldownAt = keyCooldownUntil.get(k) || 0;
+    list.push({
+      masked: maskApiKey(k),
+      source: runtimeKeys.includes(k) ? 'runtime' : 'env',
+      status: cooldownAt > now ? 'cooldown' : 'ready'
+    });
+  }
+
+  return {
+    totalKeys: list.length,
+    activeKeys: list.filter(x => x.status === 'ready').length,
+    keys: list
+  };
+}
+
+/**
+ * GET /api/settings/keys
+ * Returns masked status of all configured Gemini API keys in the rotation pool.
+ */
+app.get('/api/settings/keys', (req, res) => {
+  res.json(buildKeyPoolStatus());
+});
+
+/**
+ * POST /api/settings/keys
+ * Adds one or multiple Gemini API keys to the server's runtime rotation pool.
+ */
+app.post('/api/settings/keys', (req, res) => {
+  const rawInput = req.body?.keys ?? req.body?.apiKey ?? '';
+  const incoming = Array.isArray(rawInput)
+    ? rawInput.flatMap(splitKeyString)
+    : splitKeyString(String(rawInput));
+
+  if (!incoming.length) {
+    return res.status(400).json({ error: 'At least one valid Gemini API key is required.' });
+  }
+
+  const existing = getRuntimeApiKeys();
+  saveRuntimeApiKeys([...existing, ...incoming]);
+  return res.status(200).json(buildKeyPoolStatus());
+});
+
+/**
+ * DELETE /api/settings/keys
+ * Clears runtime-added Gemini API keys.
+ */
+app.delete('/api/settings/keys', (req, res) => {
+  saveRuntimeApiKeys([]);
+  keyCooldownUntil.clear();
+  return res.status(200).json(buildKeyPoolStatus());
+});
+
+/**
+ * Call Gemini using the key pool.
+ * Automatically rotates to the next key immediately if a key hits 429 rate limit,
+ * quota exhaustion, or invalid key errors.
+ */
+async function generateWithKeyPool(req, promptText) {
+  const allKeys = collectAvailableKeys(req);
+  if (!allKeys.length) {
+    return { missingKey: true };
+  }
+
+  const now = Date.now();
+  // Order keys starting from roundRobinCursor, prioritizing non-cooldown keys
+  const rotated = [];
+  for (let i = 0; i < allKeys.length; i++) {
+    rotated.push(allKeys[(roundRobinCursor + i) % allKeys.length]);
+  }
+  roundRobinCursor = (roundRobinCursor + 1) % allKeys.length;
+
+  const readyKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) <= now);
+  const cooldownKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) > now);
+  const orderedKeys = [...readyKeys, ...cooldownKeys];
+
+  let lastError = null;
+
+  for (let idx = 0; idx < orderedKeys.length; idx++) {
+    const apiKey = orderedKeys[idx];
+    const ai = new GoogleGenAI({ apiKey });
+    // If multiple keys exist, rotate immediately on 429; if only 1 key exists, retry with backoff
+    const maxAttemptsForThisKey = orderedKeys.length > 1 ? 1 : 3;
+
+    try {
+      const response = await generateWithRetry(ai, {
+        model: config.model,
+        contents: promptText,
+        config: { responseMimeType: 'application/json' }
+      }, maxAttemptsForThisKey);
+
+      keyCooldownUntil.delete(apiKey);
+      return { response, usedKeyMasked: maskApiKey(apiKey) };
+    } catch (err) {
+      lastError = err;
+      const status = err?.status ?? err?.code;
+      const msg = String(err?.message || '');
+      const isRateOrQuota = status === 429 || status === 503 || /RESOURCE_EXHAUSTED|UNAVAILABLE|quota|rate/i.test(msg);
+      const isAuthError = status === 400 || status === 401 || status === 403 || /API_KEY_INVALID|permission/i.test(msg);
+
+      if (isRateOrQuota || isAuthError) {
+        keyCooldownUntil.set(apiKey, Date.now() + KEY_COOLDOWN_MS);
+        console.warn(`[WARN] Key ${maskApiKey(apiKey)} hit limit/error (${status || msg}). Rotating to next key (${idx + 1}/${orderedKeys.length})...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError || new Error('All configured Gemini API keys exhausted their quota.');
 }
 
 /**
@@ -238,19 +412,16 @@ async function handleAnalyticsRoadmap(req, res) {
     if (!Array.isArray(weakAreas) || weakAreas.length === 0) {
       return res.status(400).json({ error: 'weakAreas must be a non-empty array.' });
     }
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
-    }
 
     const basePrompt = config.studyPlanPrompt || config.analyticsRoadmapPrompt;
     const prompt = `${basePrompt}\n\nLearner summary:\n${JSON.stringify(summary, null, 2)}\n\nWeak areas:\n${JSON.stringify(weakAreas, null, 2)}`;
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await generateWithRetry(ai, {
-      model: config.model,
-      contents: prompt,
-      config: { responseMimeType: 'application/json' }
-    });
-    return res.json(parseGeminiJson(response));
+
+    const gen = await generateWithKeyPool(req, prompt);
+    if (gen.missingKey) {
+      return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
+    }
+
+    return res.json(parseGeminiJson(gen.response));
   } catch (err) {
     console.error('[ERROR] Failed to generate analytics roadmap:', err);
     return res.status(500).json({ error: 'Failed to generate a study roadmap.', details: err.message });
@@ -262,7 +433,7 @@ app.post('/api/analytics/study-plan', handleAnalyticsRoadmap);
 
 /**
  * POST /api/writing/score
- * Evaluates an IELTS Writing Task 2 essay using Google GenAI SDK
+ * Evaluates an IELTS Writing Task 2 essay using Google GenAI SDK with Multi-Key Rotation
  */
 app.post('/api/writing/score', async (req, res) => {
   try {
@@ -286,50 +457,25 @@ app.post('/api/writing/score', async (req, res) => {
       });
     }
 
-    // Check Gemini API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('[ERROR] GEMINI_API_KEY is not defined in environment variables.');
+    const promptText = buildEvaluationPrompt(essay, topic);
+    const gen = await generateWithKeyPool(req, promptText);
+    if (gen.missingKey) {
+      console.error('[ERROR] No Gemini API keys available in environment or key pool.');
       return res.status(500).json({
         error: 'Server configuration error: GEMINI_API_KEY is missing.'
       });
     }
 
-    console.log(`[INFO] Evaluating essay (${wordCount} words) using model: ${config.model}...`);
-
-    // Initialize Google GenAI client
-    const ai = new GoogleGenAI({ apiKey });
-    const promptText = buildEvaluationPrompt(essay, topic);
-
-    // Call Gemini API (retries transient 429/503 errors with exponential backoff)
-    const response = await generateWithRetry(ai, {
-      model: config.model,
-      contents: promptText,
-      config: { responseMimeType: 'application/json' }
-    });
-
-    let rawText = response.text || '';
-
-    // Clean potential markdown delimiters if present
-    rawText = rawText.trim();
-    if (rawText.startsWith('```json')) {
-      rawText = rawText.slice(7);
-    } else if (rawText.startsWith('```')) {
-      rawText = rawText.slice(3);
-    }
-    if (rawText.endsWith('```')) {
-      rawText = rawText.slice(0, -3);
-    }
-    rawText = rawText.trim();
+    console.log(`[INFO] Evaluated essay (${wordCount} words) using key ${gen.usedKeyMasked} (Model: ${config.model})`);
 
     let result;
     try {
-      result = JSON.parse(rawText);
+      result = parseGeminiJson(gen.response);
     } catch (parseErr) {
-      console.error('[ERROR] Failed to parse Gemini response as JSON. Raw output:', rawText);
+      console.error('[ERROR] Failed to parse Gemini response as JSON.');
       return res.status(502).json({
         error: 'Failed to parse assessment result from Gemini as JSON.',
-        raw: rawText
+        raw: gen.response?.text || ''
       });
     }
 
@@ -469,26 +615,21 @@ app.post('/api/speaking/score', async (req, res) => {
         minRequired: minWords
       });
     }
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('[ERROR] GEMINI_API_KEY is not defined in environment variables.');
+
+    const gen = await generateWithKeyPool(req, buildSpeakingPrompt(transcript, topic, part));
+    if (gen.missingKey) {
+      console.error('[ERROR] No Gemini API keys available in environment or key pool.');
       return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY is missing.' });
     }
 
-    console.log(`[INFO] Evaluating speaking transcript (${wordCount} words) using model: ${config.model}...`);
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await generateWithRetry(ai, {
-      model: config.model,
-      contents: buildSpeakingPrompt(transcript, topic, part),
-      config: { responseMimeType: 'application/json' }
-    });
+    console.log(`[INFO] Evaluated speaking transcript (${wordCount} words) using key ${gen.usedKeyMasked} (Model: ${config.model})`);
 
     let result;
     try {
-      result = parseGeminiJson(response);
+      result = parseGeminiJson(gen.response);
     } catch (parseErr) {
       console.error('[ERROR] Failed to parse Gemini speaking response as JSON.');
-      return res.status(502).json({ error: 'Failed to parse assessment result from Gemini as JSON.', raw: response.text });
+      return res.status(502).json({ error: 'Failed to parse assessment result from Gemini as JSON.', raw: gen.response?.text });
     }
 
     const record = {
@@ -548,5 +689,6 @@ if (isDirectRun) app.listen(PORT, () => {
   console.log(` - GET  http://localhost:${PORT}/api/placement/history`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/roadmap`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/study-plan`);
+  console.log(` - GET/POST/DELETE http://localhost:${PORT}/api/settings/keys`);
   console.log(`====================================================`);
 });
