@@ -47,7 +47,7 @@ const ApiKeyManager = (() => {
   const _origFetch = window.fetch.bind(window);
   window.fetch = function (input, init = {}) {
     const url = typeof input === 'string' ? input : (input?.url || '');
-    if (url.includes('/api/writing/score') || url.includes('/api/speaking/score') || url.includes('/api/analytics/')) {
+    if (url.includes('/api/writing/score') || url.includes('/api/speaking/score') || url.includes('/api/analytics/') || url.includes('/api/study/generate-unit') || url.includes('/api/study/evaluate-mini')) {
       const localKeys = getLocalKeys();
       if (localKeys.length > 0) {
         const headers = new Headers(init.headers || {});

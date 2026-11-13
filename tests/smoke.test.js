@@ -337,3 +337,119 @@ test('Gemini endpoints share a 10-request limit per 15 minutes', async () => {
   assert.equal(statuses.at(-1), 429);
   assert.ok(statuses.includes(429));
 });
+
+/* ── Phase 7: Study Hub ─────────────────────────────────────── */
+
+const post = (route, body) => fetch(BASE + route, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+});
+
+/** Run fn with every AI provider disabled so Study endpoints use their offline fallbacks. */
+async function withoutAiProviders(fn) {
+  const names = ['GEMINI_API_KEY', 'GEMINI_API_KEYS', 'GITHUB_TOKEN', 'GITHUB_TOKENS', 'DISABLE_FREE_FALLBACK'];
+  const previous = Object.fromEntries(names.map(n => [n, process.env[n]]));
+  for (const n of names) delete process.env[n];
+  process.env.DISABLE_FREE_FALLBACK = 'true';
+  try { return await fn(); } finally {
+    for (const n of names) {
+      if (previous[n] === undefined) delete process.env[n]; else process.env[n] = previous[n];
+    }
+  }
+}
+
+test('study.html loads its assets, shares the 5-item nav and all 5 pages link to Study Hub', async () => {
+  const html = await (await fetch(`${BASE}/study.html`)).text();
+  for (const id of ['exam-date', 'target-band', 'countdown-number', 'gap-list', 'textbook-list', 'source-text', 'source-file', 'source-url', 'mastery-fill', 'step-body']) {
+    assert.ok(html.includes(`id="${id}"`), `study.html should include #${id}`);
+  }
+  for (const src of ['js/study.js', 'js/api-keys.js', 'js/exam-security.js', 'css/study.css']) {
+    assert.ok(html.includes(src), `study.html should load ${src}`);
+  }
+  for (const page of ['/index.html', '/writing.html', '/speaking.html', '/study.html', '/analytics.html']) {
+    const text = await (await fetch(BASE + page)).text();
+    assert.ok(text.includes('<a href="study.html" class="nav-link'), `${page} nav should link to Study Hub`);
+    assert.ok(text.includes('>Study Hub</a>'), page);
+  }
+  for (const asset of ['/js/study.js', '/css/study.css']) {
+    assert.equal((await fetch(BASE + asset)).status, 200, asset);
+  }
+});
+
+test('GET /api/study/config returns 4 textbooks with complete 5-step sample units', async () => {
+  const data = await (await fetch(`${BASE}/api/study/config`)).json();
+  assert.ok(data.sampleTextbooks.length >= 4);
+  assert.deepEqual(data.masterySteps.map(s => s.mastery), [20, 40, 60, 80, 100]);
+  for (const book of data.sampleTextbooks) {
+    assert.ok(book.title && book.bandRange, book.id);
+    assert.ok(book.units.length >= 2, `${book.id} needs at least 2 units`);
+    for (const unit of book.units) {
+      assert.ok(unit.content.length > 50, `${unit.id} content`);
+      const s = unit.sample;
+      assert.ok(s.lesson.explanationEn && s.lesson.explanationVi, `${unit.id} lesson`);
+      assert.ok(s.flashcards.length >= 4 && s.flashcards.length <= 6, `${unit.id} flashcards`);
+      assert.equal(s.quiz.length, 4, `${unit.id} quiz`);
+      assert.ok(s.quiz.every(q => q.answer >= 0 && q.answer < q.options.length), `${unit.id} quiz answers`);
+      assert.equal(s.drill.length, 3, `${unit.id} drill`);
+      assert.ok(s.drill.every(q => q.answer >= 0 && q.answer < q.options.length), `${unit.id} drill answers`);
+      assert.ok(s.challenge.prompt && s.challenge.targetWords.length >= 3, `${unit.id} challenge`);
+    }
+  }
+});
+
+test('GET/POST /api/study/progress validates, saves and never lowers mastery', async () => {
+  assert.ok(Array.isArray(await (await fetch(`${BASE}/api/study/progress`)).json()));
+  assert.equal((await post('/api/study/progress', { mastery: 20 })).status, 400);
+  assert.equal((await post('/api/study/progress', { unitId: 'cam-u1', mastery: 33 })).status, 400);
+  assert.equal((await post('/api/study/progress', { unitId: 'cam-u1', title: 'Unit', mastery: 60 })).status, 200);
+  const lowered = await (await post('/api/study/progress', { unitId: 'cam-u1', mastery: 40 })).json();
+  assert.equal(lowered.mastery, 60);
+  const list = await (await fetch(`${BASE}/api/study/progress`)).json();
+  assert.equal(list.filter(r => r.unitId === 'cam-u1').length, 1);
+});
+
+test('POST /api/study/generate-unit validates its input', async () => {
+  assert.equal((await post('/api/study/generate-unit', {})).status, 400);
+  assert.equal((await post('/api/study/generate-unit', { textbookId: 'nope', unitId: 'nope' })).status, 400);
+  assert.equal((await post('/api/study/generate-unit', { sourceText: 'too short' })).status, 400);
+});
+
+test('POST /api/study/generate-unit falls back to the sample unit when no AI is available', async () => {
+  await withoutAiProviders(async () => {
+    const res = await post('/api/study/generate-unit', { textbookId: 'cambridge-reading-listening', unitId: 'cam-u1', weakAreas: ['Reading'] });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.fallback, true);
+    assert.equal(data.unit.flashcards.length, 4);
+    const custom = await post('/api/study/generate-unit', { sourceText: 'x'.repeat(80) });
+    assert.equal(custom.status, 500);
+  });
+});
+
+test('POST /api/study/extract-source handles text and rejects unsafe or empty input', async () => {
+  assert.equal((await post('/api/study/extract-source', {})).status, 400);
+  assert.equal((await post('/api/study/extract-source', { url: 'ftp://example.com/a' })).status, 400);
+  assert.equal((await post('/api/study/extract-source', { url: 'http://localhost:3000/config.json' })).status, 400);
+  assert.equal((await post('/api/study/extract-source', { url: 'http://127.0.0.1/' })).status, 400);
+  assert.equal((await post('/api/study/extract-source', { url: 'http://169.254.169.254/latest/meta-data' })).status, 400);
+  assert.equal((await post('/api/study/extract-source', { text: 'short' })).status, 422);
+  const ok = await post('/api/study/extract-source', { text: 'Climate change is a pressing issue for every country. '.repeat(5), title: 'Notes' });
+  assert.equal(ok.status, 200);
+  const data = await ok.json();
+  assert.equal(data.sourceType, 'text');
+  assert.ok(data.wordCount > 20);
+});
+
+test('POST /api/study/evaluate-mini validates and grades locally when no AI is available', async () => {
+  assert.equal((await post('/api/study/evaluate-mini', {})).status, 400);
+  assert.equal((await post('/api/study/evaluate-mini', { answer: 'too short' })).status, 400);
+  await withoutAiProviders(async () => {
+    const answer = Array.from({ length: 55 }, (_, i) => (i === 3 ? 'mitigate' : i === 9 ? 'renewable' : 'word')).join(' ') + '.';
+    const res = await post('/api/study/evaluate-mini', { answer, targetWords: ['mitigate', 'renewable', 'sustainable'], minWords: 50, maxWords: 80 });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.provider, 'Local heuristic');
+    assert.deepEqual(data.usedWords.sort(), ['mitigate', 'renewable']);
+    assert.deepEqual(data.missingWords, ['sustainable']);
+    assert.ok(data.band >= 4 && data.score > 0);
+  });
+});

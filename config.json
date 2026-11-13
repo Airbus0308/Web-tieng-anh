@@ -180,5 +180,1289 @@
         "Do you think people spend too much money on celebrations?"
       ]
     }
-  ]
+  ],
+  "sampleTextbooks": [
+    {
+      "id": "cambridge-reading-listening",
+      "title": "Cambridge IELTS Academic — High-Frequency Reading & Listening Strategies",
+      "publisher": "Cambridge University Press & Assessment",
+      "skill": "Reading & Listening",
+      "bandRange": "5.5–7.5",
+      "bandMin": 5.5,
+      "bandMax": 7.5,
+      "focus": [
+        "reading",
+        "listening",
+        "placement"
+      ],
+      "description": "Chiến thuật làm bài Reading và Listening hay gặp nhất trong đề Cambridge IELTS Academic.",
+      "units": [
+        {
+          "id": "cam-u1",
+          "title": "Unit 1 — True / False / Not Given: Phân biệt False và Not Given",
+          "bandRange": "5.5–7.0",
+          "content": "In True/False/Not Given tasks the statement paraphrases the passage. TRUE: the passage agrees. FALSE: the passage contradicts the statement. NOT GIVEN: the passage does not mention enough information to decide. Never use outside knowledge. Locate the paraphrase, compare the key claim (quantifiers such as all/some/most, tenses, and cause-effect links), then decide.",
+          "sample": {
+            "title": "True / False / Not Given",
+            "lesson": {
+              "titleEn": "True / False / Not Given",
+              "titleVi": "Đúng / Sai / Không có thông tin",
+              "explanationEn": "Find the sentence that paraphrases the statement, then compare meaning. If the passage says the opposite, choose FALSE. If the topic is mentioned but the specific claim is missing, choose NOT GIVEN.",
+              "explanationVi": "Tìm câu trong bài đọc diễn đạt lại (paraphrase) ý của đề, rồi so sánh nghĩa. Bài nói ngược lại → FALSE. Bài nhắc chủ đề nhưng không có đúng thông tin đề nêu → NOT GIVEN. Tuyệt đối không dùng kiến thức bên ngoài.",
+              "formulas": [
+                "Cùng nghĩa với bài → TRUE",
+                "Mâu thuẫn trực tiếp với bài → FALSE",
+                "Không đủ thông tin để kết luận → NOT GIVEN"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "Chọn FALSE khi bài chỉ không nhắc tới ý đó",
+                  "right": "Chọn NOT GIVEN",
+                  "noteVi": "FALSE cần có bằng chứng phủ định rõ ràng trong bài."
+                },
+                {
+                  "wrong": "Bỏ qua từ chỉ mức độ (all, most, only)",
+                  "right": "Gạch chân quantifier trong đề",
+                  "noteVi": "Một từ như \"only\" có thể đổi hoàn toàn đáp án."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "paraphrase",
+                "back": "diễn đạt lại bằng từ/cấu trúc khác nhưng giữ nguyên nghĩa",
+                "example": "The question paraphrases \"rise sharply\" as \"increase dramatically\"."
+              },
+              {
+                "front": "contradict",
+                "back": "mâu thuẫn, trái ngược với",
+                "example": "The passage contradicts the claim that prices fell."
+              },
+              {
+                "front": "quantifier",
+                "back": "từ chỉ số lượng (all, some, most, few)",
+                "example": "A quantifier such as \"most\" changes the answer from TRUE to NOT GIVEN."
+              },
+              {
+                "front": "skim and scan",
+                "back": "đọc lướt lấy ý chính và quét tìm thông tin cụ thể",
+                "example": "Skim for the main idea, then scan for the keyword."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "If the passage never mentions the claim in the statement, the answer is FALSE.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Không được nhắc tới là NOT GIVEN. FALSE cần bài nói điều trái ngược."
+              },
+              {
+                "type": "tf",
+                "question": "You should rely only on the passage and not on your own knowledge.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng: mọi đáp án phải dựa trên văn bản."
+              },
+              {
+                "type": "mcq",
+                "question": "The passage says \"Some schools adopted the scheme.\" The statement says \"All schools adopted the scheme.\" The answer is:",
+                "options": [
+                  "TRUE",
+                  "FALSE",
+                  "NOT GIVEN",
+                  "Cannot be decided"
+                ],
+                "answer": 1,
+                "explanation": "\"Some\" mâu thuẫn với \"All\" nên là FALSE."
+              },
+              {
+                "type": "mcq",
+                "question": "Which word in a statement most often changes the answer?",
+                "options": [
+                  "the",
+                  "only",
+                  "and",
+                  "in"
+                ],
+                "answer": 1,
+                "explanation": "\"only\" là quantifier giới hạn nghĩa, dễ biến TRUE thành FALSE."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn đáp án đúng cho tình huống.",
+                "sentence": "Passage: \"Exports grew by 5% in 2019.\" Statement: \"Exports grew by more than 10% in 2019.\"",
+                "options": [
+                  "TRUE",
+                  "FALSE",
+                  "NOT GIVEN"
+                ],
+                "answer": 1,
+                "explanation": "Bài nêu 5%, đề nói trên 10% → mâu thuẫn → FALSE."
+              },
+              {
+                "instruction": "Chọn đáp án đúng cho tình huống.",
+                "sentence": "Passage: \"The museum opened in 1990.\" Statement: \"The museum is the largest in the country.\"",
+                "options": [
+                  "TRUE",
+                  "FALSE",
+                  "NOT GIVEN"
+                ],
+                "answer": 2,
+                "explanation": "Bài không đề cập quy mô → NOT GIVEN."
+              },
+              {
+                "instruction": "Điền từ phù hợp.",
+                "sentence": "A statement with \"all\" is FALSE when the passage uses ___.",
+                "options": [
+                  "some",
+                  "every",
+                  "always"
+                ],
+                "answer": 0,
+                "explanation": "\"some\" cho biết không phải tất cả."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words explaining to a classmate how to tell FALSE from NOT GIVEN. Use at least three of the words: paraphrase, contradict, quantifier, evidence.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "paraphrase",
+                "contradict",
+                "quantifier",
+                "evidence"
+              ]
+            }
+          }
+        },
+        {
+          "id": "cam-u2",
+          "title": "Unit 2 — Listening Section 3: Distractors & Changed Answers",
+          "bandRange": "5.5–7.5",
+          "content": "In Section 3 of IELTS Listening speakers often correct themselves. The first answer is a distractor, and the final answer is introduced by signals such as \"actually\", \"on second thought\", \"I mean\", and \"in fact\". Read the options before the audio plays, underline the keyword of each question, and write down the final information only after the speaker settles.",
+          "sample": {
+            "title": "Distractors in Listening Section 3",
+            "lesson": {
+              "titleEn": "Distractors in Listening Section 3",
+              "titleVi": "Bẫy gây nhiễu trong Listening Section 3",
+              "explanationEn": "Speakers frequently change their minds. Wait for correction signals before you commit to an answer.",
+              "explanationVi": "Người nói thường đổi ý. Hãy chờ các tín hiệu sửa lời như \"actually\", \"I mean\", \"in fact\" rồi mới chốt đáp án.",
+              "formulas": [
+                "Đáp án đầu tiên = distractor, đáp án sau tín hiệu sửa = key",
+                "Đọc trước câu hỏi → gạch từ khóa → nghe tín hiệu"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "Viết ngay con số/tên nghe được đầu tiên",
+                  "right": "Chờ người nói chốt lại",
+                  "noteVi": "Câu đầu thường bị sửa ngay sau đó."
+                },
+                {
+                  "wrong": "Nghe từng từ thay vì nghe ý",
+                  "right": "Nghe cả mệnh đề và thái độ của người nói",
+                  "noteVi": "Từ khóa thường được paraphrase."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "distractor",
+                "back": "thông tin gây nhiễu, nghe giống đáp án nhưng sai",
+                "example": "The first date mentioned was a distractor."
+              },
+              {
+                "front": "on second thought",
+                "back": "nghĩ lại thì",
+                "example": "On second thought, let us meet on Friday."
+              },
+              {
+                "front": "I mean",
+                "back": "ý tôi là (dùng để sửa lời)",
+                "example": "It starts at nine, I mean half past nine."
+              },
+              {
+                "front": "signpost",
+                "back": "tín hiệu dẫn dắt chuyển ý",
+                "example": "Signposts such as \"however\" warn you that the answer is about to change."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "The first piece of information in a conversation is always the final answer.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Người nói có thể sửa lại; đáp án cuối mới là key."
+              },
+              {
+                "type": "tf",
+                "question": "\"Actually\" can signal that a speaker is correcting a previous statement.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đây là tín hiệu sửa lời phổ biến."
+              },
+              {
+                "type": "mcq",
+                "question": "Which phrase most clearly signals a correction?",
+                "options": [
+                  "for example",
+                  "I mean",
+                  "as well as",
+                  "in addition"
+                ],
+                "answer": 1,
+                "explanation": "\"I mean\" dùng để nói lại chính xác hơn."
+              },
+              {
+                "type": "mcq",
+                "question": "What should you do BEFORE the recording starts?",
+                "options": [
+                  "Close your eyes",
+                  "Underline keywords in the questions",
+                  "Write answers randomly",
+                  "Skip the questions"
+                ],
+                "answer": 1,
+                "explanation": "Gạch từ khóa giúp bạn định hướng khi nghe."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn đáp án cuối cùng của người nói.",
+                "sentence": "\"The meeting is on Tuesday... actually, no, Wednesday.\" Final answer:",
+                "options": [
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday"
+                ],
+                "answer": 1,
+                "explanation": "Sau \"actually, no\" là thông tin đã sửa."
+              },
+              {
+                "instruction": "Chọn tín hiệu sửa lời.",
+                "sentence": "\"The fee is 40 pounds — ___, it is 45 with the book.\"",
+                "options": [
+                  "in fact",
+                  "for instance",
+                  "besides"
+                ],
+                "answer": 0,
+                "explanation": "\"in fact\" mở đầu thông tin chính xác hơn."
+              },
+              {
+                "instruction": "Điền từ phù hợp.",
+                "sentence": "A wrong option that sounds like the answer is called a ___.",
+                "options": [
+                  "distractor",
+                  "headline",
+                  "caption"
+                ],
+                "answer": 0,
+                "explanation": "Distractor là thông tin gây nhiễu."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words giving advice to a friend preparing for IELTS Listening Section 3. Use at least three of the words: distractor, correction, keyword, signpost.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "distractor",
+                "correction",
+                "keyword",
+                "signpost"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mindset-writing-task2",
+      "title": "Mindset for IELTS — Academic Writing Task 2 Argumentation & Cohesion",
+      "publisher": "Cambridge University Press & Assessment",
+      "skill": "Writing",
+      "bandRange": "6.0–7.5",
+      "bandMin": 6,
+      "bandMax": 7.5,
+      "focus": [
+        "writing",
+        "TR",
+        "CC"
+      ],
+      "description": "Cách lập luận, phát triển ý và liên kết đoạn văn trong Writing Task 2.",
+      "units": [
+        {
+          "id": "mind-u1",
+          "title": "Unit 1 — Building a Clear Position and Developing Main Ideas",
+          "bandRange": "6.0–7.0",
+          "content": "A Band 7 essay has a clear position in the introduction and conclusion. Each body paragraph uses the PEEL structure: Point (topic sentence), Explanation, Example, Link back to the question. Avoid memorised openings. Make the position specific: \"Although online learning offers flexibility, I believe face-to-face teaching remains more effective for most students.\"",
+          "sample": {
+            "title": "PEEL paragraphs and a clear position",
+            "lesson": {
+              "titleEn": "PEEL paragraphs and a clear position",
+              "titleVi": "Đoạn văn PEEL và quan điểm rõ ràng",
+              "explanationEn": "State your opinion in the introduction, then support it with PEEL body paragraphs: Point, Explanation, Example, Link.",
+              "explanationVi": "Nêu rõ quan điểm ở mở bài, mỗi đoạn thân bài theo PEEL: Point (ý chính), Explanation (giải thích), Example (ví dụ), Link (nối về đề bài).",
+              "formulas": [
+                "Although + clause, I believe + clause.",
+                "P → E → E → L cho mỗi đoạn thân bài"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "Nêu ý chính nhưng không giải thích",
+                  "right": "Thêm 1–2 câu giải thích vì sao",
+                  "noteVi": "Ý thiếu phát triển bị trừ điểm Task Response."
+                },
+                {
+                  "wrong": "Đổi quan điểm giữa bài",
+                  "right": "Giữ một lập trường nhất quán",
+                  "noteVi": "Quan điểm không rõ làm giảm TR."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "Although... I believe...",
+                "back": "Mặc dù... tôi tin rằng... (nêu quan điểm có nhượng bộ)",
+                "example": "Although cars are convenient, I believe public transport is better for cities."
+              },
+              {
+                "front": "a compelling argument",
+                "back": "một lập luận thuyết phục",
+                "example": "One compelling argument is the reduction in air pollution."
+              },
+              {
+                "front": "to substantiate a claim",
+                "back": "chứng minh/làm rõ một luận điểm",
+                "example": "Statistics can substantiate this claim."
+              },
+              {
+                "front": "a case in point",
+                "back": "một ví dụ điển hình",
+                "example": "Singapore is a case in point."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "A clear position should appear in both the introduction and the conclusion.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng: nhất quán quan điểm giúp tăng TR."
+              },
+              {
+                "type": "tf",
+                "question": "PEEL stands for Point, Explain, Evidence, List.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "PEEL = Point, Explanation, Example, Link."
+              },
+              {
+                "type": "mcq",
+                "question": "Which sentence states a clear position?",
+                "options": [
+                  "There are many opinions about this topic.",
+                  "Some people agree and others disagree.",
+                  "I strongly believe that universities should be free.",
+                  "This essay will discuss the issue."
+                ],
+                "answer": 2,
+                "explanation": "Chỉ câu C nêu lập trường rõ ràng."
+              },
+              {
+                "type": "mcq",
+                "question": "What does the \"L\" in PEEL do?",
+                "options": [
+                  "Lists more points",
+                  "Links the paragraph back to the question",
+                  "Lengthens the essay",
+                  "Labels the example"
+                ],
+                "answer": 1,
+                "explanation": "Link nối đoạn về câu hỏi đề bài."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn câu nêu quan điểm tốt hơn.",
+                "sentence": "Which is better for an introduction?",
+                "options": [
+                  "Some people think A, others think B.",
+                  "Although A has merits, I believe B is more beneficial.",
+                  "A and B are both topics."
+                ],
+                "answer": 1,
+                "explanation": "Câu B nêu lập trường kèm nhượng bộ."
+              },
+              {
+                "instruction": "Chọn phần thiếu trong đoạn PEEL.",
+                "sentence": "Point → Explanation → ___ → Link",
+                "options": [
+                  "Example",
+                  "Opinion",
+                  "Conclusion"
+                ],
+                "answer": 0,
+                "explanation": "Thiếu Example (ví dụ cụ thể)."
+              },
+              {
+                "instruction": "Điền từ phù hợp.",
+                "sentence": "___ remote work saves time, it can reduce team collaboration.",
+                "options": [
+                  "Because",
+                  "Although",
+                  "Unless"
+                ],
+                "answer": 1,
+                "explanation": "\"Although\" diễn tả sự nhượng bộ."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words: state your position on whether children should learn a second language at primary school. Use at least three of the words: although, compelling, substantiate, advantage.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "although",
+                "compelling",
+                "substantiate",
+                "advantage"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mind-u2",
+          "title": "Unit 2 — Cohesion: Linking Devices and Referencing without Overuse",
+          "bandRange": "6.0–7.5",
+          "content": "Cohesion is about logical flow, not about the number of linking words. Use a range: contrast (however, whereas), addition (moreover, in addition), result (consequently, as a result), and exemplification (for instance). Use referencing (this trend, such measures, the latter) to avoid repetition. Overusing \"Firstly, Secondly, Moreover\" in every sentence is mechanical and lowers the CC score.",
+          "sample": {
+            "title": "Natural cohesion",
+            "lesson": {
+              "titleEn": "Natural cohesion",
+              "titleVi": "Liên kết tự nhiên",
+              "explanationEn": "Use varied linking devices and reference words so ideas flow logically without sounding mechanical.",
+              "explanationVi": "Dùng từ nối đa dạng và từ quy chiếu để ý tưởng liền mạch. Không lạm dụng \"Moreover/Furthermore\" ở đầu mọi câu.",
+              "formulas": [
+                "Contrast: However / Whereas / In contrast",
+                "Result: As a result / Consequently",
+                "Reference: this trend / such measures / the latter"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "Mở đầu mọi câu bằng từ nối",
+                  "right": "Chỉ dùng khi quan hệ logic thực sự cần",
+                  "noteVi": "Lạm dụng bị coi là máy móc."
+                },
+                {
+                  "wrong": "Lặp lại cùng một danh từ nhiều lần",
+                  "right": "Dùng this/such/the latter để quy chiếu",
+                  "noteVi": "Referencing giúp đoạn văn tự nhiên hơn."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "consequently",
+                "back": "do đó, vì vậy (chỉ kết quả)",
+                "example": "Prices rose; consequently, demand fell."
+              },
+              {
+                "front": "whereas",
+                "back": "trong khi (đối lập)",
+                "example": "Urban areas are crowded, whereas rural areas are quiet."
+              },
+              {
+                "front": "such measures",
+                "back": "những biện pháp như vậy (quy chiếu)",
+                "example": "The government banned plastic bags. Such measures reduce waste."
+              },
+              {
+                "front": "the latter",
+                "back": "cái thứ hai (trong hai thứ vừa nhắc)",
+                "example": "Of cars and trains, the latter is greener."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "Using a linking word at the start of every sentence improves cohesion.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Lạm dụng làm bài máy móc và giảm điểm CC."
+              },
+              {
+                "type": "tf",
+                "question": "\"Whereas\" is used to show contrast.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng."
+              },
+              {
+                "type": "mcq",
+                "question": "Choose the best link: \"The tax was raised. ___, fewer people bought cars.\"",
+                "options": [
+                  "However",
+                  "Consequently",
+                  "For example",
+                  "Meanwhile"
+                ],
+                "answer": 1,
+                "explanation": "Quan hệ nguyên nhân - kết quả."
+              },
+              {
+                "type": "mcq",
+                "question": "Which phrase is a referencing device?",
+                "options": [
+                  "such measures",
+                  "in addition",
+                  "firstly",
+                  "to conclude"
+                ],
+                "answer": 0,
+                "explanation": "\"such measures\" quy chiếu về ý đã nêu."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn từ nối phù hợp.",
+                "sentence": "Some people prefer cities; ___, others choose the countryside.",
+                "options": [
+                  "therefore",
+                  "whereas",
+                  "for instance"
+                ],
+                "answer": 1,
+                "explanation": "Quan hệ đối lập → whereas."
+              },
+              {
+                "instruction": "Sửa lỗi lặp từ.",
+                "sentence": "Governments introduced new laws. ___ were effective.",
+                "options": [
+                  "The laws",
+                  "Such measures",
+                  "New laws laws"
+                ],
+                "answer": 1,
+                "explanation": "\"Such measures\" tránh lặp lại."
+              },
+              {
+                "instruction": "Chọn từ nối kết quả.",
+                "sentence": "Sea levels are rising; ___, coastal cities face flooding.",
+                "options": [
+                  "as a result",
+                  "in contrast",
+                  "besides"
+                ],
+                "answer": 0,
+                "explanation": "Chỉ kết quả → as a result."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words about the effects of social media on teenagers. Use at least three of the words: consequently, whereas, such measures, however.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "consequently",
+                "whereas",
+                "such measures",
+                "however"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grammar-complex-sentences",
+      "title": "English Grammar in Use — Complex Sentences, Conditionals & Relative Clauses",
+      "publisher": "Cambridge University Press",
+      "skill": "Grammar",
+      "bandRange": "5.0–7.0",
+      "bandMin": 5,
+      "bandMax": 7,
+      "focus": [
+        "grammar",
+        "GRA"
+      ],
+      "description": "Ngữ pháp trọng tâm giúp tăng điểm Grammatical Range & Accuracy.",
+      "units": [
+        {
+          "id": "gram-u1",
+          "title": "Unit 1 — Conditionals (Zero, First, Second, Third)",
+          "bandRange": "5.0–6.5",
+          "content": "Zero conditional: If + present simple, present simple (general truths). First conditional: If + present simple, will + verb (real future). Second conditional: If + past simple, would + verb (unreal present or future). Third conditional: If + past perfect, would have + past participle (unreal past). Mixed conditionals combine past conditions with present results.",
+          "sample": {
+            "title": "Four types of conditionals",
+            "lesson": {
+              "titleEn": "Four types of conditionals",
+              "titleVi": "Bốn loại câu điều kiện",
+              "explanationEn": "Choose the conditional by reality and time: general truth, real future, unreal present, or unreal past.",
+              "explanationVi": "Chọn loại câu điều kiện theo mức độ thực tế và thời gian: sự thật hiển nhiên, tương lai có thể xảy ra, hiện tại không có thật, quá khứ không có thật.",
+              "formulas": [
+                "Zero: If + V(s/es), V(s/es)",
+                "1st: If + V(s/es), will + V",
+                "2nd: If + V2, would + V",
+                "3rd: If + had + V3, would have + V3"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "If it will rain, we will stay home.",
+                  "right": "If it rains, we will stay home.",
+                  "noteVi": "Không dùng will trong mệnh đề if."
+                },
+                {
+                  "wrong": "If I would have time, I would travel.",
+                  "right": "If I had time, I would travel.",
+                  "noteVi": "Mệnh đề if của loại 2 dùng quá khứ đơn."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "unless",
+                "back": "trừ khi (= if ... not)",
+                "example": "Unless governments act, emissions will keep rising."
+              },
+              {
+                "front": "provided that",
+                "back": "với điều kiện là",
+                "example": "Students may use phones provided that they stay silent."
+              },
+              {
+                "front": "had I known",
+                "back": "giá mà tôi biết (đảo ngữ loại 3)",
+                "example": "Had I known the risk, I would have declined."
+              },
+              {
+                "front": "were it not for",
+                "back": "nếu không nhờ có",
+                "example": "Were it not for scholarships, many students could not study abroad."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "We can use \"will\" in the if-clause of a first conditional.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Mệnh đề if dùng hiện tại đơn, không dùng will."
+              },
+              {
+                "type": "tf",
+                "question": "The third conditional talks about an unreal past situation.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng."
+              },
+              {
+                "type": "mcq",
+                "question": "Choose the correct sentence.",
+                "options": [
+                  "If I had more time, I will study abroad.",
+                  "If I had more time, I would study abroad.",
+                  "If I would have more time, I would study abroad.",
+                  "If I have had more time, I would study abroad."
+                ],
+                "answer": 1,
+                "explanation": "Loại 2: If + V2, would + V."
+              },
+              {
+                "type": "mcq",
+                "question": "\"Unless it rains\" means:",
+                "options": [
+                  "if it rains",
+                  "if it does not rain",
+                  "because it rains",
+                  "when it rained"
+                ],
+                "answer": 1,
+                "explanation": "Unless = if not."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If the government will invest more, air quality improves.",
+                "options": [
+                  "If the government invests more, air quality will improve.",
+                  "If the government invested more, air quality improves.",
+                  "If the government will invest more, air quality will improve."
+                ],
+                "answer": 0,
+                "explanation": "Loại 1: If + hiện tại đơn, will + V."
+              },
+              {
+                "instruction": "Điền dạng đúng.",
+                "sentence": "If she ___ earlier, she would have caught the train.",
+                "options": [
+                  "left",
+                  "had left",
+                  "would leave"
+                ],
+                "answer": 1,
+                "explanation": "Loại 3: If + had + V3."
+              },
+              {
+                "instruction": "Chọn câu đúng.",
+                "sentence": "Which sentence is a correct second conditional?",
+                "options": [
+                  "If I won the lottery, I would buy a house.",
+                  "If I win the lottery, I would buy a house.",
+                  "If I would win the lottery, I buy a house."
+                ],
+                "answer": 0,
+                "explanation": "If + V2, would + V."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words about what you would change in education if you were a minister. Use at least three of the words: if, would, unless, provided that.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "if",
+                "would",
+                "unless",
+                "provided that"
+              ]
+            }
+          }
+        },
+        {
+          "id": "gram-u2",
+          "title": "Unit 2 — Relative Clauses: Defining, Non-defining and Reduced",
+          "bandRange": "5.5–7.0",
+          "content": "Defining relative clauses give essential information and use no commas: \"The student who won the prize studies physics.\" Non-defining clauses add extra information with commas: \"Hanoi, which is the capital, is crowded.\" \"That\" is not used in non-defining clauses. Relative clauses can be reduced with participles: \"people living in cities\" = \"people who live in cities\".",
+          "sample": {
+            "title": "Relative clauses",
+            "lesson": {
+              "titleEn": "Relative clauses",
+              "titleVi": "Mệnh đề quan hệ",
+              "explanationEn": "Use who/which/that/whose/where to add information. Defining clauses are essential; non-defining clauses use commas.",
+              "explanationVi": "Dùng who/which/that/whose/where để bổ sung thông tin. Mệnh đề xác định (không dấu phẩy) là cần thiết; mệnh đề không xác định có dấu phẩy và không dùng \"that\".",
+              "formulas": [
+                "Noun + who/which/that + V (defining)",
+                "Noun, which/who + V, (non-defining)",
+                "Noun + V-ing / V3 (rút gọn)"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "Hanoi, that is the capital, is busy.",
+                  "right": "Hanoi, which is the capital, is busy.",
+                  "noteVi": "Không dùng \"that\" sau dấu phẩy."
+                },
+                {
+                  "wrong": "The book which I read it was great.",
+                  "right": "The book which I read was great.",
+                  "noteVi": "Không lặp đại từ tân ngữ."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "whose",
+                "back": "của người/vật mà (sở hữu)",
+                "example": "The students whose scores improved received awards."
+              },
+              {
+                "front": "non-defining clause",
+                "back": "mệnh đề không xác định (thông tin thêm, có dấu phẩy)",
+                "example": "Tokyo, which is huge, has excellent transport."
+              },
+              {
+                "front": "reduced relative clause",
+                "back": "mệnh đề quan hệ rút gọn",
+                "example": "Students studying abroad face new challenges."
+              },
+              {
+                "front": "where",
+                "back": "nơi mà (thay cho địa điểm)",
+                "example": "This is the city where I grew up."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "\"That\" can be used in a non-defining relative clause.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Mệnh đề không xác định không dùng \"that\"."
+              },
+              {
+                "type": "tf",
+                "question": "\"People who live in cities\" can be reduced to \"people living in cities\".",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Rút gọn bằng V-ing cho nghĩa chủ động."
+              },
+              {
+                "type": "mcq",
+                "question": "Choose the correct sentence.",
+                "options": [
+                  "The man who he called is my uncle.",
+                  "The man whom he called is my uncle.",
+                  "The man which he called is my uncle.",
+                  "The man whose he called is my uncle."
+                ],
+                "answer": 1,
+                "explanation": "Whom làm tân ngữ chỉ người."
+              },
+              {
+                "type": "mcq",
+                "question": "Which sentence needs commas?",
+                "options": [
+                  "The student who studies hard passes.",
+                  "My sister who lives in Hue is a doctor.",
+                  "The book which I borrowed is old.",
+                  "Anyone who tries can improve."
+                ],
+                "answer": 1,
+                "explanation": "Nếu chỉ có một người chị, thông tin thêm cần dấu phẩy."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Sửa lỗi.",
+                "sentence": "Hanoi, that is the capital of Vietnam, attracts many tourists.",
+                "options": [
+                  "Hanoi, which is the capital of Vietnam, attracts many tourists.",
+                  "Hanoi that, is the capital of Vietnam attracts many tourists.",
+                  "Hanoi, who is the capital of Vietnam, attracts many tourists."
+                ],
+                "answer": 0,
+                "explanation": "Dùng which sau dấu phẩy khi nói về vật/địa điểm."
+              },
+              {
+                "instruction": "Rút gọn mệnh đề.",
+                "sentence": "Students who study abroad often become independent.",
+                "options": [
+                  "Students studying abroad often become independent.",
+                  "Students studied abroad often become independent.",
+                  "Students to study abroad often become independent."
+                ],
+                "answer": 0,
+                "explanation": "Chủ động → V-ing."
+              },
+              {
+                "instruction": "Điền từ.",
+                "sentence": "The scientist ___ research changed medicine won an award.",
+                "options": [
+                  "who",
+                  "whose",
+                  "which"
+                ],
+                "answer": 1,
+                "explanation": "Whose chỉ sở hữu."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words describing a person or a place important to you. Use at least three of the words: who, which, whose, where.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "who",
+                "which",
+                "whose",
+                "where"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "academic-vocabulary-band75",
+      "title": "Academic Vocabulary in Use — Band 7.5+ Collocations & Topic Lexicon (Environment, Education, Technology)",
+      "publisher": "Cambridge University Press",
+      "skill": "Vocabulary",
+      "bandRange": "7.0–8.5",
+      "bandMin": 7,
+      "bandMax": 8.5,
+      "focus": [
+        "vocabulary",
+        "LR"
+      ],
+      "description": "Collocation và từ vựng chủ đề Environment, Education, Technology cho mục tiêu Band 7.5+.",
+      "units": [
+        {
+          "id": "vocab-u1",
+          "title": "Unit 1 — Environment: Collocations for Climate and Sustainability",
+          "bandRange": "7.0–8.5",
+          "content": "High-scoring environment vocabulary uses precise collocations: mitigate climate change, reduce carbon emissions, deplete natural resources, renewable energy sources, sustainable development, irreversible damage, ecological footprint. Prefer collocations to single words: \"tackle deforestation\" sounds more natural than \"stop cutting trees\".",
+          "sample": {
+            "title": "Environment collocations",
+            "lesson": {
+              "titleEn": "Environment collocations",
+              "titleVi": "Cụm từ kết hợp chủ đề Môi trường",
+              "explanationEn": "Learn verb + noun and adjective + noun collocations rather than isolated words to raise Lexical Resource.",
+              "explanationVi": "Học cụm động từ + danh từ và tính từ + danh từ thay vì từ rời rạc để nâng điểm Lexical Resource.",
+              "formulas": [
+                "mitigate / combat / tackle + climate change",
+                "reduce / cut + carbon emissions",
+                "deplete + natural resources"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "do harm to the nature",
+                  "right": "cause irreversible damage to the environment",
+                  "noteVi": "Dùng collocation chuẩn học thuật."
+                },
+                {
+                  "wrong": "make pollution",
+                  "right": "generate / produce pollution",
+                  "noteVi": "Make ít được dùng với pollution."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "mitigate climate change",
+                "back": "giảm nhẹ tác động của biến đổi khí hậu",
+                "example": "Governments must mitigate climate change through green policies."
+              },
+              {
+                "front": "carbon footprint",
+                "back": "lượng khí thải carbon của một cá nhân/tổ chức",
+                "example": "Cycling to work reduces your carbon footprint."
+              },
+              {
+                "front": "deplete natural resources",
+                "back": "làm cạn kiệt tài nguyên thiên nhiên",
+                "example": "Overfishing depletes natural resources."
+              },
+              {
+                "front": "renewable energy",
+                "back": "năng lượng tái tạo",
+                "example": "Investment in renewable energy is growing rapidly."
+              },
+              {
+                "front": "sustainable development",
+                "back": "phát triển bền vững",
+                "example": "Sustainable development balances growth with protection."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "\"Mitigate\" means to make something worse.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Mitigate = giảm nhẹ."
+              },
+              {
+                "type": "tf",
+                "question": "\"Deplete natural resources\" is a natural academic collocation.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng."
+              },
+              {
+                "type": "mcq",
+                "question": "Choose the best collocation: \"Countries must ___ carbon emissions.\"",
+                "options": [
+                  "make",
+                  "reduce",
+                  "do",
+                  "play"
+                ],
+                "answer": 1,
+                "explanation": "reduce carbon emissions là collocation chuẩn."
+              },
+              {
+                "type": "mcq",
+                "question": "Which is an example of renewable energy?",
+                "options": [
+                  "coal",
+                  "solar power",
+                  "oil",
+                  "natural gas"
+                ],
+                "answer": 1,
+                "explanation": "Solar power là năng lượng tái tạo."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn từ học thuật hơn.",
+                "sentence": "Factories ___ the rivers.",
+                "options": [
+                  "do bad to",
+                  "pollute",
+                  "make dirty"
+                ],
+                "answer": 1,
+                "explanation": "pollute là động từ chính xác."
+              },
+              {
+                "instruction": "Điền từ.",
+                "sentence": "We should adopt ___ energy sources such as wind and solar.",
+                "options": [
+                  "renewable",
+                  "repeatable",
+                  "removable"
+                ],
+                "answer": 0,
+                "explanation": "renewable energy = năng lượng tái tạo."
+              },
+              {
+                "instruction": "Sửa lỗi dùng từ.",
+                "sentence": "Deforestation causes irreversible ___ to ecosystems.",
+                "options": [
+                  "damage",
+                  "damages",
+                  "damaging"
+                ],
+                "answer": 0,
+                "explanation": "damage là danh từ không đếm được ở nghĩa này."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words about how individuals can protect the environment. Use at least three of the words: mitigate, carbon footprint, renewable, sustainable.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "mitigate",
+                "carbon footprint",
+                "renewable",
+                "sustainable"
+              ]
+            }
+          }
+        },
+        {
+          "id": "vocab-u2",
+          "title": "Unit 2 — Education & Technology: Topic Lexicon for Band 7.5+",
+          "bandRange": "7.0–8.5",
+          "content": "Education: tertiary education, vocational training, compulsory schooling, academic attainment, critical thinking, lifelong learning. Technology: digital literacy, cutting-edge innovation, artificial intelligence, automation, data privacy, the digital divide, technological advancement. Use these as natural collocations: \"bridge the digital divide\", \"foster critical thinking\", \"pursue tertiary education\".",
+          "sample": {
+            "title": "Education and Technology lexicon",
+            "lesson": {
+              "titleEn": "Education and Technology lexicon",
+              "titleVi": "Từ vựng Giáo dục và Công nghệ",
+              "explanationEn": "Combine topic nouns with precise verbs: foster critical thinking, bridge the digital divide, pursue tertiary education.",
+              "explanationVi": "Kết hợp danh từ chủ đề với động từ chính xác: foster critical thinking, bridge the digital divide, pursue tertiary education.",
+              "formulas": [
+                "foster + critical thinking",
+                "bridge + the digital divide",
+                "pursue + tertiary education"
+              ],
+              "commonMistakes": [
+                {
+                  "wrong": "make students think critical",
+                  "right": "foster critical thinking in students",
+                  "noteVi": "Dùng danh từ critical thinking, không dùng tính từ sai chỗ."
+                },
+                {
+                  "wrong": "technology developments",
+                  "right": "technological advancements",
+                  "noteVi": "Dùng tính từ technological."
+                }
+              ]
+            },
+            "flashcards": [
+              {
+                "front": "foster critical thinking",
+                "back": "thúc đẩy tư duy phản biện",
+                "example": "Group projects foster critical thinking."
+              },
+              {
+                "front": "the digital divide",
+                "back": "khoảng cách số",
+                "example": "Free internet access can bridge the digital divide."
+              },
+              {
+                "front": "tertiary education",
+                "back": "giáo dục đại học/cao đẳng",
+                "example": "More young people are pursuing tertiary education."
+              },
+              {
+                "front": "automation",
+                "back": "tự động hóa",
+                "example": "Automation may replace routine jobs."
+              },
+              {
+                "front": "lifelong learning",
+                "back": "học tập suốt đời",
+                "example": "Lifelong learning keeps workers adaptable."
+              }
+            ],
+            "quiz": [
+              {
+                "type": "tf",
+                "question": "\"Tertiary education\" refers to university or college level study.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 0,
+                "explanation": "Đúng."
+              },
+              {
+                "type": "tf",
+                "question": "\"The digital divide\" means a fast internet connection.",
+                "options": [
+                  "True",
+                  "False"
+                ],
+                "answer": 1,
+                "explanation": "Đó là khoảng cách giữa người có và không có tiếp cận công nghệ."
+              },
+              {
+                "type": "mcq",
+                "question": "Choose the best word: \"Schools should ___ critical thinking.\"",
+                "options": [
+                  "foster",
+                  "borrow",
+                  "repair",
+                  "hold"
+                ],
+                "answer": 0,
+                "explanation": "foster critical thinking là collocation chuẩn."
+              },
+              {
+                "type": "mcq",
+                "question": "Which is a technology-related noun phrase?",
+                "options": [
+                  "data privacy",
+                  "wild habitat",
+                  "primary school",
+                  "rainfall"
+                ],
+                "answer": 0,
+                "explanation": "Data privacy thuộc chủ đề công nghệ."
+              }
+            ],
+            "drill": [
+              {
+                "instruction": "Chọn từ đúng.",
+                "sentence": "Governments must ___ the digital divide.",
+                "options": [
+                  "bridge",
+                  "fix up",
+                  "cross over"
+                ],
+                "answer": 0,
+                "explanation": "bridge the digital divide là collocation chuẩn."
+              },
+              {
+                "instruction": "Sửa lỗi.",
+                "sentence": "Technological ___ have transformed classrooms.",
+                "options": [
+                  "advancements",
+                  "advance",
+                  "advancing"
+                ],
+                "answer": 0,
+                "explanation": "technological advancements."
+              },
+              {
+                "instruction": "Điền từ.",
+                "sentence": "Many adults pursue ___ learning to update their skills.",
+                "options": [
+                  "lifelong",
+                  "lifeless",
+                  "lifetimes"
+                ],
+                "answer": 0,
+                "explanation": "lifelong learning."
+              }
+            ],
+            "challenge": {
+              "prompt": "Write 50–80 words about how technology can improve education. Use at least three of the words: foster, digital divide, tertiary, automation.",
+              "minWords": 50,
+              "maxWords": 80,
+              "targetWords": [
+                "foster",
+                "digital divide",
+                "tertiary",
+                "automation"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "masterySteps": [
+    {
+      "step": 1,
+      "key": "lesson",
+      "label": "Smart Lesson",
+      "icon": "📖",
+      "mastery": 20
+    },
+    {
+      "step": 2,
+      "key": "flashcards",
+      "label": "Flashcards",
+      "icon": "🗂️",
+      "mastery": 40
+    },
+    {
+      "step": 3,
+      "key": "quiz",
+      "label": "True/False & Quick Quiz",
+      "icon": "⚡",
+      "mastery": 60
+    },
+    {
+      "step": 4,
+      "key": "drill",
+      "label": "Knowledge Gap Drill",
+      "icon": "🧩",
+      "mastery": 80
+    },
+    {
+      "step": 5,
+      "key": "challenge",
+      "label": "Mini Output Challenge",
+      "icon": "🏆",
+      "mastery": 100
+    }
+  ],
+  "studyUnitPrompt": "You are an expert IELTS tutor in the style of Astra AI. Design ONE interactive 5-step study unit from the SOURCE MATERIAL, targeting the learner's weak areas and target band. Write explanations in bilingual English and Vietnamese (Vietnamese with full diacritics). Respond ONLY with a raw JSON object, with this exact schema:\n{\n  \"title\": \"string\",\n  \"lesson\": { \"titleEn\": \"string\", \"titleVi\": \"string\", \"explanationEn\": \"string\", \"explanationVi\": \"string\", \"formulas\": [\"string\"], \"commonMistakes\": [{ \"wrong\": \"string\", \"right\": \"string\", \"noteVi\": \"string\" }] },\n  \"flashcards\": [ { \"front\": \"string\", \"back\": \"Vietnamese meaning\", \"example\": \"Band 7.5+ example sentence\" } ],\n  \"quiz\": [ { \"type\": \"tf or mcq\", \"question\": \"string\", \"options\": [\"True\",\"False\"] or 4 options, \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"drill\": [ { \"instruction\": \"string\", \"sentence\": \"string\", \"options\": [\"3 options\"], \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"challenge\": { \"prompt\": \"string\", \"minWords\": 50, \"maxWords\": 80, \"targetWords\": [\"3-4 words from the flashcards\"] }\n}\nRequirements: exactly 4 to 6 flashcards; exactly 4 quiz questions (2 with type \"tf\" and options [\"True\",\"False\"], 2 with type \"mcq\" and 4 options); exactly 3 drill items that target the learner's weak areas; one challenge that requires using the flashcard vocabulary.",
+  "studyEvaluatePrompt": "You are a strict but encouraging IELTS examiner. Score the learner's short output (50–80 words) on a 0.0–9.0 band scale in 0.5 steps, and check whether the target vocabulary was used correctly. Respond ONLY with a raw JSON object: { \"band\": number, \"score\": integer 0-100, \"usedWords\": [\"string\"], \"missingWords\": [\"string\"], \"feedbackEn\": \"string\", \"feedbackVi\": \"Vietnamese feedback with full diacritics\", \"improved\": \"a corrected or improved version of the learner's text\" }"
 }

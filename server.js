@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import net from 'net';
+import dns from 'dns/promises';
 import { GoogleGenAI } from '@google/genai';
 
 // Initialize environment variables
@@ -51,7 +53,7 @@ app.use((req, res, next) => {
 });
 
 // Only publish application assets. Never expose source, environment, tests or results.
-app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/analytics.html'], (req, res) => {
+app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/study.html', '/analytics.html'], (req, res) => {
   const page = req.path === '/' ? 'index.html' : req.path.slice(1);
   res.sendFile(path.join(__dirname, page));
 });
@@ -83,6 +85,26 @@ function geminiRateLimit(req, res, next) {
 }
 
 app.use(['/api/writing/score', '/api/speaking/score', '/api/analytics/roadmap', '/api/analytics/study-plan'], geminiRateLimit);
+
+// Study Hub has its own, more generous bucket (a unit = several calls): 30 requests per 15 minutes per IP.
+const STUDY_RATE_MAX = 30;
+const studyRateBuckets = new Map();
+
+function studyRateLimit(req, res, next) {
+  const now = Date.now();
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const recent = (studyRateBuckets.get(ip) || []).filter(ts => now - ts < GEMINI_RATE_WINDOW_MS);
+  if (recent.length >= STUDY_RATE_MAX) {
+    const retryAfter = Math.max(1, Math.ceil((GEMINI_RATE_WINDOW_MS - (now - recent[0])) / 1000));
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({ error: 'Too many Study Hub requests from this IP. Please try again later.', retryAfterSeconds: retryAfter });
+  }
+  recent.push(now);
+  studyRateBuckets.set(ip, recent);
+  next();
+}
+
+app.use(['/api/study/generate-unit', '/api/study/evaluate-mini', '/api/study/extract-source'], studyRateLimit);
 
 /**
  * Helper to count words in a string
@@ -855,6 +877,416 @@ app.get('/api/speaking/history', (req, res) => {
   }
 });
 
+/* ── Phase 7: Astra-style Study Hub ───────────────────────────── */
+
+const studyProgressFile = path.join(resultsDir, 'study_progress.json');
+const MASTERY_LEVELS = [0, 20, 40, 60, 80, 100];
+const MAX_SOURCE_CHARS = 12000;
+const MAX_FETCH_BYTES = 2 * 1024 * 1024;
+
+/** Reject if `promise` takes longer than `ms` (the underlying AI call is abandoned, not cancelled). */
+const withTimeout = (promise, ms, label) => Promise.race([
+  promise,
+  new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms).unref();
+  })
+]);
+
+const findTextbookUnit =(textbookId, unitId) => {
+  const book = (config.sampleTextbooks || []).find(b => b.id === textbookId);
+  const unit = book?.units?.find(u => u.id === unitId);
+  return book && unit ? { book, unit } : null;
+};
+
+/** Validate and normalise a unit (AI output or fallback) to the 5-step schema; returns null if unusable. */
+function normalizeStudyUnit(raw, fallbackTitle) {
+  if (!raw || typeof raw !== 'object') return null;
+  const str = v => (typeof v === 'string' ? v.trim() : '');
+  const lesson = raw.lesson;
+  if (!lesson || !str(lesson.explanationEn) && !str(lesson.explanationVi)) return null;
+  const flashcards = (Array.isArray(raw.flashcards) ? raw.flashcards : [])
+    .filter(c => c && str(c.front) && str(c.back))
+    .slice(0, 6)
+    .map(c => ({ front: str(c.front), back: str(c.back), example: str(c.example) }));
+  const quiz = (Array.isArray(raw.quiz) ? raw.quiz : [])
+    .filter(q => q && str(q.question) && Array.isArray(q.options) && q.options.length >= 2 &&
+      Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length)
+    .slice(0, 6)
+    .map(q => ({
+      type: q.type === 'tf' ? 'tf' : 'mcq', question: str(q.question),
+      options: q.options.map(o => String(o)), answer: q.answer, explanation: str(q.explanation)
+    }));
+  const drill = (Array.isArray(raw.drill) ? raw.drill : [])
+    .filter(d => d && str(d.sentence || d.instruction) && Array.isArray(d.options) && d.options.length >= 2 &&
+      Number.isInteger(d.answer) && d.answer >= 0 && d.answer < d.options.length)
+    .slice(0, 5)
+    .map(d => ({
+      instruction: str(d.instruction), sentence: str(d.sentence),
+      options: d.options.map(o => String(o)), answer: d.answer, explanation: str(d.explanation)
+    }));
+  const ch = raw.challenge;
+  if (flashcards.length < 4 || quiz.length < 4 || drill.length < 3 || !ch || !str(ch.prompt)) return null;
+  return {
+    title: str(raw.title) || fallbackTitle || 'Study Unit',
+    lesson: {
+      titleEn: str(lesson.titleEn), titleVi: str(lesson.titleVi),
+      explanationEn: str(lesson.explanationEn), explanationVi: str(lesson.explanationVi),
+      formulas: Array.isArray(lesson.formulas) ? lesson.formulas.map(String).slice(0, 8) : [],
+      commonMistakes: (Array.isArray(lesson.commonMistakes) ? lesson.commonMistakes : [])
+        .filter(m => m && str(m.wrong)).slice(0, 6)
+        .map(m => ({ wrong: str(m.wrong), right: str(m.right), noteVi: str(m.noteVi) }))
+    },
+    flashcards, quiz, drill,
+    challenge: {
+      prompt: str(ch.prompt),
+      minWords: Number.isFinite(Number(ch.minWords)) ? Number(ch.minWords) : 50,
+      maxWords: Number.isFinite(Number(ch.maxWords)) ? Number(ch.maxWords) : 80,
+      targetWords: Array.isArray(ch.targetWords) ? ch.targetWords.map(String).slice(0, 6) : []
+    }
+  };
+}
+
+/** GET /api/study/config — textbook library, mastery steps and limits for the Study Hub UI. */
+app.get('/api/study/config', (req, res) => {
+  res.json({
+    model: config.model,
+    masterySteps: config.masterySteps || [],
+    sampleTextbooks: config.sampleTextbooks || [],
+    limits: { maxSourceChars: MAX_SOURCE_CHARS, minSourceChars: 50 }
+  });
+});
+
+/** GET /api/study/progress — mastery records saved from the Study Hub. */
+app.get('/api/study/progress', (req, res) => {
+  try {
+    return res.json(readJsonArray(studyProgressFile));
+  } catch (err) {
+    console.error('[ERROR] Failed to read study progress:', err);
+    return res.status(500).json({ error: 'Failed to retrieve study progress.', details: err.message });
+  }
+});
+
+/** POST /api/study/progress — upsert a unit's mastery (0/20/40/60/80/100), never lowering a saved value. */
+app.post('/api/study/progress', (req, res) => {
+  try {
+    const { unitId, title, source, mastery, steps, miniScore } = req.body || {};
+    if (typeof unitId !== 'string' || !unitId.trim() || unitId.length > 120) {
+      return res.status(400).json({ error: 'unitId is required.' });
+    }
+    if (!MASTERY_LEVELS.includes(Number(mastery))) {
+      return res.status(400).json({ error: 'mastery must be one of 0, 20, 40, 60, 80, 100.' });
+    }
+    const history = readJsonArray(studyProgressFile);
+    const index = history.findIndex(item => item.unitId === unitId.trim());
+    const previous = index >= 0 ? history[index] : null;
+    const record = {
+      unitId: unitId.trim(),
+      title: typeof title === 'string' ? title.slice(0, 200) : (previous?.title || ''),
+      source: typeof source === 'string' ? source.slice(0, 40) : (previous?.source || 'textbook'),
+      mastery: Math.max(Number(mastery), previous?.mastery || 0),
+      steps: Array.isArray(steps) ? steps.filter(n => Number.isInteger(n) && n >= 1 && n <= 5) : (previous?.steps || []),
+      miniScore: miniScore != null && Number.isFinite(Number(miniScore)) ? Number(miniScore) : (previous?.miniScore ?? null),
+      updatedAt: new Date().toISOString()
+    };
+    if (index >= 0) history[index] = record; else history.push(record);
+    writeJsonArray(studyProgressFile, history);
+    return res.status(200).json(record);
+  } catch (err) {
+    console.error('[ERROR] Failed to save study progress:', err);
+    return res.status(500).json({ error: 'Failed to save study progress.', details: err.message });
+  }
+});
+
+/* ── Source extraction (text / article URL / YouTube) with SSRF protection ── */
+
+function isPrivateAddress(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower.startsWith('::ffff:')) return isPrivateAddress(lower.slice(7));
+    return lower === '::1' || lower === '::' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80');
+  }
+  return true;
+}
+
+async function assertPublicUrl(rawUrl) {
+  let url;
+  try { url = new URL(rawUrl); } catch { throw Object.assign(new Error('Invalid URL.'), { status: 400 }); }
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw Object.assign(new Error('Only http and https URLs are supported.'), { status: 400 });
+  }
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
+    throw Object.assign(new Error('Local addresses are not allowed.'), { status: 400 });
+  }
+  const addresses = net.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true });
+  if (!addresses.length || addresses.some(a => isPrivateAddress(a.address))) {
+    throw Object.assign(new Error('This address is not allowed.'), { status: 400 });
+  }
+  return url;
+}
+
+/** Fetch a public page (manual redirects re-validated, 10s timeout, 2 MB cap). */
+async function safeFetchText(rawUrl, maxRedirects = 3) {
+  let current = rawUrl;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const url = await assertPublicUrl(current);
+    const res = await fetch(url, {
+      redirect: 'manual', signal: AbortSignal.timeout(10000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StudyHubBot/1.0)', 'Accept-Language': 'en' }
+    });
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+      current = new URL(res.headers.get('location'), url).toString();
+      continue;
+    }
+    if (!res.ok) throw Object.assign(new Error(`Source returned HTTP ${res.status}.`), { status: 502 });
+    const reader = res.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_FETCH_BYTES) { await reader.cancel(); break; }
+      chunks.push(value);
+    }
+    return { text: Buffer.concat(chunks).toString('utf-8'), finalUrl: url.toString() };
+  }
+  throw Object.assign(new Error('Too many redirects.'), { status: 502 });
+}
+
+const decodeEntities = s => s
+  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n) || 32));
+
+function htmlToText(html) {
+  const title = decodeEntities((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').trim());
+  const body = html
+    .replace(/<(script|style|noscript|svg|nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<\/(p|div|h[1-6]|li|br|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  const text = decodeEntities(body).replace(/[ \t\f\v]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+  return { title, text };
+}
+
+function parseYouTubeId(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.replace(/^www\.|^m\./, '');
+    if (host === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
+    if (host === 'youtube.com') {
+      if (u.searchParams.get('v')) return u.searchParams.get('v');
+      const m = u.pathname.match(/^\/(?:embed|shorts|live)\/([\w-]{6,})/);
+      return m ? m[1] : null;
+    }
+  } catch { /* not a URL */ }
+  return null;
+}
+
+async function extractYouTubeTranscript(videoId) {
+  const page = await safeFetchText(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`);
+  const marker = 'ytInitialPlayerResponse = ';
+  const start = page.text.indexOf(marker);
+  if (start === -1) throw Object.assign(new Error('Could not read this YouTube video.'), { status: 502 });
+  const jsonStart = start + marker.length;
+  const jsonEnd = page.text.indexOf(';var ', jsonStart) > -1 ? page.text.indexOf(';var ', jsonStart) : page.text.indexOf('</script>', jsonStart);
+  let player;
+  try { player = JSON.parse(page.text.slice(jsonStart, jsonEnd).trim().replace(/;$/, '')); }
+  catch { throw Object.assign(new Error('Could not parse YouTube player data.'), { status: 502 }); }
+  const tracks = player?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  const track = tracks.find(t => /^en/i.test(t.languageCode)) || tracks[0];
+  if (!track?.baseUrl) {
+    throw Object.assign(new Error('This video has no captions. Please paste the transcript manually.'), { status: 422 });
+  }
+  const captionUrl = new URL(track.baseUrl);
+  if (!/(^|\.)youtube\.com$/.test(captionUrl.hostname)) throw Object.assign(new Error('Unexpected caption host.'), { status: 502 });
+  captionUrl.searchParams.set('fmt', 'json3');
+  const captions = await safeFetchText(captionUrl.toString());
+  let text;
+  try {
+    text = JSON.parse(captions.text).events.flatMap(e => (e.segs || []).map(s => s.utf8 || '')).join(' ');
+  } catch {
+    text = decodeEntities(captions.text.replace(/<[^>]+>/g, ' '));
+  }
+  return { title: player?.videoDetails?.title || 'YouTube video', text: text.replace(/\s+/g, ' ').trim() };
+}
+
+/**
+ * POST /api/study/extract-source
+ * Body: { text } (pasted notes / uploaded .txt/.md content) or { url } (English article or YouTube).
+ */
+app.post('/api/study/extract-source', async (req, res) => {
+  try {
+    const { text, url, title } = req.body || {};
+    let result;
+    if (typeof text === 'string' && text.trim()) {
+      result = { sourceType: 'text', title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Personal notes', text: text.trim() };
+    } else if (typeof url === 'string' && url.trim()) {
+      const videoId = parseYouTubeId(url.trim());
+      if (videoId) {
+        const yt = await extractYouTubeTranscript(videoId);
+        result = { sourceType: 'youtube', title: yt.title, text: yt.text };
+      } else {
+        const page = await safeFetchText(url.trim());
+        const parsed = htmlToText(page.text);
+        result = { sourceType: 'article', title: parsed.title || 'Web article', text: parsed.text };
+      }
+    } else {
+      return res.status(400).json({ error: 'Provide either "text" or "url".' });
+    }
+    result.text = result.text.replace(/\r/g, '').slice(0, MAX_SOURCE_CHARS);
+    result.wordCount = countWords(result.text);
+    if (result.text.length < 50) {
+      return res.status(422).json({ error: 'The extracted content is too short (minimum 50 characters).', wordCount: result.wordCount });
+    }
+    return res.json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status >= 500) console.error('[ERROR] extract-source failed:', err);
+    return res.status(status).json({ error: err.message || 'Failed to extract source.' });
+  }
+});
+
+/**
+ * POST /api/study/generate-unit
+ * Body: { textbookId, unitId } or { sourceText, title }, plus optional { weakAreas[], targetBand }.
+ * Falls back to the built-in sample unit if AI is unavailable for a textbook unit.
+ */
+app.post('/api/study/generate-unit', async (req, res) => {
+  try {
+    const { textbookId, unitId, sourceText, title, weakAreas, targetBand } = req.body || {};
+    let sourceMaterial;
+    let fallback = null;
+    let unitTitle;
+    let unitKey;
+
+    if (textbookId != null || unitId != null) {
+      const found = findTextbookUnit(textbookId, unitId);
+      if (!found) return res.status(400).json({ error: 'Unknown textbookId/unitId.' });
+      sourceMaterial = `${found.book.title}\n${found.unit.title}\n\n${found.unit.content}`;
+      fallback = found.unit.sample;
+      unitTitle = found.unit.title;
+      unitKey = found.unit.id;
+    } else if (typeof sourceText === 'string' && sourceText.trim().length >= 50) {
+      sourceMaterial = sourceText.trim().slice(0, MAX_SOURCE_CHARS);
+      unitTitle = typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Personal source';
+      unitKey = `custom_${Date.now().toString(36)}`;
+    } else {
+      return res.status(400).json({ error: 'Provide textbookId + unitId, or sourceText of at least 50 characters.' });
+    }
+
+    const weak = Array.isArray(weakAreas) ? weakAreas.map(w => String(w).slice(0, 80)).slice(0, 8) : [];
+    const band = Number.isFinite(Number(targetBand)) ? Number(targetBand) : null;
+    const prompt = `${config.studyUnitPrompt}\n\nTarget band: ${band ?? 'not set'}\nLearner weak areas: ${weak.length ? weak.join(', ') : 'not available'}\n\nSOURCE MATERIAL:\n"""\n${sourceMaterial}\n"""`;
+
+    const respondFallback = reason => {
+      const unit = normalizeStudyUnit(fallback, unitTitle);
+      if (!unit) return null;
+      return res.status(200).json({ unitId: unitKey, unit, provider: 'Built-in sample unit', fallback: true, fallbackReason: reason });
+    };
+
+    let gen;
+    try {
+      gen = await withTimeout(generateWithKeyPool(req, prompt), fallback ? 60000 : 120000, 'AI generation');
+    } catch (err) {
+      const handled = fallback && respondFallback(err.message);
+      if (handled) return handled;
+      throw err;
+    }
+    if (gen.missingKey) {
+      const handled = fallback && respondFallback('No AI provider configured');
+      if (handled) return handled;
+      return res.status(500).json({ error: 'Server configuration error: no AI provider is available.' });
+    }
+
+    let unit = null;
+    try { unit = normalizeStudyUnit(parseGeminiJson(gen.response), unitTitle); } catch { /* handled below */ }
+    if (!unit) {
+      const handled = fallback && respondFallback('AI returned an invalid unit');
+      if (handled) return handled;
+      return res.status(502).json({ error: 'AI returned an invalid study unit. Please try again.' });
+    }
+    return res.status(200).json({ unitId: unitKey, unit, provider: gen.provider, fallback: false });
+  } catch (err) {
+    console.error('[ERROR] generate-unit failed:', err);
+    return res.status(500).json({ error: 'Failed to generate the study unit.', details: err.message });
+  }
+});
+
+/** Local heuristic scoring used when no AI provider can grade the mini challenge. */
+function gradeMiniLocally(answer, targetWords, minWords, maxWords) {
+  const words = countWords(answer);
+  const lower = answer.toLowerCase();
+  const usedWords = targetWords.filter(w => lower.includes(w.toLowerCase()));
+  const missingWords = targetWords.filter(w => !usedWords.includes(w));
+  const vocabRatio = targetWords.length ? usedWords.length / targetWords.length : 1;
+  const lengthOk = words >= minWords && words <= maxWords * 1.25;
+  const sentences = (answer.match(/[.!?]+/g) || []).length;
+  const score = Math.round(Math.min(100, vocabRatio * 55 + (lengthOk ? 30 : Math.min(words / minWords, 1) * 20) + Math.min(sentences, 4) * 3.75));
+  const band = Math.max(4, Math.min(7.5, Math.round((4 + score / 100 * 3.5) * 2) / 2));
+  return {
+    band, score, usedWords, missingWords,
+    feedbackEn: `Automatic check: ${words} words, ${usedWords.length}/${targetWords.length} target words used.`,
+    feedbackVi: `Chấm tự động: ${words} từ, dùng ${usedWords.length}/${targetWords.length} từ mục tiêu.${missingWords.length ? ` Hãy thử thêm: ${missingWords.join(', ')}.` : ''}`,
+    improved: ''
+  };
+}
+
+/** POST /api/study/evaluate-mini — grade the Step 5 mini output challenge (AI first, local fallback). */
+app.post('/api/study/evaluate-mini', async (req, res) => {
+  try {
+    const { answer, prompt: challengePrompt, targetWords, unitTitle, minWords, maxWords } = req.body || {};
+    if (typeof answer !== 'string' || !answer.trim()) {
+      return res.status(400).json({ error: 'Answer text is required.' });
+    }
+    const min = Number.isFinite(Number(minWords)) ? Number(minWords) : 50;
+    const max = Number.isFinite(Number(maxWords)) ? Number(maxWords) : 80;
+    const wordCount = countWords(answer);
+    const requiredMin = Math.max(20, Math.floor(min * 0.6));
+    if (wordCount < requiredMin) {
+      return res.status(400).json({
+        error: `Answer is too short (${wordCount} words). Write at least ${requiredMin} words.`,
+        wordCount, minRequired: requiredMin
+      });
+    }
+    const targets = Array.isArray(targetWords) ? targetWords.map(String).slice(0, 8) : [];
+    const prompt = `${config.studyEvaluatePrompt}\n\nUnit: ${String(unitTitle || '').slice(0, 200)}\nChallenge: ${String(challengePrompt || '').slice(0, 600)}\nTarget words: ${targets.join(', ') || 'none'}\nLearner text (${wordCount} words):\n"""\n${answer.trim().slice(0, 3000)}\n"""`;
+
+    let result = null;
+    let provider = 'Local heuristic';
+    try {
+      const gen = await withTimeout(generateWithKeyPool(req, prompt), 25000, 'AI grading');
+      if (!gen.missingKey) {
+        const parsed = parseGeminiJson(gen.response);
+        const band = Number(parsed.band);
+        const score = Number(parsed.score);
+        if (Number.isFinite(band) && Number.isFinite(score)) {
+          result = {
+            band: Math.max(0, Math.min(9, band)), score: Math.max(0, Math.min(100, Math.round(score))),
+            usedWords: Array.isArray(parsed.usedWords) ? parsed.usedWords.map(String) : [],
+            missingWords: Array.isArray(parsed.missingWords) ? parsed.missingWords.map(String) : [],
+            feedbackEn: String(parsed.feedbackEn || ''), feedbackVi: String(parsed.feedbackVi || ''),
+            improved: String(parsed.improved || '')
+          };
+          provider = gen.provider;
+        }
+      }
+    } catch (err) {
+      console.warn('[WARN] evaluate-mini AI failed, using local grading:', err.message);
+    }
+    if (!result) result = gradeMiniLocally(answer.trim(), targets, min, max);
+    return res.status(200).json({ ...result, wordCount, provider });
+  } catch (err) {
+    console.error('[ERROR] evaluate-mini failed:', err);
+    return res.status(500).json({ error: 'Failed to evaluate the mini challenge.', details: err.message });
+  }
+});
+
 // Export the app so tests can mount it in-process
 export default app;
 
@@ -875,6 +1307,11 @@ if (isDirectRun) app.listen(PORT, () => {
   console.log(` - GET  http://localhost:${PORT}/api/placement/history`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/roadmap`);
   console.log(` - POST http://localhost:${PORT}/api/analytics/study-plan`);
+  console.log(` - GET  http://localhost:${PORT}/api/study/config`);
+  console.log(` - GET/POST http://localhost:${PORT}/api/study/progress`);
+  console.log(` - POST http://localhost:${PORT}/api/study/extract-source`);
+  console.log(` - POST http://localhost:${PORT}/api/study/generate-unit`);
+  console.log(` - POST http://localhost:${PORT}/api/study/evaluate-mini`);
   console.log(` - GET/POST/DELETE http://localhost:${PORT}/api/settings/keys`);
   console.log(`====================================================`);
 });

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="IELTS Study Hub — Astra-style personalized mastery: textbook library, personal sources, exam countdown and a 5-step interactive lesson.">
+  <title>IELTS Master — Study Hub</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/writing.css">
+  <link rel="stylesheet" href="css/study.css">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='70' font-size='55' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>IM</text></svg>">
+</head>
+<body>
+
+  <header class="app-header" id="app-header">
+    <a class="logo" href="index.html">
+      <div class="logo-icon">IM</div>
+      <div class="logo-text">IELTS <span>Master</span></div>
+    </a>
+    <nav class="nav-links" aria-label="Main Navigation">
+      <a href="index.html" class="nav-link">Placement Test</a>
+      <a href="writing.html" class="nav-link">Writing Practice</a>
+      <a href="speaking.html" class="nav-link">Speaking Practice</a>
+      <a href="study.html" class="nav-link active" aria-current="page">Study Hub</a>
+      <a href="analytics.html" class="nav-link">Analytics</a>
+    </nav>
+    <div class="header-right"></div>
+  </header>
+
+  <main class="writing-container study-container">
+    <section class="writing-intro">
+      <div class="writing-badge-row">
+        <span class="writing-badge">Astra-style Mastery</span>
+        <span class="writing-meta-chip">5 steps · 0% → 100%</span>
+      </div>
+      <h1 class="writing-page-title">Study Hub &amp; Personalized Mastery</h1>
+      <p class="writing-page-desc">Đặt ngày thi và band mục tiêu, chọn giáo trình chuẩn hoặc tài liệu của bạn, rồi học qua chuỗi 5 bước tương tác để đạt 100% Mastery.</p>
+    </section>
+
+    <!-- Exam countdown & knowledge gap banner -->
+    <section class="study-banner" id="study-banner" aria-label="Exam countdown and knowledge gaps">
+      <div class="countdown-box">
+        <div class="countdown-number" id="countdown-number">—</div>
+        <div class="countdown-label" id="countdown-label">Chưa đặt ngày thi</div>
+      </div>
+      <div class="goal-form">
+        <label class="goal-field">Target Exam Date
+          <input type="date" id="exam-date" class="study-input">
+        </label>
+        <label class="goal-field">Target Band
+          <select id="target-band" class="study-input">
+            <option>5.5</option><option>6.0</option><option>6.5</option><option selected>7.0</option>
+            <option>7.5</option><option>8.0</option><option>8.5</option>
+          </select>
+        </label>
+        <button type="button" class="btn-primary" id="btn-save-goal">Lưu mục tiêu</button>
+      </div>
+      <div class="gap-box">
+        <div class="gap-title">🎯 Lỗ hổng kiến thức &amp; gợi ý</div>
+        <div id="gap-list" class="gap-list">Đang đọc lịch sử luyện tập...</div>
+        <button type="button" class="btn-secondary" id="btn-open-suggested" hidden>Học Unit được gợi ý</button>
+      </div>
+    </section>
+
+    <div class="writing-layout">
+      <div class="writing-main">
+
+        <!-- Library -->
+        <section class="study-card" id="library-section">
+          <h2 class="study-h2">📚 Kho giáo trình chuẩn</h2>
+          <div id="textbook-list" class="textbook-list">Đang tải...</div>
+        </section>
+
+        <!-- Personal source -->
+        <section class="study-card" id="source-section">
+          <h2 class="study-h2">📝 Nạp tài liệu cá nhân</h2>
+          <div class="source-tabs" role="tablist">
+            <button type="button" class="source-tab active" data-tab="paste">Dán văn bản</button>
+            <button type="button" class="source-tab" data-tab="file">Tải .txt / .md</button>
+            <button type="button" class="source-tab" data-tab="url">URL / YouTube</button>
+          </div>
+          <div class="source-pane" data-pane="paste">
+            <textarea id="source-text" class="study-input study-textarea" rows="6" placeholder="Dán ghi chú, đề thi cũ hoặc đoạn văn tiếng Anh (tối thiểu 50 ký tự)..."></textarea>
+          </div>
+          <div class="source-pane" data-pane="file" hidden>
+            <input type="file" id="source-file" class="study-input" accept=".txt,.md,text/plain,text/markdown">
+            <p class="muted" id="source-file-info">Chưa chọn file.</p>
+          </div>
+          <div class="source-pane" data-pane="url" hidden>
+            <input type="url" id="source-url" class="study-input" placeholder="https://... (bài báo tiếng Anh hoặc link YouTube có phụ đề)">
+          </div>
+          <div class="source-actions">
+            <button type="button" class="btn-primary" id="btn-source-generate">Tạo bài học bằng AI</button>
+            <span class="muted" id="source-status" role="status"></span>
+          </div>
+        </section>
+
+        <!-- Lesson player -->
+        <section class="study-card" id="lesson-section" hidden>
+          <div class="lesson-head">
+            <h2 class="study-h2" id="lesson-title">Unit</h2>
+            <span class="provider-chip" id="lesson-provider"></span>
+          </div>
+          <div class="mastery-wrap">
+            <div class="mastery-label"><span>Mastery</span><strong id="mastery-percent">0%</strong></div>
+            <div class="mastery-track"><div class="mastery-fill" id="mastery-fill" style="width:0%"></div></div>
+            <ol class="step-dots" id="step-dots"></ol>
+          </div>
+          <div id="step-body" class="step-body"></div>
+          <div class="step-nav">
+            <button type="button" class="btn-secondary" id="btn-prev">← Quay lại</button>
+            <button type="button" class="btn-primary" id="btn-next">Tiếp tục →</button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="writing-sidebar">
+        <section class="sidebar-card">
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Tiến độ Mastery</h2></div>
+            <span class="history-count-pill" id="progress-count">0</span></div>
+          <div class="history-list" id="progress-list"><p class="muted">Chưa có Unit nào.</p></div>
+        </section>
+        <section class="sidebar-card">
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Chuỗi 5 bước</h2></div></div>
+          <div class="tips-item"><div class="tips-icon">📖</div><div><strong style="color: var(--text-primary);">20% — Smart Lesson</strong><p>Bài giảng song ngữ Anh – Việt.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🗂️</div><div><strong style="color: var(--text-primary);">40% — Flashcards</strong><p>Lật thẻ, đánh dấu "Đã thuộc".</p></div></div>
+          <div class="tips-item"><div class="tips-icon">⚡</div><div><strong style="color: var(--text-primary);">60% — Quick Quiz</strong><p>Đúng/Sai và trắc nghiệm.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🧩</div><div><strong style="color: var(--text-primary);">80% — Gap Drill</strong><p>Sửa lỗi, điền từ học thuật.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🏆</div><div><strong style="color: var(--text-primary);">100% — Mini Output</strong><p>Viết ngắn, AI chấm điểm.</p></div></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/study.js"></script>
+  <script src="js/api-keys.js"></script>
+  <script src="js/exam-security.js"></script>
+</body>
+</html>
