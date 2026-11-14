@@ -584,12 +584,21 @@ async function generateWithKeyPool(req, promptText) {
  * Waits 2s, 4s, 8s between attempts.
  */
 async function generateWithRetry(ai, request, maxAttempts = 4) {
+  let activeRequest = { ...request };
+  let triedModernFallback = false;
   for (let attempt = 1; ; attempt++) {
     try {
-      return await ai.models.generateContent(request);
+      return await ai.models.generateContent(activeRequest);
     } catch (err) {
       const status = err?.status ?? err?.code;
-      const retryable = status === 429 || status === 503 || /UNAVAILABLE|RESOURCE_EXHAUSTED/.test(err?.message || '');
+      const msg = String(err?.message || '');
+      if (!triedModernFallback && (status === 404 || /no longer available|not found/i.test(msg))) {
+        triedModernFallback = true;
+        activeRequest = { ...activeRequest, model: 'gemini-3-flash-preview' };
+        console.info(`[INFO] Model ${request.model} unavailable for this key; switching to gemini-3-flash-preview.`);
+        continue;
+      }
+      const retryable = status === 429 || status === 503 || /UNAVAILABLE|RESOURCE_EXHAUSTED/.test(msg);
       if (!retryable || attempt >= maxAttempts) throw err;
       const delay = 2000 * 2 ** (attempt - 1);
       console.warn(`[WARN] Gemini busy (${status}), retry ${attempt}/${maxAttempts - 1} in ${delay / 1000}s...`);
