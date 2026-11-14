@@ -167,11 +167,16 @@ function parseGeminiJson(response) {
   }
 }
 
-/* ── 3-Tier Multi-Provider & Auto-Rotation Engine ──────────────
+/* ── Universal Multi-Provider Key Pool & Auto-Rotation Engine ──────────────
  *
- * Tier 1: Google Gemini API Key Pool (rotates across multiple Gemini keys on 429)
- * Tier 2: GitHub Models (Official Azure AI Inference gpt-4o-mini via GitHub PAT)
- * Tier 3: Pollinations.ai Zero-Key Free AI Fallback (works immediately without any key)
+ * Supports keys from:
+ *  - Google Gemini (AIzaSy... or gemini:...)
+ *  - ChatGPT / OpenAI (openai:sk-... or sk-proj-...)
+ *  - DeepSeek (deepseek:sk-... or sk-<32 hex>)
+ *  - OpenRouter Free/Paid Models (openrouter:sk-... or sk-or-v1-...)
+ *  - Groq Free Cloud (groq:gsk_... or gsk_...)
+ *  - GitHub Models (github:ghp_... or ghp_... / github_pat_...)
+ *  - Pollinations.ai Zero-Key Free AI Fallback (works immediately without any key)
  */
 
 const KEY_COOLDOWN_MS = 60 * 1000;
@@ -186,28 +191,61 @@ function splitKeyString(raw) {
     .filter(Boolean);
 }
 
-function isGitHubToken(key) {
-  return /^(ghp_|github_pat_|gho_|ghs_)/i.test(String(key || '').trim());
+function classifyProviderKey(rawEntry) {
+  const s = String(rawEntry || '').trim();
+  const match = s.match(/^(gemini|openai|chatgpt|deepseek|ds|groq|openrouter|github):(.*)$/i);
+  if (match) {
+    const prefix = match[1].toLowerCase();
+    const key = match[2].trim();
+    if (prefix === 'gemini') return { provider: 'gemini', label: 'Google Gemini', key, raw: s };
+    if (prefix === 'openai' || prefix === 'chatgpt') return { provider: 'openai', label: 'ChatGPT / OpenAI (gpt-4o-mini)', key, raw: s };
+    if (prefix === 'deepseek' || prefix === 'ds') return { provider: 'deepseek', label: 'DeepSeek (deepseek-chat)', key, raw: s };
+    if (prefix === 'groq') return { provider: 'groq', label: 'Groq Cloud (Llama 3.3)', key, raw: s };
+    if (prefix === 'openrouter') return { provider: 'openrouter', label: 'OpenRouter (Free Models)', key, raw: s };
+    if (prefix === 'github') return { provider: 'github', label: 'GitHub Models (gpt-4o-mini)', key, raw: s };
+  }
+
+  if (/^(ghp_|github_pat_|gho_|ghs_)/i.test(s)) {
+    return { provider: 'github', label: 'GitHub Models (gpt-4o-mini)', key: s, raw: s };
+  }
+  if (/^sk-or-v1-/i.test(s)) {
+    return { provider: 'openrouter', label: 'OpenRouter (Free Models)', key: s, raw: s };
+  }
+  if (/^gsk_/i.test(s)) {
+    return { provider: 'groq', label: 'Groq Cloud (Llama 3.3)', key: s, raw: s };
+  }
+  if (/^sk-[a-f0-9]{32}$/i.test(s)) {
+    return { provider: 'deepseek', label: 'DeepSeek (deepseek-chat)', key: s, raw: s };
+  }
+  if (/^sk-(proj-|svcacct-)/i.test(s)) {
+    return { provider: 'openai', label: 'ChatGPT / OpenAI (gpt-4o-mini)', key: s, raw: s };
+  }
+  if (/^sk-/i.test(s)) {
+    return { provider: 'sk-auto', label: 'ChatGPT / DeepSeek (Auto)', key: s, raw: s };
+  }
+  return { provider: 'gemini', label: 'Google Gemini', key: s, raw: s };
 }
 
-function maskApiKey(key) {
-  const k = String(key || '').trim();
-  if (k.length <= 10) return '••••' + k.slice(-3);
-  return `${k.slice(0, 6)}••••••••${k.slice(-4)}`;
+function maskApiKey(rawEntry) {
+  const { key } = classifyProviderKey(rawEntry);
+  if (key.length <= 6) return '••••••••••••••••';
+  return `••••••••••••••••${key.slice(-4)}`;
 }
 
-function getEnvGeminiKeys() {
+function getEnvProviderEntries() {
   return [
     ...splitKeyString(process.env.GEMINI_API_KEYS || ''),
-    ...splitKeyString(process.env.GEMINI_API_KEY || '')
-  ].filter(k => !isGitHubToken(k));
-}
-
-function getEnvGitHubTokens() {
-  return [
-    ...splitKeyString(process.env.GITHUB_TOKENS || ''),
-    ...splitKeyString(process.env.GITHUB_TOKEN || ''),
-    ...splitKeyString(process.env.GEMINI_API_KEYS || '').filter(isGitHubToken)
+    ...splitKeyString(process.env.GEMINI_API_KEY || ''),
+    ...splitKeyString(process.env.OPENAI_API_KEYS || '').map(k => `openai:${k}`),
+    ...splitKeyString(process.env.OPENAI_API_KEY || '').map(k => `openai:${k}`),
+    ...splitKeyString(process.env.DEEPSEEK_API_KEYS || '').map(k => `deepseek:${k}`),
+    ...splitKeyString(process.env.DEEPSEEK_API_KEY || '').map(k => `deepseek:${k}`),
+    ...splitKeyString(process.env.GROQ_API_KEYS || '').map(k => `groq:${k}`),
+    ...splitKeyString(process.env.GROQ_API_KEY || '').map(k => `groq:${k}`),
+    ...splitKeyString(process.env.OPENROUTER_API_KEYS || '').map(k => `openrouter:${k}`),
+    ...splitKeyString(process.env.OPENROUTER_API_KEY || '').map(k => `openrouter:${k}`),
+    ...splitKeyString(process.env.GITHUB_TOKENS || '').map(k => `github:${k}`),
+    ...splitKeyString(process.env.GITHUB_TOKEN || '').map(k => `github:${k}`)
   ];
 }
 
@@ -228,40 +266,36 @@ function saveRuntimeStoredKeys(keys) {
 function collectProviderKeys(req) {
   const headerRaw = [
     ...splitKeyString(req?.headers?.['x-gemini-api-key'] || ''),
-    ...splitKeyString(req?.headers?.['x-github-token'] || '')
+    ...splitKeyString(req?.headers?.['x-ai-api-key'] || ''),
+    ...splitKeyString(req?.headers?.['x-github-token'] || '').map(k => `github:${k}`)
   ];
   const bodyRaw = Array.isArray(req?.body?.apiKeys)
     ? req.body.apiKeys.flatMap(splitKeyString)
     : splitKeyString(req?.body?.apiKey || '');
   const runtimeRaw = getRuntimeStoredKeys();
+  const envRaw = getEnvProviderEntries();
 
-  const allUserSupplied = [...headerRaw, ...bodyRaw, ...runtimeRaw];
-  const userGemini = allUserSupplied.filter(k => !isGitHubToken(k));
-  const userGitHub = allUserSupplied.filter(isGitHubToken);
-
-  const geminiKeys = [...new Set([...userGemini, ...getEnvGeminiKeys()])];
-  const githubTokens = [...new Set([...userGitHub, ...getEnvGitHubTokens()])];
-
-  return { geminiKeys, githubTokens };
+  const allEntries = [...new Set([...headerRaw, ...bodyRaw, ...runtimeRaw, ...envRaw])];
+  return allEntries.map(classifyProviderKey).filter(item => item.key);
 }
 
 function buildKeyPoolStatus() {
   const now = Date.now();
-  const envGemini = getEnvGeminiKeys();
-  const envGitHub = getEnvGitHubTokens();
   const runtimeRaw = getRuntimeStoredKeys();
+  const envRaw = getEnvProviderEntries();
   const seen = new Set();
   const list = [];
 
-  for (const k of [...runtimeRaw, ...envGemini, ...envGitHub]) {
-    if (seen.has(k)) continue;
-    seen.add(k);
-    const cooldownAt = keyCooldownUntil.get(k) || 0;
-    const tier = isGitHubToken(k) ? 'Tier 2 · GitHub Models' : 'Tier 1 · Gemini';
+  for (const raw of [...runtimeRaw, ...envRaw]) {
+    const info = classifyProviderKey(raw);
+    if (!info.key || seen.has(info.key)) continue;
+    seen.add(info.key);
+    const cooldownAt = keyCooldownUntil.get(info.key) || 0;
     list.push({
-      masked: maskApiKey(k),
-      tier,
-      source: runtimeRaw.includes(k) ? 'runtime' : 'env',
+      masked: maskApiKey(raw),
+      tier: info.label,
+      provider: info.provider,
+      source: runtimeRaw.includes(raw) ? 'runtime' : 'env',
       status: cooldownAt > now ? 'cooldown' : 'ready'
     });
   }
@@ -270,8 +304,8 @@ function buildKeyPoolStatus() {
     totalKeys: list.length,
     activeKeys: list.filter(x => x.status === 'ready').length,
     tiers: {
-      tier1GeminiCount: list.filter(x => x.tier.startsWith('Tier 1')).length,
-      tier2GitHubCount: list.filter(x => x.tier.startsWith('Tier 2')).length,
+      tier1GeminiCount: list.filter(x => x.provider !== 'github').length,
+      tier2GitHubCount: list.filter(x => x.provider === 'github').length,
       tier3PollinationsFree: process.env.DISABLE_FREE_FALLBACK !== 'true'
     },
     keys: list
@@ -280,7 +314,7 @@ function buildKeyPoolStatus() {
 
 /**
  * GET /api/settings/keys
- * Returns masked status of all configured keys & 3-tier fallback configuration.
+ * Returns masked status of all configured keys & multi-provider rotation pool.
  */
 app.get('/api/settings/keys', (req, res) => {
   res.json(buildKeyPoolStatus());
@@ -288,7 +322,7 @@ app.get('/api/settings/keys', (req, res) => {
 
 /**
  * POST /api/settings/keys
- * Adds one or multiple Gemini API keys or GitHub PATs to the server's runtime rotation pool.
+ * Adds one or multiple AI API keys (Gemini, ChatGPT, DeepSeek, Groq, OpenRouter, GitHub) to the rotation pool.
  */
 app.post('/api/settings/keys', (req, res) => {
   const rawInput = req.body?.keys ?? req.body?.apiKey ?? '';
@@ -316,17 +350,19 @@ app.delete('/api/settings/keys', (req, res) => {
 });
 
 /**
- * Tier 2 Caller: GitHub Models (Azure AI Inference Endpoint)
+ * Generic OpenAI-Compatible Chat Completions Caller
+ * Used for ChatGPT (OpenAI), DeepSeek, Groq, OpenRouter, and GitHub Models.
  */
-async function callGitHubModels(token, promptText) {
-  const res = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+async function callOpenAiCompatible({ endpoint, apiKey, model, providerName, promptText, extraHeaders = {} }) {
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${apiKey}`,
+      ...extraHeaders
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: 'You are an official IELTS examiner. Respond ONLY with a valid JSON object matching the exact schema requested.' },
@@ -338,7 +374,7 @@ async function callGitHubModels(token, promptText) {
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => '');
-    const err = new Error(`GitHub Models HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+    const err = new Error(`${providerName} HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
     err.status = res.status;
     throw err;
   }
@@ -346,9 +382,104 @@ async function callGitHubModels(token, promptText) {
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content || '';
   if (!text.trim()) {
-    throw new Error('GitHub Models returned an empty response.');
+    throw new Error(`${providerName} returned an empty response.`);
   }
   return { text };
+}
+
+/**
+ * Execute a single classified key entry against its corresponding AI provider.
+ */
+async function executeWithClassifiedKey(entry, promptText, totalPoolSize) {
+  const { provider, key } = entry;
+
+  if (provider === 'gemini') {
+    const ai = new GoogleGenAI({ apiKey: key });
+    const maxAttempts = totalPoolSize > 1 ? 1 : 2;
+    const response = await generateWithRetry(ai, {
+      model: config.model,
+      contents: promptText,
+      config: { responseMimeType: 'application/json' }
+    }, maxAttempts);
+    return { response, providerLabel: 'Google Gemini' };
+  }
+
+  if (provider === 'openai') {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      apiKey: key,
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      providerName: 'OpenAI (ChatGPT)',
+      promptText
+    });
+    return { response, providerLabel: 'ChatGPT / OpenAI (gpt-4o-mini)' };
+  }
+
+  if (provider === 'deepseek') {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://api.deepseek.com/chat/completions',
+      apiKey: key,
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      providerName: 'DeepSeek',
+      promptText
+    });
+    return { response, providerLabel: 'DeepSeek (deepseek-chat)' };
+  }
+
+  if (provider === 'groq') {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      apiKey: key,
+      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      providerName: 'Groq Cloud',
+      promptText
+    });
+    return { response, providerLabel: 'Groq Cloud (Llama 3.3 70B)' };
+  }
+
+  if (provider === 'openrouter') {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      apiKey: key,
+      model: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat:free',
+      providerName: 'OpenRouter',
+      promptText,
+      extraHeaders: { 'HTTP-Referer': 'http://localhost:3000', 'X-Title': 'IELTS Master' }
+    });
+    return { response, providerLabel: 'OpenRouter (Free AI)' };
+  }
+
+  if (provider === 'github') {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://models.inference.ai.azure.com/chat/completions',
+      apiKey: key,
+      model: process.env.GITHUB_MODEL || 'gpt-4o-mini',
+      providerName: 'GitHub Models',
+      promptText
+    });
+    return { response, providerLabel: 'GitHub Models (gpt-4o-mini)' };
+  }
+
+  // provider === 'sk-auto': Try OpenAI first; if 401/403, try DeepSeek automatically
+  try {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      apiKey: key,
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      providerName: 'OpenAI (ChatGPT)',
+      promptText
+    });
+    return { response, providerLabel: 'ChatGPT / OpenAI (gpt-4o-mini)' };
+  } catch (openAiErr) {
+    const response = await callOpenAiCompatible({
+      endpoint: 'https://api.deepseek.com/chat/completions',
+      apiKey: key,
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      providerName: 'DeepSeek',
+      promptText
+    });
+    return { response, providerLabel: 'DeepSeek (deepseek-chat)' };
+  }
 }
 
 /**
@@ -388,79 +519,44 @@ async function callPollinationsFree(promptText) {
 }
 
 /**
- * 3-Tier Multi-Provider Execution with Key Pool Auto-Rotation:
- *  - Tier 1: Google Gemini Key Pool (rotates through all available Gemini keys on 429/quota)
- *  - Tier 2: GitHub Models Pool (rotates through GitHub PATs on 429/quota)
- *  - Tier 3: Pollinations.ai Zero-Key Free AI Fallback
+ * Universal Multi-Provider Execution with Key Pool Auto-Rotation:
+ *  - Rotates across all configured keys (Gemini, ChatGPT/OpenAI, DeepSeek, Groq, OpenRouter, GitHub Models)
+ *  - Automatically falls back to Pollinations.ai Zero-Key Free AI when no keys or all keys are rate-limited
  */
 async function generateWithKeyPool(req, promptText) {
-  const { geminiKeys, githubTokens } = collectProviderKeys(req);
+  const pool = collectProviderKeys(req);
   const now = Date.now();
   const errors = [];
 
-  // ── TIER 1: Google Gemini Key Pool ─────────────────────────────
-  if (geminiKeys.length > 0) {
+  if (pool.length > 0) {
     const rotated = [];
-    for (let i = 0; i < geminiKeys.length; i++) {
-      rotated.push(geminiKeys[(roundRobinCursor + i) % geminiKeys.length]);
+    for (let i = 0; i < pool.length; i++) {
+      rotated.push(pool[(roundRobinCursor + i) % pool.length]);
     }
-    roundRobinCursor = (roundRobinCursor + 1) % geminiKeys.length;
+    roundRobinCursor = (roundRobinCursor + 1) % pool.length;
 
-    const readyKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) <= now);
-    const cooldownKeys = rotated.filter(k => (keyCooldownUntil.get(k) || 0) > now);
-    const orderedGemini = [...readyKeys, ...cooldownKeys];
+    const readyEntries = rotated.filter(e => (keyCooldownUntil.get(e.key) || 0) <= now);
+    const cooldownEntries = rotated.filter(e => (keyCooldownUntil.get(e.key) || 0) > now);
+    const orderedPool = [...readyEntries, ...cooldownEntries];
 
-    for (let idx = 0; idx < orderedGemini.length; idx++) {
-      const apiKey = orderedGemini[idx];
-      const ai = new GoogleGenAI({ apiKey });
-      const maxAttemptsForThisKey = orderedGemini.length > 1 ? 1 : 2;
-
+    for (const entry of orderedPool) {
       try {
-        const response = await generateWithRetry(ai, {
-          model: config.model,
-          contents: promptText,
-          config: { responseMimeType: 'application/json' }
-        }, maxAttemptsForThisKey);
-
-        keyCooldownUntil.delete(apiKey);
+        const { response, providerLabel } = await executeWithClassifiedKey(entry, promptText, orderedPool.length);
+        keyCooldownUntil.delete(entry.key);
         return {
           response,
-          provider: 'Tier 1: Google Gemini',
-          usedKeyMasked: maskApiKey(apiKey)
+          provider: providerLabel,
+          usedKeyMasked: maskApiKey(entry.raw)
         };
       } catch (err) {
-        errors.push(`Gemini(${maskApiKey(apiKey)}): ${err?.status || err?.message}`);
-        keyCooldownUntil.set(apiKey, Date.now() + KEY_COOLDOWN_MS);
-        console.warn(`[WARN] [Tier 1] Gemini key ${maskApiKey(apiKey)} failed (${err?.status || err?.message}). Rotating...`);
+        errors.push(`${entry.label}(${maskApiKey(entry.raw)}): ${err?.status || err?.message}`);
+        keyCooldownUntil.set(entry.key, Date.now() + KEY_COOLDOWN_MS);
+        console.warn(`[WARN] Key ${maskApiKey(entry.raw)} [${entry.label}] failed (${err?.status || err?.message}). Rotating to next key...`);
       }
     }
   }
 
-  // ── TIER 2: GitHub Models (Official Azure AI Inference) ────────
-  if (githubTokens.length > 0) {
-    const readyTokens = githubTokens.filter(t => (keyCooldownUntil.get(t) || 0) <= now);
-    const cooldownTokens = githubTokens.filter(t => (keyCooldownUntil.get(t) || 0) > now);
-    const orderedTokens = [...readyTokens, ...cooldownTokens];
-
-    for (const token of orderedTokens) {
-      try {
-        console.log(`[INFO] [Tier 2] Attempting GitHub Models with token ${maskApiKey(token)}...`);
-        const response = await callGitHubModels(token, promptText);
-        keyCooldownUntil.delete(token);
-        return {
-          response,
-          provider: 'Tier 2: GitHub Models (gpt-4o-mini)',
-          usedKeyMasked: maskApiKey(token)
-        };
-      } catch (err) {
-        errors.push(`GitHubModels(${maskApiKey(token)}): ${err?.status || err?.message}`);
-        keyCooldownUntil.set(token, Date.now() + KEY_COOLDOWN_MS);
-        console.warn(`[WARN] [Tier 2] GitHub token ${maskApiKey(token)} failed (${err?.message}). Rotating...`);
-      }
-    }
-  }
-
-  // ── TIER 3: Pollinations.ai (Zero-Key Free AI Fallback) ────────
+  // ── FALLBACK TIER: Pollinations.ai (Zero-Key Free AI Fallback) ────────
   if (process.env.DISABLE_FREE_FALLBACK !== 'true') {
     try {
       console.log(`[INFO] [Tier 3] Falling back to Pollinations.ai Zero-Key Free AI...`);
@@ -476,11 +572,11 @@ async function generateWithKeyPool(req, promptText) {
     }
   }
 
-  if (!geminiKeys.length && !githubTokens.length) {
+  if (!pool.length) {
     return { missingKey: true, errors };
   }
 
-  throw new Error(`All AI tiers failed: ${errors.join(' | ')}`);
+  throw new Error(`All AI providers failed: ${errors.join(' | ')}`);
 }
 
 /**
