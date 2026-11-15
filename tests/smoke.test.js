@@ -25,6 +25,16 @@ const { default: app } = await import('../server.js');
 
 let server;
 let BASE;
+let testCookie;
+const fetch = async (url, options = {}) => {
+  const headers = new Headers(options.headers || {});
+  if (String(url).startsWith(BASE || 'http://127.0.0.1:') && testCookie && !headers.has('cookie')) headers.set('cookie', testCookie);
+  const response = await globalThis.fetch(url, { ...options, headers });
+  const cookie = response.headers.get('set-cookie');
+  if (cookie && String(url).startsWith(BASE || 'http://127.0.0.1:')) testCookie = cookie.split(';')[0];
+  return response;
+};
+const fixturePath = name => path.join(testResultsDir, 'users', testCookie.split('=')[1].split('.')[0], name);
 
 before(async () => {
   // Mount the Express app in-process on a random free port
@@ -297,7 +307,7 @@ test('Writing and Speaking persist and return integrity from body or header', as
       { status: 200, headers: { 'Content-Type': 'application/json' } }))
     : originalFetch(url, options);
   try {
-    const writing = await originalFetch(`${BASE}/api/writing/score`, {
+    const writing = await fetch(`${BASE}/api/writing/score`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ essay: sampleEssay(250), integrity: { tabSwitches: 0,
         pasteAttempts: 2, keystrokes: 120, wpm: 41, burstDetected: false } })
@@ -306,10 +316,10 @@ test('Writing and Speaking persist and return integrity from body or header', as
     const writingData = await writing.json();
     assert.equal(writingData.integrity.pasteAttempts, 2);
     assert.equal(writingData.integrity.flagged, true);
-    const writingHistory = await (await originalFetch(`${BASE}/api/writing/history`)).json();
+    const writingHistory = await (await fetch(`${BASE}/api/writing/history`)).json();
     assert.deepEqual(writingHistory.find(item => item.id === writingData.id).integrity, writingData.integrity);
 
-    const speaking = await originalFetch(`${BASE}/api/speaking/score`, {
+    const speaking = await fetch(`${BASE}/api/speaking/score`, {
       method: 'POST', headers: { 'Content-Type': 'application/json',
         'X-Exam-Integrity': JSON.stringify({ tabSwitches: 0, pasteAttempts: 0,
           keystrokes: 80, wpm: 28, burstDetected: true }) },
@@ -319,7 +329,7 @@ test('Writing and Speaking persist and return integrity from body or header', as
     const speakingData = await speaking.json();
     assert.equal(speakingData.integrity.burstDetected, true);
     assert.equal(speakingData.integrity.flagged, true);
-    const speakingHistory = await (await originalFetch(`${BASE}/api/speaking/history`)).json();
+    const speakingHistory = await (await fetch(`${BASE}/api/speaking/history`)).json();
     assert.deepEqual(speakingHistory.find(item => item.id === speakingData.id).integrity, speakingData.integrity);
   } finally {
     global.fetch = originalFetch;
@@ -493,10 +503,10 @@ test('Phase 8A curriculum contains cognitive fields and fallback preserves them'
 });
 
 test('Phase 8A diagnostic uses placement, skills, progress and calibration', async () => {
-  fs.writeFileSync(path.join(testResultsDir,'placement_results.json'), JSON.stringify([{estimatedBand:'5.0',sectionBreakdown:{reading:{percentage:40},listening:{percentage:80}}}]));
-  fs.writeFileSync(path.join(testResultsDir,'writing_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'TR',score:6}]}}]));
-  fs.writeFileSync(path.join(testResultsDir,'speaking_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'PR',score:7}]}}]));
-  fs.writeFileSync(path.join(testResultsDir,'study_checkpoints.json'), JSON.stringify([{metacognition:{calibrationGap:-1}},{metacognition:{calibrationGap:0.5}}]));
+  fs.writeFileSync(fixturePath('placement_results.json'), JSON.stringify([{estimatedBand:'5.0',sectionBreakdown:{reading:{percentage:40},listening:{percentage:80}}}]));
+  fs.writeFileSync(fixturePath('writing_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'TR',score:6}]}}]));
+  fs.writeFileSync(fixturePath('speaking_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'PR',score:7}]}}]));
+  fs.writeFileSync(fixturePath('study_checkpoints.json'), JSON.stringify([{metacognition:{calibrationGap:-1}},{metacognition:{calibrationGap:0.5}}]));
   const data = await (await fetch(BASE + '/api/study/diagnostic-status')).json();
   assert.equal(data.unlocked,true); assert.equal(data.profile.skills.reading,5);
   assert.equal(data.profile.skills.listening,7); assert.equal(data.profile.calibrationIndex,-0.2);
@@ -697,4 +707,180 @@ test('Phase 9A generate-unit keeps quiz skillTag through normalizeStudyUnit', as
     assert.ok(data.unit.quiz.every(q => q.skillTag === 'Grammar (GRA)'));
     assert.ok(data.unit.drill.some(d => d.skillTag === 'Lexical Collocation (LR)'));
   });
+});
+
+/* ── Phase 9B: per-user sessions, sync and mistake learning ── */
+function browser() {
+  let cookie = '';
+  return {
+    async request(route, options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (cookie) headers.set('Cookie', cookie);
+      if (options.body !== undefined && typeof options.body !== 'string') { headers.set('Content-Type','application/json'); options = { ...options, body:JSON.stringify(options.body) }; }
+      const res = await globalThis.fetch(BASE + route, { ...options, headers });
+      const setCookie = res.headers.get('set-cookie'); if (setCookie) cookie = setCookie.split(/, (?=im_uid=)/).at(-1).split(';')[0];
+      return res;
+    },
+    get cookie() { return cookie; }
+  };
+}
+
+test('Phase 9B migrates old local data once and stores no session plaintext', async () => {
+  const id = testCookie.split('=')[1].split('.')[0];
+  assert.ok(fs.existsSync(path.join(testResultsDir,'study_srs.json')));
+  assert.ok(fs.existsSync(path.join(testResultsDir,'users',id,'study_srs.json')));
+  const sessions = fs.readFileSync(path.join(testResultsDir,'auth','sessions.json'),'utf8');
+  assert.ok(!sessions.includes(testCookie.split('.')[1]));
+  const me = await (await fetch(BASE+'/api/me')).json();
+  assert.equal(me.userId,id); assert.equal(me.storage,'json-dir'); assert.ok(me.currentSessionId);
+});
+
+test('Phase 9B isolates users, merges guest data, limits devices and revokes sessions', async () => {
+  const a=browser(), b=browser(), c=browser(), d=browser();
+  const first = await a.request('/api/me');
+  assert.match(first.headers.get('set-cookie'), /im_uid=.*HttpOnly.*SameSite=Lax/i);
+  const aMe = await first.json(), bMe = await (await b.request('/api/me')).json();
+  assert.notEqual(aMe.userId,bMe.userId);
+  await a.request('/api/placement/results',{method:'POST',body:{id:'shared-id',score:{correct:3,total:4},estimatedBand:6}});
+  assert.equal((await (await b.request('/api/placement/history')).json()).length,0);
+  await a.request('/api/study/progress',{method:'POST',body:{unitId:'merge-unit',mastery:40}});
+  await b.request('/api/study/progress',{method:'POST',body:{unitId:'merge-unit',mastery:80}});
+  await b.request('/api/placement/results',{method:'POST',body:{id:'guest-attempt',score:{correct:1,total:2},estimatedBand:5}});
+  const codeRes = await a.request('/api/auth/passcode',{method:'POST'}), code=(await codeRes.json()).passcode;
+  assert.match(code,/^IELTS-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/);
+  assert.ok(!fs.readFileSync(path.join(testResultsDir,'auth','passcodes.json'),'utf8').includes(code));
+  const redeem = await b.request('/api/auth/redeem',{method:'POST',body:{passcode:code,localData:{ielts_placement_results:[{id:'guest-attempt',score:{correct:1,total:2},estimatedBand:5},{id:'local-attempt',score:{correct:2,total:2},estimatedBand:7}],ielts_study_progress:[{unitId:'merge-unit',mastery:60}],ielts_study_goal:{examDate:'2028-01-01',targetBand:7.5},ielts_study_streak:['2026-11-14','2026-11-15'],ielts_study_commitment:{time:'20:00',minutes:25}}}});
+  assert.equal(redeem.status,200); assert.equal((await redeem.json()).userId,aMe.userId);
+  const profileAfter = await (await a.request('/api/me')).json(); assert.equal(profileAfter.targetBand,7.5); assert.equal(profileAfter.commitment.minutes,25); assert.deepEqual(profileAfter.streak,['2026-11-14','2026-11-15']);
+  const history = await (await a.request('/api/placement/history')).json();
+  assert.deepEqual(history.map(x=>x.id).sort(),['guest-attempt','local-attempt','shared-id']);
+  assert.equal((await (await a.request('/api/study/progress')).json()).find(x=>x.unitId==='merge-unit').mastery,80);
+  assert.equal((await c.request('/api/auth/redeem',{method:'POST',body:{passcode:code}})).status,200);
+  const rejected = await d.request('/api/auth/redeem',{method:'POST',body:{passcode:code}});
+  const blocked = await rejected.json(); assert.equal(rejected.status,409); assert.equal(blocked.error,'device_limit'); assert.equal(blocked.maxDevices,3); assert.equal(blocked.devices.length,3);
+  const cMe = await (await c.request('/api/me')).json();
+  assert.equal((await a.request('/api/auth/sessions/'+cMe.currentSessionId,{method:'DELETE'})).status,200);
+  assert.equal((await d.request('/api/auth/redeem',{method:'POST',body:{passcode:code}})).status,200);
+  const oldDevice = await (await c.request('/api/me')).json(); assert.notEqual(oldDevice.userId,aMe.userId);
+  const reset = await d.request('/api/auth/logout',{method:'POST'}); assert.equal(reset.status,200);
+  assert.equal((await (await d.request('/api/placement/history')).json()).length,0);
+});
+
+test('Phase 9B rejects foreign Origins, limits incorrect codes and rotates passcodes', async () => {
+  const a=browser(); await a.request('/api/me');
+  const csrf = await a.request('/api/me',{method:'POST',headers:{Origin:'https://evil.example'},body:{displayName:'bad'}});
+  assert.equal(csrf.status,403);
+  const updated = await a.request('/api/me',{method:'POST',body:{displayName:'Lan',targetBand:7,examDate:'2027-01-01'}}); assert.equal(updated.status,200);
+  const first=(await (await a.request('/api/auth/passcode',{method:'POST'})).json()).passcode;
+  const second=(await (await a.request('/api/auth/passcode',{method:'POST'})).json()).passcode;
+  assert.notEqual(first,second);
+  const b=browser();
+  for (let i=0;i<5;i++) assert.equal((await b.request('/api/auth/redeem',{method:'POST',headers:{'X-Forwarded-For':'192.0.2.45'},body:{passcode:first}})).status,401);
+  assert.equal((await b.request('/api/auth/redeem',{method:'POST',headers:{'X-Forwarded-For':'192.0.2.45'},body:{passcode:second}})).status,429);
+  assert.equal((await b.request('/api/auth/redeem',{method:'POST',headers:{'X-Forwarded-For':'192.0.2.46'},body:{passcode:second}})).status,200);
+});
+
+test('Phase 9B mistake unit works offline without placement and adds distinct errors to own SRS', async () => {
+  await withoutAiProviders(async () => {
+    const b=browser(), other=browser();
+    const context={source:'writing',recordId:'essay-123',prompt:'Discuss education.',weakestCriterion:{code:'GRA',score:5,feedback:'Check agreement.'},corrections:[{original:'People is happy',correction:'People are happy',explanation:'People is plural.'},{original:'She go home',correction:'She goes home',explanation:'Use goes.'}]};
+    const diagnostic=await (await b.request('/api/study/diagnostic-status')).json(); assert.equal(diagnostic.unlocked,false);
+    const res=await b.request('/api/study/generate-unit',{method:'POST',body:{mistakeContext:context}}); assert.equal(res.status,200);
+    const data=await res.json(); assert.equal(data.fallback,true); assert.equal(data.unitId,'mistake_writing_essay-123'); assert.equal(data.unit.source,'mistakes'); assert.ok(data.unit.theory && data.unit.vocabulary.length>=4);
+    assert.equal(data.unit.quiz.length,4); assert.ok(data.unit.quiz.every(x=>x.skillTag)); assert.equal(data.unit.drill.length,3); assert.ok(data.unit.drill.every(x=>x.skillTag));
+    const again=await (await b.request('/api/study/generate-unit',{method:'POST',body:{mistakeContext:context}})).json(); assert.equal(data.unitId,again.unitId);
+    const queue=await (await b.request('/api/study/srs')).json(); assert.equal(queue.items.filter(x=>x.source==='mistake-unit').length,2);
+    assert.equal((await (await other.request('/api/study/srs')).json()).totalItems,0);
+    const speaking=await (await b.request('/api/study/generate-unit',{method:'POST',body:{mistakeContext:{source:'speaking',recordId:'s1',suggestions:['Use clearer transitions.'],weakestCriterion:{code:'FC'}}}})).json();
+    assert.equal(speaking.unit.source,'mistakes'); assert.equal(speaking.unit.quiz.length,4);
+  });
+});
+
+test('Phase 9B Upstash adapter stores isolated records and uses REST locks', async () => {
+  const { createStore, getStorageMode } = await import('../db/store.js');
+  const originalFetch = globalThis.fetch;
+  const names = ['UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','VERCEL'];
+  const saved = Object.fromEntries(names.map(n=>[n,process.env[n]]));
+  const values = new Map();
+  process.env.UPSTASH_REDIS_REST_URL='https://redis.test'; process.env.UPSTASH_REDIS_REST_TOKEN='test-token';
+  globalThis.fetch = async (url, options) => {
+    assert.equal(String(url),'https://redis.test');
+    const [op,...args]=JSON.parse(options.body); let result;
+    if (op==='GET') result=values.get(args[0]) ?? null;
+    else if (op==='SET') { if (args[2]==='NX' && values.has(args[0])) result=null; else { values.set(args[0],args[1]); result='OK'; } }
+    else if (op==='EVAL') { const key=args[2]; if (args[0].includes('INCR')) { result=Number(values.get(key)||0)+1; values.set(key,String(result)); } else { result=values.get(key)===args[3] ? 1 : 0; if (result) values.delete(key); } }
+    else throw new Error(`unexpected ${op}`);
+    return new Response(JSON.stringify({result}),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  try {
+    assert.equal(getStorageMode(),'upstash'); const store=createStore(testResultsDir);
+    await store.putProfile('usr_a',{id:'usr_a'}); assert.equal((await store.getProfile('usr_a')).id,'usr_a');
+    await store.withLock('user_usr_a',async()=>store.append('usr_a','placement_results',{id:'p1'}));
+    assert.equal((await store.list('usr_a','placement_results')).length,1);
+    assert.equal((await store.list('usr_b','placement_results')).length,0);
+    assert.equal(await store.failedAttempts('192.0.2.1',true),1); assert.equal(await store.failedAttempts('192.0.2.1'),1);
+    delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN; process.env.VERCEL='1'; assert.equal(getStorageMode(),'ephemeral');
+  } finally { globalThis.fetch=originalFetch; for (const n of names) if(saved[n]===undefined) delete process.env[n]; else process.env[n]=saved[n]; }
+});
+
+test('Phase 9B simultaneous redeems cannot exceed three active devices', async () => {
+  const owner=browser(), visitors=[browser(),browser(),browser(),browser()];
+  await owner.request('/api/me'); const code=(await (await owner.request('/api/auth/passcode',{method:'POST'})).json()).passcode;
+  await Promise.all(visitors.map(b=>b.request('/api/me')));
+  const outcomes = await Promise.all(visitors.map((b,i)=>b.request('/api/auth/redeem',{method:'POST',headers:{'X-Forwarded-For':`192.0.2.${100+i}`},body:{passcode:code}})));
+  assert.equal(outcomes.filter(r=>r.status===200).length,2);
+  assert.equal(outcomes.filter(r=>r.status===409).length,2);
+  const sessions = await (await owner.request('/api/auth/sessions')).json(); assert.equal(sessions.devices.length,3);
+});
+
+test('Phase 9B Upstash REST supports cookie identity and persistent user isolation', async () => {
+  const nativeFetch=globalThis.fetch, names=['UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','VERCEL'];
+  const saved=Object.fromEntries(names.map(n=>[n,process.env[n]])), data=new Map();
+  process.env.UPSTASH_REDIS_REST_URL='https://redis.integration.test'; process.env.UPSTASH_REDIS_REST_TOKEN='test-token'; process.env.VERCEL='1';
+  globalThis.fetch=async (url,options) => {
+    if (String(url)!=='https://redis.integration.test') return nativeFetch(url,options);
+    const [op,...args]=JSON.parse(options.body); let result;
+    if(op==='GET') result=data.get(args[0]) ?? null;
+    else if(op==='SET') { if(args[2]==='NX' && data.has(args[0])) result=null; else { data.set(args[0],args[1]); result='OK'; } }
+    else if(op==='EVAL') { const key=args[2]; if(args[0].includes('INCR')) { result=Number(data.get(key)||0)+1; data.set(key,String(result)); } else { result=data.get(key)===args[3]?1:0; if(result) data.delete(key); } }
+    else throw Error(op);
+    return new Response(JSON.stringify({result}),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  let instance;
+  try {
+    const {default:redisApp}=await import('../server.js?phase9-upstash-test');
+    instance=redisApp.listen(0,'127.0.0.1'); await new Promise(resolve=>instance.once('listening',resolve));
+    const base=`http://127.0.0.1:${instance.address().port}`;
+    const first=await nativeFetch(base+'/api/me'), cookie=first.headers.get('set-cookie').split(';')[0];
+    const profile=await first.json(); assert.equal(profile.storage,'upstash'); assert.match(first.headers.get('set-cookie'),/Secure/i);
+    const headers={'Cookie':cookie,'Content-Type':'application/json'};
+    const put=await nativeFetch(base+'/api/placement/results',{method:'POST',headers,body:JSON.stringify({id:'redis-1',score:{correct:1,total:1},estimatedBand:7})}); assert.equal(put.status,201);
+    assert.equal((await (await nativeFetch(base+'/api/placement/history',{headers})).json()).length,1);
+    assert.equal((await (await nativeFetch(base+'/api/placement/history')).json()).length,0);
+  } finally {
+    if(instance) await new Promise(resolve=>instance.close(resolve)); globalThis.fetch=nativeFetch;
+    for(const n of names) if(saved[n]===undefined) delete process.env[n]; else process.env[n]=saved[n];
+  }
+});
+
+test('Phase 9B mistakes fall back when AI fails and add at most five distinct items', async () => {
+  await withoutAiProviders(async () => {
+    const originalFetch=globalThis.fetch;
+    process.env.GROQ_API_KEY='gsk_test_key';
+    globalThis.fetch=(url,options) => String(url).startsWith('https://api.groq.com/')
+      ? Promise.reject(new Error('offline test')) : originalFetch(url,options);
+    try {
+      const b=browser(), corrections=Array.from({length:7},(_,i)=>({original:`wrong ${i}`,correction:`correct ${i}`,explanation:'Check this phrase.'}));
+      const response=await b.request('/api/study/generate-unit',{method:'POST',body:{mistakeContext:{source:'writing',recordId:'offline',corrections}}});
+      const data=await response.json(); assert.equal(response.status,200); assert.equal(data.fallback,true);
+      assert.equal((await (await b.request('/api/study/srs')).json()).items.length,5);
+    } finally { globalThis.fetch=originalFetch; }
+  });
+});
+
+test('Phase 9B establishes session on the application page before parallel API calls', async () => {
+  const page=await globalThis.fetch(BASE+'/study.html');
+  assert.equal(page.status,200); const cookie=page.headers.get('set-cookie').split(';')[0];
+  const profiles=await Promise.all(Array.from({length:3},async()=> (await (await globalThis.fetch(BASE+'/api/me',{headers:{Cookie:cookie}})).json()).userId));
+  assert.equal(new Set(profiles).size,1);
 });

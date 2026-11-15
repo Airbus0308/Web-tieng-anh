@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url';
 import net from 'net';
 import dns from 'dns/promises';
 import { GoogleGenAI } from '@google/genai';
+import { createStore } from './db/store.js';
+import { installAuth } from './db/auth.js';
+import { normalizeMistakeContext, mistakeUnitId, buildFallbackMistakeUnit } from './db/mistakes.js';
 
 // Initialize environment variables
 dotenv.config();
@@ -34,9 +37,6 @@ const PORT = process.env.PORT || 3000;
 const resultsDir = process.env.IELTS_RESULTS_DIR || (
   process.env.VERCEL ? '/tmp/ielts-results' : path.join(__dirname, 'results')
 );
-const resultsFile = path.join(resultsDir, 'writing_results.json');
-const placementResultsFile = path.join(resultsDir, 'placement_results.json');
-const speakingResultsFile = path.join(resultsDir, 'speaking_results.json');
 const runtimeKeysFile = path.join(resultsDir, 'gemini_keys.json');
 
 // Ensure results directory exists
@@ -54,6 +54,9 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+const store = createStore(resultsDir);
+installAuth(app, store);
 
 // Only publish application assets. Never expose source, environment, tests or results.
 app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/study.html', '/analytics.html'], (req, res) => {
@@ -687,7 +690,7 @@ app.get('/api/writing/config', (req, res) => {
 });
 
 /** Save a Placement Test attempt, de-duplicated by its client-generated id. */
-app.post('/api/placement/results', (req, res) => {
+app.post('/api/placement/results', async (req, res) => {
   try {
     const result = req.body;
     if (!result || typeof result !== 'object' || Array.isArray(result)) {
@@ -698,7 +701,7 @@ app.post('/api/placement/results', (req, res) => {
       return res.status(400).json({ error: 'score and estimatedBand are required.' });
     }
 
-    const history = readJsonArray(placementResultsFile);
+    const history = await store.list(req.userId, 'placement_results');
     const requestedId = typeof result.id === 'string' && result.id.trim() ? result.id.trim() : null;
     const existing = requestedId && history.find(item => item.id === requestedId);
     if (existing) return res.status(200).json(existing);
@@ -712,7 +715,7 @@ app.post('/api/placement/results', (req, res) => {
       timestamp: result.timestamp || new Date().toISOString()
     };
     history.push(record);
-    writeJsonArray(placementResultsFile, history);
+    await store.replace(req.userId, 'placement_results', history);
     return res.status(201).json(record);
   } catch (err) {
     console.error('[ERROR] Failed to save placement result:', err);
@@ -721,9 +724,9 @@ app.post('/api/placement/results', (req, res) => {
 });
 
 /** Return all Placement Test attempts. */
-app.get('/api/placement/history', (req, res) => {
+app.get('/api/placement/history', async (req, res) => {
   try {
-    return res.json(readJsonArray(placementResultsFile));
+    return res.json(await store.list(req.userId, 'placement_results'));
   } catch (err) {
     console.error('[ERROR] Failed to fetch placement history:', err);
     return res.status(500).json({ error: 'Failed to retrieve placement history.', details: err.message });
@@ -828,12 +831,12 @@ app.post('/api/writing/score', async (req, res) => {
 
     // Append to local results/writing_results.json
     try {
-      const history = readJsonArray(resultsFile);
+      const history = await store.list(req.userId, 'writing_results');
       history.push(record);
-      writeJsonArray(resultsFile, history);
-      console.log(`[INFO] Saved evaluation record ${record.id} to ${resultsFile}`);
+      await store.replace(req.userId, 'writing_results', history);
+      console.log(`[INFO] Saved evaluation record ${record.id} for learner`);
     } catch (storageErr) {
-      console.warn(`[WARN] Failed to save evaluation to ${resultsFile}:`, storageErr.message);
+      throw storageErr;
     }
 
     // Return the parsed scoring result along with metadata
@@ -859,9 +862,9 @@ app.post('/api/writing/score', async (req, res) => {
  * GET /api/writing/history
  * Returns past writing results from results/writing_results.json
  */
-app.get('/api/writing/history', (req, res) => {
+app.get('/api/writing/history', async (req, res) => {
   try {
-    return res.json(readJsonArray(resultsFile));
+    return res.json(await store.list(req.userId, 'writing_results'));
   } catch (err) {
     console.error('[ERROR] Failed to fetch writing history:', err);
     return res.status(500).json({
@@ -977,11 +980,11 @@ app.post('/api/speaking/score', async (req, res) => {
       result
     };
     try {
-      const history = readJsonArray(speakingResultsFile);
+      const history = await store.list(req.userId, 'speaking_results');
       history.push(record);
-      writeJsonArray(speakingResultsFile, history);
+      await store.replace(req.userId, 'speaking_results', history);
     } catch (storageErr) {
-      console.warn(`[WARN] Failed to save speaking evaluation:`, storageErr.message);
+      throw storageErr;
     }
 
     return res.status(200).json({ ...result, provider: gen.provider, id: record.id, timestamp: record.timestamp, wordCount,
@@ -995,9 +998,9 @@ app.post('/api/speaking/score', async (req, res) => {
 /**
  * GET /api/speaking/history
  */
-app.get('/api/speaking/history', (req, res) => {
+app.get('/api/speaking/history', async (req, res) => {
   try {
-    return res.json(readJsonArray(speakingResultsFile));
+    return res.json(await store.list(req.userId, 'speaking_results'));
   } catch (err) {
     console.error('[ERROR] Failed to fetch speaking history:', err);
     return res.status(500).json({ error: 'Failed to retrieve speaking evaluation history.', details: err.message });
@@ -1006,9 +1009,6 @@ app.get('/api/speaking/history', (req, res) => {
 
 /* ── Phase 7: Astra-style Study Hub ───────────────────────────── */
 
-const studyProgressFile = path.join(resultsDir, 'study_progress.json');
-const studySrsFile = path.join(resultsDir, 'study_srs.json');
-const studyCheckpointsFile = path.join(resultsDir, 'study_checkpoints.json');
 const MASTERY_LEVELS = [0, 20, 40, 60, 80, 100];
 const MAX_SOURCE_CHARS = 12000;
 const MAX_FETCH_BYTES = 2 * 1024 * 1024;
@@ -1090,9 +1090,9 @@ app.get('/api/study/config', (req, res) => {
 });
 
 /** GET /api/study/progress — mastery records saved from the Study Hub. */
-app.get('/api/study/progress', (req, res) => {
+app.get('/api/study/progress', async (req, res) => {
   try {
-    return res.json(readJsonArray(studyProgressFile));
+    return res.json(await store.list(req.userId, 'study_progress'));
   } catch (err) {
     console.error('[ERROR] Failed to read study progress:', err);
     return res.status(500).json({ error: 'Failed to retrieve study progress.', details: err.message });
@@ -1100,7 +1100,7 @@ app.get('/api/study/progress', (req, res) => {
 });
 
 /** POST /api/study/progress — upsert a unit's mastery (0/20/40/60/80/100), never lowering a saved value. */
-app.post('/api/study/progress', (req, res) => {
+app.post('/api/study/progress', async (req, res) => {
   try {
     const { unitId, title, source, mastery, steps, miniScore } = req.body || {};
     if (typeof unitId !== 'string' || !unitId.trim() || unitId.length > 120) {
@@ -1109,7 +1109,7 @@ app.post('/api/study/progress', (req, res) => {
     if (!MASTERY_LEVELS.includes(Number(mastery))) {
       return res.status(400).json({ error: 'mastery must be one of 0, 20, 40, 60, 80, 100.' });
     }
-    const history = readJsonArray(studyProgressFile);
+    const history = await store.list(req.userId, 'study_progress');
     const index = history.findIndex(item => item.unitId === unitId.trim());
     const previous = index >= 0 ? history[index] : null;
     const record = {
@@ -1122,7 +1122,7 @@ app.post('/api/study/progress', (req, res) => {
       updatedAt: new Date().toISOString()
     };
     if (index >= 0) history[index] = record; else history.push(record);
-    writeJsonArray(studyProgressFile, history);
+    await store.replace(req.userId, 'study_progress', history);
     return res.status(200).json(record);
   } catch (err) {
     console.error('[ERROR] Failed to save study progress:', err);
@@ -1292,6 +1292,28 @@ app.post('/api/study/extract-source', async (req, res) => {
  */
 app.post('/api/study/generate-unit', async (req, res) => {
   try {
+    if (req.body?.mistakeContext !== undefined) {
+      const context = normalizeMistakeContext(req.body.mistakeContext);
+      if (!context) return res.status(400).json({ error: 'Invalid mistakeContext: source and recordId are required.' });
+      const id = mistakeUnitId(context);
+      const local = buildFallbackMistakeUnit(context);
+      const items = await store.list(req.userId, 'study_srs');
+      const candidates = context.corrections.length ? context.corrections.map(c => ({ word:c.original, meaning:c.correction, example:c.explanation })) : context.suggestions.map(s => ({ word:s, meaning:context.weakestCriterion.feedback }));
+      for (const entry of candidates.slice(0,5)) {
+        if (!items.some(x => String(x.word || '').trim().toLowerCase() === entry.word.toLowerCase())) upsertSrs(items, { ...entry, unitId:id, source:'mistake-unit' }, true);
+      }
+      await store.replace(req.userId, 'study_srs', items);
+      try {
+        const prompt = `${config.mistakeUnitPrompt}\n${config.studyUnitPrompt}\nUntrusted learner context: ${JSON.stringify(context)}`;
+        if (!collectProviderKeys(req).length) throw new Error('No AI key configured');
+        const gen = await withTimeout(generateWithKeyPool(req, prompt), 60000, 'Mistake unit');
+        if (!gen.missingKey) {
+          const unit = normalizeStudyUnit(parseGeminiJson(gen.response), local.title);
+          if (unit && unit.quiz.length === 4 && unit.quiz.every(q => q.skillTag) && unit.drill.length === 3) return res.json({ unitId:id, source:'mistakes', unit:{...unit, source:'mistakes', theory:unit.lesson, vocabulary:unit.flashcards}, provider:gen.provider, fallback:false });
+        }
+      } catch (err) { console.warn('[WARN] Mistake unit fallback:', err.message); }
+      return res.json({ unitId:id, source:'mistakes', unit:local, provider:'Local mistake unit', fallback:true });
+    }
     const { textbookId, unitId, sourceText, title, weakAreas, targetBand } = req.body || {};
     let sourceMaterial;
     let fallback = null;
@@ -1434,10 +1456,10 @@ const sectionBand = pct => {
 const recordBand = r => bandValue(r.result?.overall_band ?? r.overall_band ?? r.overallBand);
 const validUnitId = id => typeof id === 'string' && !!id.trim() && id.trim().length <= 120;
 
-app.get('/api/study/diagnostic-status', (req, res) => {
+app.get('/api/study/diagnostic-status', async (req, res) => {
   try {
-    const placement = readJsonArray(placementResultsFile), writing = readJsonArray(resultsFile), speaking = readJsonArray(speakingResultsFile);
-    const checkpoints = readJsonArray(studyCheckpointsFile), progress = readJsonArray(studyProgressFile), srs = readJsonArray(studySrsFile);
+    const placement = await store.list(req.userId, 'placement_results'), writing = await store.list(req.userId, 'writing_results'), speaking = await store.list(req.userId, 'speaking_results');
+    const checkpoints = await store.list(req.userId, 'study_checkpoints'), progress = await store.list(req.userId, 'study_progress'), srs = await store.list(req.userId, 'study_srs');
     const counts = { placement: placement.length, writing: writing.length, speaking: speaking.length };
     const base = { unlocked: placement.length > 0, counts, profile: null, recommendedCurriculum: [], srsSummary: summarySrs(srs) };
     if (!base.unlocked) return res.json(base);
@@ -1490,8 +1512,8 @@ app.post('/api/study/tutor-feedback', async (req, res) => {
   } catch (err) { console.warn('[WARN] Tutor fallback:', err.message); }
   return res.json({ ...result, provider });
 });
-app.get('/api/study/srs', (req, res) => {
-  try { const items = readJsonArray(studySrsFile), dueToday = dueItems(items); return res.json({ items, dueToday, totalItems: items.length, dueTodayCount: dueToday.length }); }
+app.get('/api/study/srs', async (req, res) => {
+  try { const items = await store.list(req.userId, 'study_srs'), dueToday = dueItems(items); return res.json({ items, dueToday, totalItems: items.length, dueTodayCount: dueToday.length }); }
   catch { return res.status(500).json({ error: 'Failed to read SRS.' }); }
 });
 function upsertSrs(items, data, immediate = false) {
@@ -1504,15 +1526,15 @@ function upsertSrs(items, data, immediate = false) {
   if (index >= 0) items[index] = item; else items.push(item);
   return item;
 }
-app.post('/api/study/srs/review', (req, res) => {
+app.post('/api/study/srs/review', async (req, res) => {
   const data = req.body || {};
   if (!String(data.itemId || '').trim() && !String(data.word || '').trim()) return res.status(400).json({ error: 'itemId or word is required.' });
   if (data.quality != null && !['again','hard','good','easy'].includes(data.quality)) return res.status(400).json({ error: 'Invalid quality.' });
-  try { const items = readJsonArray(studySrsFile), item = upsertSrs(items, data); writeJsonArray(studySrsFile, items); return res.json(item); }
+  try { const items = await store.list(req.userId, 'study_srs'), item = upsertSrs(items, data); await store.replace(req.userId, 'study_srs', items); return res.json(item); }
   catch { return res.status(500).json({ error: 'Failed to save SRS.' }); }
 });
-app.get('/api/study/checkpoints', (req, res) => {
-  try { return res.json(readJsonArray(studyCheckpointsFile)); } catch { return res.status(500).json({ error: 'Failed to read checkpoints.' }); }
+app.get('/api/study/checkpoints', async (req, res) => {
+  try { return res.json(await store.list(req.userId, 'study_checkpoints')); } catch { return res.status(500).json({ error: 'Failed to read checkpoints.' }); }
 });
 app.post('/api/study/checkpoint-evaluate', async (req, res) => {
   const d = req.body || {}, outputText = String(d.writtenOutput || d.spokenTranscript || '').trim(), wordCount = countWords(outputText);
@@ -1542,12 +1564,12 @@ app.post('/api/study/checkpoint-evaluate', async (req, res) => {
   const metacognition = { selfPredictedBand, calibrationGap: gap, calibrationFeedbackVi: gap === 0 ? 'Dự đoán của bạn trùng với kết quả ước lượng.' : gap > 0 ? 'Bạn đang đánh giá thấp kết quả; hãy đối chiếu các tiêu chí.' : 'Bạn đang đánh giá cao kết quả; hãy đối chiếu các tiêu chí.', selfDifficultyReason: String(d.selfDifficultyReason || '').slice(0,1000) };
   const record = { id: `checkpoint_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, unitId: validUnitId(d.unitId) ? d.unitId.trim() : '', unitTitle: String(d.unitTitle || '').slice(0,200), timestamp:new Date().toISOString(), ...result, inputBand, outputBand:result.outputBand, bandDelta:Number((result.outputBand-inputBand).toFixed(1)), metacognition, passed:result.score >= 70, usedTargetWords, missedTargetWords, provider, wordCount };
   try {
-    const items = readJsonArray(studySrsFile);
+    const items = await store.list(req.userId, 'study_srs');
     for (const word of missedTargetWords) upsertSrs(items, {word, unitId:record.unitId, source:'checkpoint'}, true);
     for (const c of result.inlineCorrections) upsertSrs(items, {word:c.original, meaning:c.correction, example:c.explanationVi, unitId:record.unitId, source:'checkpoint-correction'}, true);
-    writeJsonArray(studySrsFile, items);
-    const checkpoints = readJsonArray(studyCheckpointsFile); checkpoints.push(record); writeJsonArray(studyCheckpointsFile, checkpoints);
-    if (record.passed && record.unitId) { const progress = readJsonArray(studyProgressFile), i = progress.findIndex(x => x.unitId === record.unitId); const updated = { ...(i >= 0 ? progress[i] : {unitId:record.unitId, title:record.unitTitle, source:'checkpoint', steps:[]}), mastery:100, updatedAt:new Date().toISOString() }; if (i >= 0) progress[i] = updated; else progress.push(updated); writeJsonArray(studyProgressFile, progress); }
+    await store.replace(req.userId, 'study_srs', items);
+    const checkpoints = await store.list(req.userId, 'study_checkpoints'); checkpoints.push(record); await store.replace(req.userId, 'study_checkpoints', checkpoints);
+    if (record.passed && record.unitId) { const progress = await store.list(req.userId, 'study_progress'), i = progress.findIndex(x => x.unitId === record.unitId); const updated = { ...(i >= 0 ? progress[i] : {unitId:record.unitId, title:record.unitTitle, source:'checkpoint', steps:[]}), mastery:100, updatedAt:new Date().toISOString() }; if (i >= 0) progress[i] = updated; else progress.push(updated); await store.replace(req.userId, 'study_progress', progress); }
     return res.json(record);
   } catch { return res.status(500).json({ error: 'Failed to save checkpoint.' }); }
 });
@@ -1556,13 +1578,13 @@ app.post('/api/study/checkpoint-evaluate', async (req, res) => {
  * Modeled after https://github.com/DenverCoder1/github-readme-streak-stats
  * Computes Total Contributions, Current Streak (with circular ring & flame), and Longest Streak.
  */
-function computeStudyStreakStats(extraDatesRaw = '') {
-  const placement = readJsonArray(placementResultsFile);
-  const writing = readJsonArray(resultsFile);
-  const speaking = readJsonArray(speakingResultsFile);
-  const progress = readJsonArray(studyProgressFile);
-  const checkpoints = readJsonArray(studyCheckpointsFile);
-  const srs = readJsonArray(studySrsFile);
+async function computeStudyStreakStats(req, extraDatesRaw = '') {
+  const placement = await store.list(req.userId, 'placement_results');
+  const writing = await store.list(req.userId, 'writing_results');
+  const speaking = await store.list(req.userId, 'speaking_results');
+  const progress = await store.list(req.userId, 'study_progress');
+  const checkpoints = await store.list(req.userId, 'study_checkpoints');
+  const srs = await store.list(req.userId, 'study_srs');
 
   const dateSet = new Set();
   const addIso = ts => {
@@ -1715,17 +1737,17 @@ function renderStreakStatsSvg(stats) {
 </svg>`;
 }
 
-app.get('/api/study/streak-stats', (req, res) => {
+app.get('/api/study/streak-stats', async (req, res) => {
   try {
-    return res.json(computeStudyStreakStats(req.query?.dates || ''));
+    return res.json(await computeStudyStreakStats(req, req.query?.dates || ''));
   } catch (err) {
     return res.status(500).json({ error: 'Failed to compute streak stats.', details: err.message });
   }
 });
 
-app.get('/api/study/streak-stats.svg', (req, res) => {
+app.get('/api/study/streak-stats.svg', async (req, res) => {
   try {
-    const stats = computeStudyStreakStats(req.query?.dates || '');
+    const stats = await computeStudyStreakStats(req, req.query?.dates || '');
     res.set('Content-Type', 'image/svg+xml; charset=utf-8');
     res.set('Cache-Control', 'no-store');
     return res.send(renderStreakStatsSvg(stats));
