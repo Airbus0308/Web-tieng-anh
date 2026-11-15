@@ -1054,7 +1054,7 @@ const StudyApp = (() => {
       tag.src = url;
       tag.async = true;
       tag.onload = () => (window[globalName] ? resolve(window[globalName]) : reject(new Error(`${globalName} không khả dụng`)));
-      tag.onerror = () => { delete scriptCache[url]; reject(new Error('Không tải được thư viện đọc file (kiểm tra kết nối mạng).')); };
+      tag.onerror = () => { delete scriptCache[url]; reject(new Error('Không tải được thư viện đọc file (kiểm tra kết nối mạng)')); };
       document.head.appendChild(tag);
     });
     return scriptCache[url];
@@ -1105,7 +1105,7 @@ const StudyApp = (() => {
         ? (ext === 'pdf' ? 'Không tìm thấy chữ trong PDF (có thể là bản scan ảnh).' : 'File không có nội dung văn bản.')
         : `${file.name} — ${countWords(state.fileText)} từ${truncated ? ` (đã cắt còn ${MAX_SOURCE_CHARS.toLocaleString('vi-VN')} ký tự đầu)` : ''}.`;
     } catch (e) {
-      if (token === state.fileToken) info.textContent = `Không đọc được file: ${e.message}`;
+      if (token === state.fileToken) info.textContent = `Không đọc được file: ${e.message}. Bạn có thể mở file, sao chép nội dung và dùng tab "Dán văn bản".`;
     }
   }
 
