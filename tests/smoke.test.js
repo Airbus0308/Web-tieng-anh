@@ -346,7 +346,15 @@ const post = (route, body) => fetch(BASE + route, {
 
 /** Run fn with every AI provider disabled so Study endpoints use their offline fallbacks. */
 async function withoutAiProviders(fn) {
-  const names = ['GEMINI_API_KEY', 'GEMINI_API_KEYS', 'GITHUB_TOKEN', 'GITHUB_TOKENS', 'DISABLE_FREE_FALLBACK'];
+  const names = [
+    'GEMINI_API_KEY', 'GEMINI_API_KEYS',
+    'OPENAI_API_KEY', 'OPENAI_API_KEYS',
+    'DEEPSEEK_API_KEY', 'DEEPSEEK_API_KEYS',
+    'GROQ_API_KEY', 'GROQ_API_KEYS',
+    'OPENROUTER_API_KEY', 'OPENROUTER_API_KEYS',
+    'GITHUB_TOKEN', 'GITHUB_TOKENS',
+    'DISABLE_FREE_FALLBACK'
+  ];
   const previous = Object.fromEntries(names.map(n => [n, process.env[n]]));
   for (const n of names) delete process.env[n];
   process.env.DISABLE_FREE_FALLBACK = 'true';

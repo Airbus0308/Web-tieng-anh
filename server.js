@@ -200,7 +200,7 @@ function classifyProviderKey(rawEntry) {
     if (prefix === 'gemini') return { provider: 'gemini', label: 'Google Gemini', key, raw: s };
     if (prefix === 'openai' || prefix === 'chatgpt') return { provider: 'openai', label: 'ChatGPT / OpenAI (gpt-4o-mini)', key, raw: s };
     if (prefix === 'deepseek' || prefix === 'ds') return { provider: 'deepseek', label: 'DeepSeek (deepseek-chat)', key, raw: s };
-    if (prefix === 'groq') return { provider: 'groq', label: 'Groq Cloud (Llama 3.3)', key, raw: s };
+    if (prefix === 'groq') return { provider: 'groq', label: 'Groq Cloud (GPT-OSS 120B)', key, raw: s };
     if (prefix === 'openrouter') return { provider: 'openrouter', label: 'OpenRouter (Free Models)', key, raw: s };
     if (prefix === 'github') return { provider: 'github', label: 'GitHub Models (gpt-4o-mini)', key, raw: s };
   }
@@ -212,7 +212,7 @@ function classifyProviderKey(rawEntry) {
     return { provider: 'openrouter', label: 'OpenRouter (Free Models)', key: s, raw: s };
   }
   if (/^gsk_/i.test(s)) {
-    return { provider: 'groq', label: 'Groq Cloud (Llama 3.3)', key: s, raw: s };
+    return { provider: 'groq', label: 'Groq Cloud (GPT-OSS 120B)', key: s, raw: s };
   }
   if (/^sk-[a-f0-9]{32}$/i.test(s)) {
     return { provider: 'deepseek', label: 'DeepSeek (deepseek-chat)', key: s, raw: s };
@@ -353,38 +353,53 @@ app.delete('/api/settings/keys', (req, res) => {
  * Generic OpenAI-Compatible Chat Completions Caller
  * Used for ChatGPT (OpenAI), DeepSeek, Groq, OpenRouter, and GitHub Models.
  */
-async function callOpenAiCompatible({ endpoint, apiKey, model, providerName, promptText, extraHeaders = {} }) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      ...extraHeaders
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: 'json_object' },
+async function callOpenAiCompatible({ endpoint, apiKey, model, fallbackModels = [], providerName, promptText, extraHeaders = {}, useJsonObject = true }) {
+  const candidateModels = [...new Set([model, ...fallbackModels].filter(Boolean))];
+  let lastErr = null;
+
+  for (const currentModel of candidateModels) {
+    const payload = {
+      model: currentModel,
+      ...(useJsonObject ? { response_format: { type: 'json_object' } } : {}),
       messages: [
         { role: 'system', content: 'You are an official IELTS examiner. Respond ONLY with a valid JSON object matching the exact schema requested.' },
         { role: 'user', content: promptText }
       ],
       temperature: 0.3
-    })
-  });
+    };
 
-  if (!res.ok) {
-    const bodyText = await res.text().catch(() => '');
-    const err = new Error(`${providerName} HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
-    err.status = res.status;
-    throw err;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        ...extraHeaders
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      const err = new Error(`${providerName} (${currentModel}) HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+      err.status = res.status;
+      lastErr = err;
+      // If auth or billing error (401/402/403), stop trying other models on the same key
+      if (res.status === 401 || res.status === 402 || res.status === 403) {
+        throw err;
+      }
+      continue;
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text.trim()) {
+      lastErr = new Error(`${providerName} (${currentModel}) returned an empty response.`);
+      continue;
+    }
+    return { text, usedModel: currentModel };
   }
 
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  if (!text.trim()) {
-    throw new Error(`${providerName} returned an empty response.`);
-  }
-  return { text };
+  throw lastErr || new Error(`${providerName} failed across all candidate models.`);
 }
 
 /**
@@ -430,23 +445,26 @@ async function executeWithClassifiedKey(entry, promptText, totalPoolSize) {
     const response = await callOpenAiCompatible({
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       apiKey: key,
-      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+      fallbackModels: ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b'],
       providerName: 'Groq Cloud',
       promptText
     });
-    return { response, providerLabel: 'Groq Cloud (Llama 3.3 70B)' };
+    return { response, providerLabel: `Groq Cloud (${response.usedModel || 'gpt-oss-120b'})` };
   }
 
   if (provider === 'openrouter') {
     const response = await callOpenAiCompatible({
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       apiKey: key,
-      model: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat:free',
+      model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+      fallbackModels: ['google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'],
       providerName: 'OpenRouter',
       promptText,
+      useJsonObject: false,
       extraHeaders: { 'HTTP-Referer': 'http://localhost:3000', 'X-Title': 'IELTS Master' }
     });
-    return { response, providerLabel: 'OpenRouter (Free AI)' };
+    return { response, providerLabel: `OpenRouter (${response.usedModel || 'free'})` };
   }
 
   if (provider === 'github') {

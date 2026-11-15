@@ -100,7 +100,7 @@ const ApiKeyManager = (() => {
       return 'OpenRouter (Free Models)';
     }
     if (lower.startsWith('groq:') || /^gsk_/i.test(s)) {
-      return 'Groq Free Cloud (Llama 3.3)';
+      return 'Groq Free Cloud (GPT-OSS 120B)';
     }
     if (lower.startsWith('github:') || /^(ghp_|github_pat_|gho_|ghs_)/i.test(s)) {
       return 'GitHub Models (gpt-4o-mini)';
