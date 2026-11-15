@@ -51,19 +51,32 @@ Mở rộng khu vực **Nạp tài liệu** thành 4 nguồn thông minh:
 4. **Kho Giáo trình Chuẩn Chuyên Sâu (`config.json`)**:
    - Biên soạn riêng biệt câu hỏi `quickQuiz` (có `skillTag`) và `drill` cho từng Unit trong 8 Unit chuẩn (không dùng câu hỏi lặp lại giữa các Unit).
 
-### 🎨 Trụ cột 3: Thiết Kế Giao Diện "Progressive Disclosure" (Hiển Thị Thông Tin Hợp Lý, Tinh Gọn)
-Nguyên tắc cốt lõi: **"Đúng thông tin — Đúng giai đoạn — Không trùng lặp — Không làm ngợp người học"**:
-1. **Thanh Hồ Sơ Học Viên Toàn Cục (Global Learner Bar trên Header của cả 5 trang)**:
-   - Hiển thị gọn trên thanh điều hướng: `[👤 Tên học viên | 🎯 Band 5.5 → 7.0 | 🔥 3 ngày Streak | 🔑 AI Keys]`.
-2. **Loại bỏ trùng lặp trên `study.html`**:
-   - **Gộp `#study-banner` và `#forethought-panel`** thành một **Bảng Điều Khiển Học Tập Tinh Gọn (Compact Study Cockpit)** gồm 3 thẻ ngang cân đối:
-     * **Thẻ 1 — Hồ Sơ & Mục Tiêu (Profile & Countdown)**: Band hiện tại ➔ Band mục tiêu, Số ngày còn lại tới kỳ thi, và Cam kết giờ học If-Then.
-     * **Thẻ 2 — Thói Quen & Streak (`github-readme-streak-stats` + Tuần lễ T2–CN)**.
-     * **Thẻ 3 — Cần Làm Hôm Nay (Today's Action Queue)**: Số thẻ SRS đến hạn ôn tập hôm nay + Unit $i+1$ ưu tiên số 1 (bấm 1 nút là vào học ngay).
-3. **Chuyển đổi Chế độ Xem theo Giai đoạn (Tabbed / Stage-Driven Workspace trên `study.html`)**:
-   - Thay vì hiển thị tất cả các khối dài lê thê cùng lúc, thanh `#srl-stage-bar` (`① Kế hoạch & Ôn tập SRS` | `② Kho Học Liệu & Nạp Nguồn` | `③ Phòng Học Tập Trung 5 Bước`) đóng vai trò là **Bộ chuyển chế độ hiển thị (View Switcher)** (kèm nút `"Hiện tất cả"` nếu muốn):
-     * Khi chưa chọn Unit: Ưu tiên hiển thị **Bảng Điều Khiển + Hộp Ôn SRS + Kho Giáo Trình Gợi Ý**.
-     * Khi bấm **"Học ngay"** một Unit: Tự động thu gọn phần Kho giáo trình & Nạp tài liệu, cuộn mượt vào **Phòng Học Tập Trung (Focus Lesson Player)** + **Gia sư AI Socratic** ở cột bên!
+### 🎨 Trụ cột 3: Thiết Kế Giao Diện "Progressive Disclosure" Học Tập Từ Frappe LMS, LearnHouse & Canvas LMS
+Chọn lọc tinh hoa từ 3 nền tảng LMS mã nguồn mở hiện đại nhất (**LearnHouse**, **Frappe LMS**, **Canvas LMS**) nhưng giữ nguyên kiến trúc **Node.js + Vanilla ES6 nhẹ, siêu tốc trên Vercel**:
+
+1. **Học từ LearnHouse (`learnhouse/learnhouse`) — Tách biệt "Dashboard Khóa Học" và "Phòng Học Tập Trung (Focus Player)"**:
+   - Thay vì xếp chồng tất cả các khối trên 1 trang dài, `study.html` tách thành **2 chế độ hiển thị rõ ràng**:
+     * **Chế độ 1 — Study Dashboard (Khi đang ở ngoài sảnh)**:
+       - **Hàng trên (Compact Cockpit 3 cột)**:
+         1. **Hồ Sơ & Đếm Ngược Kỳ Thi**: Gộp `#study-banner` và `#profile-card` (Band đầu vào ➔ Band mục tiêu, Số ngày còn lại, Cam kết KBCP If-Then).
+         2. **Thói Quen & Streak (`github-readme-streak-stats` + Tuần lễ T2–CN)**.
+         3. **Canvas-style "Việc Cần Làm Hôm Nay" (To-Do & SRS Queue)**: Liệt kê rõ số thẻ SRS cần ôn hôm nay + Nút `"Tiếp tục học Unit đang dở"` hoặc `"Học Unit i+1 gợi ý"`.
+       - **Khu vực chính dưới Dashboard chia 2 Tab gọn gàng**:
+         + Tab `📚 Kho Khóa Học & Lộ Trình i+1`: Hiển thị các bộ giáo trình dưới dạng **Course Cards (kiểu Frappe LMS)** có thanh tiến độ tổng của từng bộ sách (`0% → 100%`) và danh sách Unit bên trong.
+         + Tab `➕ Tạo Bài Học AI Từ Tài Liệu / Lỗi Sai`: Khu vực nạp văn bản, file, URL/YouTube hoặc tạo từ lỗi sai Writing/Speaking.
+     * **Chế độ 2 — Focus Classroom Mode (Khi bấm "Học ngay" vào 1 Unit)**:
+       - Tự động thu gọn toàn bộ Dashboard sảnh ngoài (có nút `← Quay lại Kho khóa học` ở góc trái trên).
+       - Giao diện phòng học chỉ còn 2 cột sạch sẽ như **LearnHouse**:
+         + **Cột chính (70%)**: Thanh 5 bước Mastery + Nội dung bước học hiện tại (Lý thuyết Feynman / Thẻ từ Active Recall / Quiz / Drill Interleaving / Output Checkpoint).
+         + **Cột phải (30%)**: **LearnHouse AI Copilot (`#tutor-feedback-panel` — Gia sư Socratic)** + Tiến độ 5 bước của bài đang học.
+
+2. **Học từ Frappe LMS (`frappe/lms`) — Hồ Sơ Học Viên (`Learner Profile`) & Cấp Phiếu Điểm / Chứng Chỉ (`IELTS Test Report Form`)**:
+   - **Thanh Hồ Sơ Học Viên Toàn Cục (Global Learner Bar)** trên Header của cả 5 trang: `[👤 Tên học viên | 🎯 Band 5.5 → 7.0 | 🔥 Streak | 🔑 AI Keys]`.
+   - **Cấp Chứng Nhận & Phiếu Điểm Chuẩn IELTS (TRF Card)**: Khi học viên hoàn thành đủ các bài đánh giá hoặc đạt `100% Mastery` một bộ giáo trình trên Frappe-style Course Card, hệ thống cho phép xuất **Phiếu Điểm IELTS Master (IELTS Test Report Form & Mastery Certificate)** có đóng dấu xác thực `ExamSecurity Verified`.
+
+3. **Học từ Canvas LMS (`instructure/canvas-lms`) — Module Prerequisites, Sổ Điểm 8 Tiêu Chí (Rubric Gradebook) & "Học Từ Lỗi Sai"**:
+   - **Điều kiện tiên quyết (Prerequisites)**: Bắt buộc qua Cổng Chẩn Đoán (Placement Test) mới mở khóa lộ trình; hiển thị huy hiệu `PASSED ✓` rõ ràng trên từng Unit.
+   - **Liên kết Sổ điểm (Rubric Gradebook) sang Bài học**: Từ trang `writing.html`, `speaking.html` và `analytics.html`, học viên bấm 1 nút **"🎯 Tạo Bài Học Khắc Phục Lỗi Này"** để biến các câu sửa lỗi (`inline_corrections`) và tiêu chí yếu nhất thành 1 bài học 5 bước trong Study Hub.
 
 ---
 
