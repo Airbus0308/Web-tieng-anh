@@ -42,6 +42,13 @@ after(async () => {
 const sampleEssay = (words) =>
   Array.from({ length: words }, (_, i) => (i % 12 === 11 ? 'technology.' : 'education')).join(' ');
 
+test('Phase 8A diagnostic remains locked without placement while preserving SRS queue', async () => {
+  fs.writeFileSync(path.join(testResultsDir, 'study_srs.json'), JSON.stringify([{itemId:'initial', word:'initial', nextReviewAt:'2000-01-01T00:00:00.000Z'}]));
+  const data = await (await fetch(BASE + '/api/study/diagnostic-status')).json();
+  assert.equal(data.unlocked, false); assert.equal(data.profile, null);
+  assert.deepEqual(data.recommendedCurriculum, []); assert.equal(data.srsSummary.dueTodayCount, 1);
+});
+
 test('serves all application pages and analytics skill breakdown section', async () => {
   for (const page of ['/writing.html', '/index.html', '/analytics.html', '/speaking.html']) {
     const res = await fetch(BASE + page);
@@ -278,7 +285,7 @@ test('POST /api/speaking/score scores a valid transcript with Gemini',
 
 test('Writing and Speaking persist and return integrity from body or header', async () => {
   const originalFetch = global.fetch;
-  const envNames = ['GEMINI_API_KEY', 'GEMINI_API_KEYS', 'GITHUB_TOKEN', 'GITHUB_TOKENS', 'DISABLE_FREE_FALLBACK'];
+  const envNames = ['GEMINI_API_KEY', 'GEMINI_API_KEYS', 'OPENAI_API_KEY', 'OPENAI_API_KEYS', 'DEEPSEEK_API_KEY', 'DEEPSEEK_API_KEYS', 'GROQ_API_KEY', 'GROQ_API_KEYS', 'OPENROUTER_API_KEY', 'OPENROUTER_API_KEYS', 'GITHUB_TOKEN', 'GITHUB_TOKENS', 'DISABLE_FREE_FALLBACK'];
   const previousEnv = Object.fromEntries(envNames.map(name => [name, process.env[name]]));
   for (const name of envNames) delete process.env[name];
   process.env.DISABLE_FREE_FALLBACK = 'false';
@@ -459,5 +466,114 @@ test('POST /api/study/evaluate-mini validates and grades locally when no AI is a
     assert.deepEqual(data.usedWords.sort(), ['mitigate', 'renewable']);
     assert.deepEqual(data.missingWords, ['sustainable']);
     assert.ok(data.band >= 4 && data.score > 0);
+  });
+});
+
+test('Phase 8A curriculum contains cognitive fields and fallback preserves them', async () => {
+  const cfg = await (await fetch(BASE + '/api/study/config')).json();
+  const valid = ['Reading','Listening','TR','CC','LR','GRA','FC','PR'];
+  for (const book of cfg.sampleTextbooks) for (const u of book.units) {
+    assert.ok(['Foundation','Intermediate','Advanced'].includes(u.levelTag));
+    assert.ok(u.targetWeakness.length && u.targetWeakness.every(x => valid.includes(x)));
+    assert.ok(u.sample.lesson.bandUpgradeExamples.length >= 2);
+    assert.ok(u.sample.lesson.bandUpgradeExamples.every(x => x.bandLow && x.bandHigh && x.analysisVi));
+    assert.ok(u.sample.lesson.feynmanPromptVi);
+    assert.ok(u.sample.flashcards.every(x => x.ipa && x.clozeSentence.includes('___')));
+    assert.deepEqual(new Set(u.sample.drill.map(x => x.skillTag)), new Set(['Reading Paraphrase','Grammar Error Fix (GRA)','Lexical Collocation (LR)']));
+  }
+  const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'config.json')));
+  assert.ok(raw.tutorFeedbackPrompt && raw.checkpointEvaluationPrompt);
+  await withoutAiProviders(async () => {
+    const d = await (await post('/api/study/generate-unit', {textbookId:'cambridge-reading-listening', unitId:'cam-u1'})).json();
+    assert.equal(d.unit.levelTag,'Intermediate'); assert.ok(d.unit.targetWeakness.includes('Reading'));
+    assert.ok(d.unit.lesson.bandUpgradeExamples.length >= 2 && d.unit.lesson.feynmanPromptVi);
+    assert.ok(d.unit.flashcards[0].ipa && d.unit.flashcards[0].clozeSentence.includes('___'));
+    assert.ok(d.unit.drill[0].skillTag);
+  });
+});
+
+test('Phase 8A diagnostic uses placement, skills, progress and calibration', async () => {
+  fs.writeFileSync(path.join(testResultsDir,'placement_results.json'), JSON.stringify([{estimatedBand:'5.0',sectionBreakdown:{reading:{percentage:40},listening:{percentage:80}}}]));
+  fs.writeFileSync(path.join(testResultsDir,'writing_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'TR',score:6}]}}]));
+  fs.writeFileSync(path.join(testResultsDir,'speaking_results.json'), JSON.stringify([{result:{overall_band:6,criteria:[{abbreviation:'PR',score:7}]}}]));
+  fs.writeFileSync(path.join(testResultsDir,'study_checkpoints.json'), JSON.stringify([{metacognition:{calibrationGap:-1}},{metacognition:{calibrationGap:0.5}}]));
+  const data = await (await fetch(BASE + '/api/study/diagnostic-status')).json();
+  assert.equal(data.unlocked,true); assert.equal(data.profile.skills.reading,5);
+  assert.equal(data.profile.skills.listening,7); assert.equal(data.profile.calibrationIndex,-0.2);
+  assert.ok(data.profile.weakAreas.includes('Reading'));
+  assert.ok(data.recommendedCurriculum.some(x => x.id === 'cam-u1' && x.mastery === 60 && x.matchReasonVi));
+  assert.equal(data.counts.writing,1); assert.equal(data.counts.speaking,1);
+});
+
+test('Phase 8A tutor validates and falls back locally', async () => {
+  assert.equal((await post('/api/study/tutor-feedback',{mode:'feynman',userAttempt:'  '})).status,400);
+  assert.equal((await post('/api/study/tutor-feedback',{mode:'bad',userQuestion:'why?'})).status,400);
+  await withoutAiProviders(async () => {
+    for (const mode of ['feynman','socratic']) {
+      const res = await post('/api/study/tutor-feedback',{mode,userAttempt:'I think the verb is in the present.'});
+      const data = await res.json(); assert.equal(res.status,200); assert.equal(data.provider,'Local heuristic');
+      assert.ok(data.replyVi && data.socraticHintVi && data.followUpQuestion); assert.equal(typeof data.understood,'boolean');
+    }
+  });
+});
+
+test('Phase 8A SRS schedules all qualities and updates existing items', async () => {
+  assert.equal((await post('/api/study/srs/review',{})).status,400);
+  assert.equal((await post('/api/study/srs/review',{word:'test',quality:'bad'})).status,400);
+  let data;
+  for (const [quality,days] of [['again',0],['hard',1],['good',3],['easy',14]]) {
+    const res = await post('/api/study/srs/review',{word:'resilience',unitId:'u1',quality});
+    assert.equal(res.status,200); data = await res.json(); assert.equal(data.intervalDays,days);
+    assert.ok(Math.abs(Date.parse(data.nextReviewAt)-Date.parse(data.lastReviewedAt)-days*86400000)<100);
+  }
+  assert.equal(data.repetitions,4);
+  const queue = await (await fetch(BASE + '/api/study/srs')).json();
+  assert.equal(queue.items.filter(x => x.word === 'resilience').length,1);
+  assert.ok(queue.dueToday.some(x => x.itemId === 'initial'));
+});
+
+test('Phase 8A checkpoint validates, evaluates and adds missed words to SRS', async () => {
+  const short = await post('/api/study/checkpoint-evaluate',{writtenOutput:'too short'});
+  assert.equal(short.status,400); assert.equal((await short.json()).minRequired,30);
+  await withoutAiProviders(async () => {
+    const output = 'Renewable energy can reduce pollution and improve public health. Communities should invest in clean transport and education. These policies help citizens make better choices every day and protect natural resources for future generations.';
+    const res = await post('/api/study/checkpoint-evaluate',{unitId:'phase8-unit',inputBand:5,selfPredictedBand:6,quizScore:4,quizTotal:4,writtenOutput:output,targetWords:['renewable energy','mitigate']});
+    assert.equal(res.status,200); const d = await res.json();
+    assert.equal(d.provider,'Local heuristic'); assert.deepEqual(d.usedTargetWords,['renewable energy']); assert.deepEqual(d.missedTargetWords,['mitigate']);
+    assert.equal(d.bandDelta,Number((d.outputBand-5).toFixed(1))); assert.equal(d.metacognition.calibrationGap,Number((d.outputBand-6).toFixed(1)));
+    assert.equal(d.outputBand*2,Math.round(d.outputBand*2)); assert.equal(d.passed,d.score>=70); assert.ok(Array.isArray(d.inlineCorrections));
+    assert.ok((await (await fetch(BASE+'/api/study/srs')).json()).dueToday.some(x => x.word==='mitigate'));
+    assert.ok((await (await fetch(BASE+'/api/study/checkpoints')).json()).some(x => x.id===d.id));
+    if (d.passed) assert.equal((await (await fetch(BASE+'/api/study/progress')).json()).find(x=>x.unitId==='phase8-unit').mastery,100);
+  });
+});
+
+test('Phase 8A AI results preserve unit fields and send corrections to SRS and mastery', async () => {
+  await withoutAiProviders(async () => {
+    process.env.DISABLE_FREE_FALLBACK = 'false';
+    const originalFetch = global.fetch;
+    const book = JSON.parse(fs.readFileSync('config.json')).sampleTextbooks[0];
+    const unit = { ...book.units[0].sample, levelTag:book.units[0].levelTag, targetWeakness:book.units[0].targetWeakness };
+    let response = unit;
+    global.fetch = (url, options) => String(url) === 'https://text.pollinations.ai/openai'
+      ? Promise.resolve(new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(response)}}]}),{status:200,headers:{'Content-Type':'application/json'}}))
+      : originalFetch(url, options);
+    try {
+      let res = await post('/api/study/generate-unit',{textbookId:book.id,unitId:book.units[0].id});
+      let data = await res.json(); assert.equal(data.fallback,false);
+      assert.deepEqual(data.unit.lesson.bandUpgradeExamples,unit.lesson.bandUpgradeExamples);
+      assert.equal(data.unit.flashcards[0].ipa,unit.flashcards[0].ipa); assert.equal(data.unit.drill[0].skillTag,unit.drill[0].skillTag);
+      response = {replyVi:'Hãy xét thì.',replyEn:'Consider the tense.',correction:'',explanationVi:'Xét mệnh đề if.',socraticHintVi:'Sau if dùng thì gì?',followUpQuestion:'Vì sao?',understood:true};
+      res = await post('/api/study/tutor-feedback',{mode:'feynman',userAttempt:'Present after if.'}); data = await res.json();
+      assert.equal(data.understood,true); assert.notEqual(data.provider,'Local heuristic');
+      response = {score:80,outputBand:7.1,criteriaBreakdown:{taskAchievement:80,lexicalResource:75,grammarAccuracy:85},inlineCorrections:[{original:'People is',correction:'People are',explanationVi:'People là danh từ số nhiều.'}],feedbackVi:'Cần chú ý hòa hợp.',feedbackEn:'Check agreement.',nextActionVi:'Ôn hòa hợp chủ vị.'};
+      const writtenOutput = 'People is concerned about the environment. Communities can improve air quality by using buses and trains. Governments should support renewable energy and provide education so that families can make informed decisions every day.';
+      res = await post('/api/study/checkpoint-evaluate',{unitId:'ai-unit',inputBand:5,selfPredictedBand:7,writtenOutput,targetWords:['missing phrase']});
+      data = await res.json(); assert.equal(res.status,200); assert.equal(data.outputBand,7); assert.equal(data.passed,true);
+      const queue = await (await fetch(BASE+'/api/study/srs')).json();
+      assert.ok(queue.dueToday.some(x => x.word==='People is' && x.meaning==='People are'));
+      assert.ok(queue.dueToday.some(x => x.word==='missing phrase'));
+      assert.equal((await (await fetch(BASE+'/api/study/progress')).json()).find(x=>x.unitId==='ai-unit').mastery,100);
+    } finally { global.fetch=originalFetch; }
   });
 });

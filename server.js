@@ -108,7 +108,7 @@ function studyRateLimit(req, res, next) {
   next();
 }
 
-app.use(['/api/study/generate-unit', '/api/study/evaluate-mini', '/api/study/extract-source'], studyRateLimit);
+app.use(['/api/study/generate-unit', '/api/study/evaluate-mini', '/api/study/extract-source', '/api/study/tutor-feedback', '/api/study/checkpoint-evaluate'], studyRateLimit);
 
 /**
  * Helper to count words in a string
@@ -1007,6 +1007,8 @@ app.get('/api/speaking/history', (req, res) => {
 /* ── Phase 7: Astra-style Study Hub ───────────────────────────── */
 
 const studyProgressFile = path.join(resultsDir, 'study_progress.json');
+const studySrsFile = path.join(resultsDir, 'study_srs.json');
+const studyCheckpointsFile = path.join(resultsDir, 'study_checkpoints.json');
 const MASTERY_LEVELS = [0, 20, 40, 60, 80, 100];
 const MAX_SOURCE_CHARS = 12000;
 const MAX_FETCH_BYTES = 2 * 1024 * 1024;
@@ -1034,7 +1036,7 @@ function normalizeStudyUnit(raw, fallbackTitle) {
   const flashcards = (Array.isArray(raw.flashcards) ? raw.flashcards : [])
     .filter(c => c && str(c.front) && str(c.back))
     .slice(0, 6)
-    .map(c => ({ front: str(c.front), back: str(c.back), example: str(c.example) }));
+    .map(c => ({ front: str(c.front), back: str(c.back), example: str(c.example), ipa: str(c.ipa), clozeSentence: str(c.clozeSentence) }));
   const quiz = (Array.isArray(raw.quiz) ? raw.quiz : [])
     .filter(q => q && str(q.question) && Array.isArray(q.options) && q.options.length >= 2 &&
       Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length)
@@ -1049,15 +1051,19 @@ function normalizeStudyUnit(raw, fallbackTitle) {
     .slice(0, 5)
     .map(d => ({
       instruction: str(d.instruction), sentence: str(d.sentence),
-      options: d.options.map(o => String(o)), answer: d.answer, explanation: str(d.explanation)
+      options: d.options.map(o => String(o)), answer: d.answer, explanation: str(d.explanation), skillTag: str(d.skillTag)
     }));
   const ch = raw.challenge;
   if (flashcards.length < 4 || quiz.length < 4 || drill.length < 3 || !ch || !str(ch.prompt)) return null;
+  if (!['Foundation', 'Intermediate', 'Advanced'].includes(raw.levelTag) || !Array.isArray(raw.targetWeakness) || !raw.targetWeakness.length || !str(lesson.feynmanPromptVi) || !Array.isArray(lesson.bandUpgradeExamples) || lesson.bandUpgradeExamples.filter(x => x && str(x.bandLow) && str(x.bandHigh) && str(x.analysisVi)).length < 2 || flashcards.some(c => !c.ipa || !c.clozeSentence.includes('___')) || new Set(drill.map(d => d.skillTag)).size < 3 || !['Reading Paraphrase', 'Grammar Error Fix (GRA)', 'Lexical Collocation (LR)'].every(tag => drill.some(d => d.skillTag === tag))) return null;
   return {
     title: str(raw.title) || fallbackTitle || 'Study Unit',
+    levelTag: str(raw.levelTag), targetWeakness: Array.isArray(raw.targetWeakness) ? raw.targetWeakness.map(String) : [],
     lesson: {
       titleEn: str(lesson.titleEn), titleVi: str(lesson.titleVi),
       explanationEn: str(lesson.explanationEn), explanationVi: str(lesson.explanationVi),
+      bandUpgradeExamples: (Array.isArray(lesson.bandUpgradeExamples) ? lesson.bandUpgradeExamples : []).filter(x => x && str(x.bandLow) && str(x.bandHigh)).map(x => ({ bandLow: str(x.bandLow), bandHigh: str(x.bandHigh), analysisVi: str(x.analysisVi) })),
+      feynmanPromptVi: str(lesson.feynmanPromptVi),
       formulas: Array.isArray(lesson.formulas) ? lesson.formulas.map(String).slice(0, 8) : [],
       commonMistakes: (Array.isArray(lesson.commonMistakes) ? lesson.commonMistakes : [])
         .filter(m => m && str(m.wrong)).slice(0, 6)
@@ -1296,7 +1302,7 @@ app.post('/api/study/generate-unit', async (req, res) => {
       const found = findTextbookUnit(textbookId, unitId);
       if (!found) return res.status(400).json({ error: 'Unknown textbookId/unitId.' });
       sourceMaterial = `${found.book.title}\n${found.unit.title}\n\n${found.unit.content}`;
-      fallback = found.unit.sample;
+      fallback = { ...found.unit.sample, levelTag: found.unit.levelTag, targetWeakness: found.unit.targetWeakness };
       unitTitle = found.unit.title;
       unitKey = found.unit.id;
     } else if (typeof sourceText === 'string' && sourceText.trim().length >= 50) {
@@ -1332,7 +1338,7 @@ app.post('/api/study/generate-unit', async (req, res) => {
     }
 
     let unit = null;
-    try { unit = normalizeStudyUnit(parseGeminiJson(gen.response), unitTitle); } catch { /* handled below */ }
+    try { const raw = parseGeminiJson(gen.response); unit = normalizeStudyUnit({ ...raw, levelTag: raw.levelTag || fallback?.levelTag, targetWeakness: raw.targetWeakness || fallback?.targetWeakness }, unitTitle); } catch { /* handled below */ }
     if (!unit) {
       const handled = fallback && respondFallback('AI returned an invalid unit');
       if (handled) return handled;
@@ -1412,6 +1418,138 @@ app.post('/api/study/evaluate-mini', async (req, res) => {
     console.error('[ERROR] evaluate-mini failed:', err);
     return res.status(500).json({ error: 'Failed to evaluate the mini challenge.', details: err.message });
   }
+});
+
+/* Phase 8A: diagnostic, reflection and spaced repetition. */
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+const mean = xs => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length * 10) / 10 : null;
+const bandValue = v => finite(v) ? clamp(Number(v), 0, 9) : null;
+const dueItems = items => items.filter(x => Number.isFinite(Date.parse(x.nextReviewAt)) && Date.parse(x.nextReviewAt) <= Date.now());
+const summarySrs = items => ({ totalItems: items.length, dueTodayCount: dueItems(items).length, dueItems: dueItems(items) });
+const sectionBand = pct => {
+  if (!finite(pct)) return null;
+  return [[93,8],[80,7],[67,6],[53,5.5],[40,5],[27,4],[0,3]].find(([n]) => Number(pct) >= n)?.[1] ?? null;
+};
+const recordBand = r => bandValue(r.result?.overall_band ?? r.overall_band ?? r.overallBand);
+const validUnitId = id => typeof id === 'string' && !!id.trim() && id.trim().length <= 120;
+
+app.get('/api/study/diagnostic-status', (req, res) => {
+  try {
+    const placement = readJsonArray(placementResultsFile), writing = readJsonArray(resultsFile), speaking = readJsonArray(speakingResultsFile);
+    const checkpoints = readJsonArray(studyCheckpointsFile), progress = readJsonArray(studyProgressFile), srs = readJsonArray(studySrsFile);
+    const counts = { placement: placement.length, writing: writing.length, speaking: speaking.length };
+    const base = { unlocked: placement.length > 0, counts, profile: null, recommendedCurriculum: [], srsSummary: summarySrs(srs) };
+    if (!base.unlocked) return res.json(base);
+    const skills = {
+      reading: mean(placement.map(r => sectionBand(r.sectionBreakdown?.reading?.percentage)).filter(x => x != null)),
+      listening: mean(placement.map(r => sectionBand(r.sectionBreakdown?.listening?.percentage)).filter(x => x != null)),
+      writing: mean(writing.map(recordBand).filter(x => x != null)), speaking: mean(speaking.map(recordBand).filter(x => x != null))
+    };
+    const placementBands = placement.map(r => parseFloat(r.estimatedBand)).filter(Number.isFinite);
+    const inputBand = clamp(mean([...placementBands, ...[skills.writing, skills.speaking].filter(x => x != null)]) ?? 5, 0, 9);
+    const recommendedTargetBand = Math.min(9, Math.ceil((inputBand + 0.5) * 2) / 2);
+    const scores = [];
+    for (const [k, v] of Object.entries(skills)) if (v != null) scores.push([k[0].toUpperCase() + k.slice(1), v]);
+    const buckets = {};
+    for (const r of [...writing, ...speaking]) for (const c of (r.result?.criteria || r.criteria || [])) {
+      const key = String(c.abbreviation || '').toUpperCase();
+      if (['TR','CC','LR','GRA','FC','PR'].includes(key) && finite(c.score)) (buckets[key] ||= []).push(clamp(Number(c.score),0,9));
+    }
+    for (const [key, vals] of Object.entries(buckets)) scores.push([key, mean(vals)]);
+    const minimum = scores.length ? Math.min(...scores.map(x => x[1])) : inputBand;
+    const weakAreas = scores.filter(([, v]) => v <= minimum + 0.5).map(([k]) => k);
+    if (!weakAreas.length) for (const a of placement.flatMap(r => r.weakAreas || [])) {
+      const k = String(a.section || '').toLowerCase(); if (['reading','listening'].includes(k)) weakAreas.push(k[0].toUpperCase()+k.slice(1));
+    }
+    const gaps = checkpoints.map(c => c.metacognition?.calibrationGap).filter(finite).map(Number);
+    const profile = { inputBand, recommendedTargetBand, skills, weakAreas: [...new Set(weakAreas)], calibrationIndex: mean(gaps) ?? 0 };
+    const matchesWeakness = tag => profile.weakAreas.includes(tag) || (profile.weakAreas.includes('Writing') && ['TR','CC','LR','GRA'].includes(tag)) || (profile.weakAreas.includes('Speaking') && ['FC','LR','GRA','PR'].includes(tag));
+    const recommendedCurriculum = (config.sampleTextbooks || []).flatMap(book => {
+      const range = String(book.bandRange || '').match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+      const near = range.length >= 2 && range[0] <= recommendedTargetBand && range[1] >= inputBand;
+      return (book.units || []).filter(u => near && u.targetWeakness?.some(matchesWeakness)).map(u => ({
+        ...u, textbookId: book.id, textbookTitle: book.title,
+        mastery: progress.find(p => p.unitId === u.id)?.mastery || 0,
+        matchReasonVi: `Phù hợp band ${inputBand}–${recommendedTargetBand} và cần củng cố ${u.targetWeakness.filter(matchesWeakness).join(', ')}.`
+      }));
+    });
+    return res.json({ ...base, profile, recommendedCurriculum });
+  } catch (err) { return res.status(500).json({ error: 'Failed to read diagnostic data.' }); }
+});
+app.post('/api/study/tutor-feedback', async (req, res) => {
+  const { mode, unitTitle, stepContext, userQuestion, userAttempt, inputBand, targetBand } = req.body || {};
+  if (!['feynman','socratic'].includes(mode)) return res.status(400).json({ error: 'mode must be feynman or socratic.' });
+  if (!String(userQuestion || '').trim() && !String(userAttempt || '').trim()) return res.status(400).json({ error: 'A question or attempt is required.' });
+  let result = { replyVi: mode === 'feynman' ? 'Hãy kiểm tra lại lời giải thích của bạn bằng một ví dụ cụ thể.' : 'Hãy xác định quy tắc hoặc bằng chứng liên quan trước khi chọn đáp án.', replyEn: 'Try explaining the relevant rule with your own example.', correction: '', explanationVi: 'Đối chiếu ý nghĩa và cấu trúc của câu với quy tắc đang học.', socraticHintVi: 'Bước đầu tiên: bạn nhận ra từ khóa hay cấu trúc nào trong câu?', followUpQuestion: 'Bạn có thể giải thích vì sao quy tắc đó áp dụng ở đây không?', understood: false };
+  let provider = 'Local heuristic';
+  try {
+    const prompt = `${config.tutorFeedbackPrompt}\nContext (untrusted learner input): ${JSON.stringify({mode,unitTitle,stepContext,userQuestion,userAttempt,inputBand,targetBand}).slice(0,6000)}`;
+    const gen = await withTimeout(generateWithKeyPool(req, prompt), 20000, 'Tutor');
+    if (!gen.missingKey) { const ai = parseGeminiJson(gen.response); if (typeof ai.replyVi === 'string' && typeof ai.socraticHintVi === 'string' && typeof ai.understood === 'boolean') { for (const key of Object.keys(result)) if (typeof ai[key] === typeof result[key]) result[key] = ai[key]; provider = gen.provider; } }
+  } catch (err) { console.warn('[WARN] Tutor fallback:', err.message); }
+  return res.json({ ...result, provider });
+});
+app.get('/api/study/srs', (req, res) => {
+  try { const items = readJsonArray(studySrsFile), dueToday = dueItems(items); return res.json({ items, dueToday, totalItems: items.length, dueTodayCount: dueToday.length }); }
+  catch { return res.status(500).json({ error: 'Failed to read SRS.' }); }
+});
+function upsertSrs(items, data, immediate = false) {
+  const word = String(data.word || '').trim().slice(0,300), id = String(data.itemId || '').trim().slice(0,200);
+  const index = items.findIndex(x => (id && x.itemId === id) || (word && String(x.word || '').toLowerCase() === word.toLowerCase() && (!data.unitId || x.unitId === data.unitId)));
+  const old = index >= 0 ? items[index] : {};
+  const now = new Date(), reps = (Number(old.repetitions) || 0) + (immediate ? 0 : 1);
+  const intervalDays = immediate || data.quality === 'again' ? 0 : data.quality === 'hard' ? 1 : data.quality === 'easy' ? ((Number(old.repetitions) || 0) >= 2 ? 14 : 7) : 3;
+  const item = { ...old, itemId: old.itemId || id || `srs_${now.getTime()}_${Math.random().toString(36).slice(2,9)}`, word: word || old.word || '', meaning: String(data.meaning || old.meaning || '').slice(0,1000), example: String(data.example || old.example || '').slice(0,1000), unitId: String(data.unitId || old.unitId || '').slice(0,120), source: String(data.source || old.source || '').slice(0,80), intervalDays, nextReviewAt: new Date(now.getTime() + intervalDays * 86400000).toISOString(), repetitions: reps, lastReviewedAt: immediate ? (old.lastReviewedAt || null) : now.toISOString() };
+  if (index >= 0) items[index] = item; else items.push(item);
+  return item;
+}
+app.post('/api/study/srs/review', (req, res) => {
+  const data = req.body || {};
+  if (!String(data.itemId || '').trim() && !String(data.word || '').trim()) return res.status(400).json({ error: 'itemId or word is required.' });
+  if (data.quality != null && !['again','hard','good','easy'].includes(data.quality)) return res.status(400).json({ error: 'Invalid quality.' });
+  try { const items = readJsonArray(studySrsFile), item = upsertSrs(items, data); writeJsonArray(studySrsFile, items); return res.json(item); }
+  catch { return res.status(500).json({ error: 'Failed to save SRS.' }); }
+});
+app.get('/api/study/checkpoints', (req, res) => {
+  try { return res.json(readJsonArray(studyCheckpointsFile)); } catch { return res.status(500).json({ error: 'Failed to read checkpoints.' }); }
+});
+app.post('/api/study/checkpoint-evaluate', async (req, res) => {
+  const d = req.body || {}, outputText = String(d.writtenOutput || d.spokenTranscript || '').trim(), wordCount = countWords(outputText);
+  if (wordCount < 30) return res.status(400).json({ error: 'At least 30 words are required.', wordCount, minRequired: 30 });
+  const inputBand = bandValue(d.inputBand) ?? 0, selfPredictedBand = bandValue(d.selfPredictedBand) ?? inputBand;
+  const targets = Array.isArray(d.targetWords) ? [...new Set(d.targetWords.filter(x => typeof x === 'string').map(x => x.trim()).filter(Boolean))].slice(0,30) : [];
+  const contains = word => { const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(outputText); };
+  const usedTargetWords = targets.filter(contains), missedTargetWords = targets.filter(w => !contains(w));
+  const ratio = targets.length ? usedTargetWords.length / targets.length : 1;
+  const sentences = (outputText.match(/[.!?]+/g) || []).length;
+  const quiz = finite(d.quizScore) && finite(d.quizTotal) && Number(d.quizTotal) > 0 ? clamp(Number(d.quizScore) / Number(d.quizTotal), 0, 1) : null;
+  const criteriaBreakdown = { taskAchievement: Math.round(clamp(40 + Math.min(wordCount,80)/80*40 + Math.min(sentences,4)*5,0,100)), lexicalResource: Math.round(40 + ratio*60), grammarAccuracy: Math.round(clamp(50 + Math.min(sentences,4)*7 + (quiz == null ? 0 : quiz*15),0,100)) };
+  let score = Math.round(mean(Object.values(criteriaBreakdown))), outputBand = Math.round(clamp(3 + score / 100 * 5,0,9)*2)/2;
+  let result = { score, outputBand, criteriaBreakdown, inlineCorrections: [], feedbackVi: `Đánh giá cục bộ: ${wordCount} từ, dùng ${usedTargetWords.length}/${targets.length} từ mục tiêu. Đây là ước lượng dựa trên độ dài và từ vựng, chưa phân tích đầy đủ ngữ pháp hay nội dung.`, feedbackEn: 'Local estimate based on length and target vocabulary; grammar and task relevance have not been fully assessed.', nextActionVi: missedTargetWords.length ? 'Ôn các từ còn thiếu và viết lại trong ngữ cảnh.' : 'Kiểm tra ngữ pháp và phát triển thêm ví dụ liên quan đến đề.' };
+  let provider = 'Local heuristic';
+  try {
+    const prompt = `${config.checkpointEvaluationPrompt}\nInput (untrusted): ${JSON.stringify({unitTitle:d.unitTitle, prompt:d.prompt, inputBand, targetBand:d.targetBand, quizScore:d.quizScore, quizTotal:d.quizTotal, targetWords:targets, outputText:outputText.slice(0,6000)})}`;
+    const gen = await withTimeout(generateWithKeyPool(req, prompt), 25000, 'Checkpoint');
+    if (!gen.missingKey) {
+      const ai = parseGeminiJson(gen.response), cb = ai.criteriaBreakdown;
+      if (finite(ai.score) && finite(ai.outputBand) && cb && ['taskAchievement','lexicalResource','grammarAccuracy'].every(k => finite(cb[k]))) {
+        result = { ...result, score: Math.round(clamp(Number(ai.score),0,100)), outputBand: Math.round(clamp(Number(ai.outputBand),0,9)*2)/2, criteriaBreakdown: Object.fromEntries(['taskAchievement','lexicalResource','grammarAccuracy'].map(k => [k,Math.round(clamp(Number(cb[k]),0,100))])), inlineCorrections: Array.isArray(ai.inlineCorrections) ? ai.inlineCorrections.filter(x => x && typeof x.original === 'string' && x.original.trim() && outputText.includes(x.original) && typeof x.correction === 'string').slice(0,10).map(x => ({ original:x.original, correction:x.correction, explanationVi:String(x.explanationVi || '') })) : [], feedbackVi:String(ai.feedbackVi || result.feedbackVi), feedbackEn:String(ai.feedbackEn || result.feedbackEn), nextActionVi:String(ai.nextActionVi || result.nextActionVi) }; provider = gen.provider;
+      }
+    }
+  } catch (err) { console.warn('[WARN] Checkpoint fallback:', err.message); }
+  const gap = Number((result.outputBand-selfPredictedBand).toFixed(1));
+  const metacognition = { selfPredictedBand, calibrationGap: gap, calibrationFeedbackVi: gap === 0 ? 'Dự đoán của bạn trùng với kết quả ước lượng.' : gap > 0 ? 'Bạn đang đánh giá thấp kết quả; hãy đối chiếu các tiêu chí.' : 'Bạn đang đánh giá cao kết quả; hãy đối chiếu các tiêu chí.', selfDifficultyReason: String(d.selfDifficultyReason || '').slice(0,1000) };
+  const record = { id: `checkpoint_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, unitId: validUnitId(d.unitId) ? d.unitId.trim() : '', unitTitle: String(d.unitTitle || '').slice(0,200), timestamp:new Date().toISOString(), ...result, inputBand, outputBand:result.outputBand, bandDelta:Number((result.outputBand-inputBand).toFixed(1)), metacognition, passed:result.score >= 70, usedTargetWords, missedTargetWords, provider, wordCount };
+  try {
+    const items = readJsonArray(studySrsFile);
+    for (const word of missedTargetWords) upsertSrs(items, {word, unitId:record.unitId, source:'checkpoint'}, true);
+    for (const c of result.inlineCorrections) upsertSrs(items, {word:c.original, meaning:c.correction, example:c.explanationVi, unitId:record.unitId, source:'checkpoint-correction'}, true);
+    writeJsonArray(studySrsFile, items);
+    const checkpoints = readJsonArray(studyCheckpointsFile); checkpoints.push(record); writeJsonArray(studyCheckpointsFile, checkpoints);
+    if (record.passed && record.unitId) { const progress = readJsonArray(studyProgressFile), i = progress.findIndex(x => x.unitId === record.unitId); const updated = { ...(i >= 0 ? progress[i] : {unitId:record.unitId, title:record.unitTitle, source:'checkpoint', steps:[]}), mastery:100, updatedAt:new Date().toISOString() }; if (i >= 0) progress[i] = updated; else progress.push(updated); writeJsonArray(studyProgressFile, progress); }
+    return res.json(record);
+  } catch { return res.status(500).json({ error: 'Failed to save checkpoint.' }); }
 });
 
 // Export the app so tests can mount it in-process

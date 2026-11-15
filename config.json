@@ -225,28 +225,49 @@
                   "right": "Gạch chân quantifier trong đề",
                   "noteVi": "Một từ như \"only\" có thể đổi hoàn toàn đáp án."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "The number went up a lot.",
+                  "bandHigh": "The figure rose sharply.",
+                  "analysisVi": "Động từ rose kết hợp trạng từ sharply diễn đạt mức tăng chính xác."
+                },
+                {
+                  "bandLow": "Some people did not agree.",
+                  "bandHigh": "The claim contradicts the evidence for some participants.",
+                  "analysisVi": "Contradicts chỉ quan hệ mâu thuẫn; some tránh khái quát quá mức."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "paraphrase",
                 "back": "diễn đạt lại bằng từ/cấu trúc khác nhưng giữ nguyên nghĩa",
-                "example": "The question paraphrases \"rise sharply\" as \"increase dramatically\"."
+                "example": "The question paraphrases \"rise sharply\" as \"increase dramatically\".",
+                "ipa": "/ˈpærəfreɪz/",
+                "clozeSentence": "The question ___s \"rise sharply\" as \"increase dramatically\"."
               },
               {
                 "front": "contradict",
                 "back": "mâu thuẫn, trái ngược với",
-                "example": "The passage contradicts the claim that prices fell."
+                "example": "The passage contradicts the claim that prices fell.",
+                "ipa": "/ˌkɒntrəˈdɪkt/",
+                "clozeSentence": "The passage ___s the claim that prices fell."
               },
               {
                 "front": "quantifier",
                 "back": "từ chỉ số lượng (all, some, most, few)",
-                "example": "A quantifier such as \"most\" changes the answer from TRUE to NOT GIVEN."
+                "example": "A quantifier such as \"most\" changes the answer from TRUE to NOT GIVEN.",
+                "ipa": "/ˈkwɒntɪfaɪə/",
+                "clozeSentence": "A ___ such as \"most\" changes the answer from TRUE to NOT GIVEN."
               },
               {
                 "front": "skim and scan",
                 "back": "đọc lướt lấy ý chính và quét tìm thông tin cụ thể",
-                "example": "Skim for the main idea, then scan for the keyword."
+                "example": "Skim for the main idea, then scan for the keyword.",
+                "ipa": "/skɪm ænd skæn/",
+                "clozeSentence": "Complete the expression: ___ (đọc lướt lấy ý chính và quét tìm thông tin cụ thể)."
               }
             ],
             "quiz": [
@@ -297,37 +318,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn đáp án đúng cho tình huống.",
-                "sentence": "Passage: \"Exports grew by 5% in 2019.\" Statement: \"Exports grew by more than 10% in 2019.\"",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "TRUE",
-                  "FALSE",
-                  "NOT GIVEN"
-                ],
-                "answer": 1,
-                "explanation": "Bài nêu 5%, đề nói trên 10% → mâu thuẫn → FALSE."
-              },
-              {
-                "instruction": "Chọn đáp án đúng cho tình huống.",
-                "sentence": "Passage: \"The museum opened in 1990.\" Statement: \"The museum is the largest in the country.\"",
-                "options": [
-                  "TRUE",
-                  "FALSE",
-                  "NOT GIVEN"
-                ],
-                "answer": 2,
-                "explanation": "Bài không đề cập quy mô → NOT GIVEN."
-              },
-              {
-                "instruction": "Điền từ phù hợp.",
-                "sentence": "A statement with \"all\" is FALSE when the passage uses ___.",
-                "options": [
-                  "some",
-                  "every",
-                  "always"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "\"some\" cho biết không phải tất cả."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
+              },
+              {
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
+                "options": [
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
+                ],
+                "answer": 0,
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
+              },
+              {
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
+                "options": [
+                  "mitigate",
+                  "do",
+                  "make"
+                ],
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -341,7 +365,11 @@
                 "evidence"
               ]
             }
-          }
+          },
+          "levelTag": "Intermediate",
+          "targetWeakness": [
+            "Reading"
+          ]
         },
         {
           "id": "cam-u2",
@@ -370,28 +398,49 @@
                   "right": "Nghe cả mệnh đề và thái độ của người nói",
                   "noteVi": "Từ khóa thường được paraphrase."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "He said Tuesday but changed it.",
+                  "bandHigh": "Initially, he suggested Tuesday; on second thought, he chose Wednesday.",
+                  "analysisVi": "Initially và on second thought đánh dấu sự thay đổi đáp án."
+                },
+                {
+                  "bandLow": "The first answer was wrong.",
+                  "bandHigh": "The initial date was a distractor rather than the final answer.",
+                  "analysisVi": "Rather than phân biệt thông tin gây nhiễu với đáp án cuối."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "distractor",
                 "back": "thông tin gây nhiễu, nghe giống đáp án nhưng sai",
-                "example": "The first date mentioned was a distractor."
+                "example": "The first date mentioned was a distractor.",
+                "ipa": "/dɪˈstræktə/",
+                "clozeSentence": "The first date mentioned was a ___."
               },
               {
                 "front": "on second thought",
                 "back": "nghĩ lại thì",
-                "example": "On second thought, let us meet on Friday."
+                "example": "On second thought, let us meet on Friday.",
+                "ipa": "/ɒn ˈsekənd θɔːt/",
+                "clozeSentence": "___, let us meet on Friday."
               },
               {
                 "front": "I mean",
                 "back": "ý tôi là (dùng để sửa lời)",
-                "example": "It starts at nine, I mean half past nine."
+                "example": "It starts at nine, I mean half past nine.",
+                "ipa": "/aɪ miːn/",
+                "clozeSentence": "It starts at nine, ___ half past nine."
               },
               {
                 "front": "signpost",
                 "back": "tín hiệu dẫn dắt chuyển ý",
-                "example": "Signposts such as \"however\" warn you that the answer is about to change."
+                "example": "Signposts such as \"however\" warn you that the answer is about to change.",
+                "ipa": "/ˈsaɪnpəʊst/",
+                "clozeSentence": "___s such as \"however\" warn you that the answer is about to change."
               }
             ],
             "quiz": [
@@ -442,37 +491,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn đáp án cuối cùng của người nói.",
-                "sentence": "\"The meeting is on Tuesday... actually, no, Wednesday.\" Final answer:",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday"
-                ],
-                "answer": 1,
-                "explanation": "Sau \"actually, no\" là thông tin đã sửa."
-              },
-              {
-                "instruction": "Chọn tín hiệu sửa lời.",
-                "sentence": "\"The fee is 40 pounds — ___, it is 45 with the book.\"",
-                "options": [
-                  "in fact",
-                  "for instance",
-                  "besides"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "\"in fact\" mở đầu thông tin chính xác hơn."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Điền từ phù hợp.",
-                "sentence": "A wrong option that sounds like the answer is called a ___.",
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "distractor",
-                  "headline",
-                  "caption"
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
                 "answer": 0,
-                "explanation": "Distractor là thông tin gây nhiễu."
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
+              },
+              {
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
+                "options": [
+                  "mitigate",
+                  "do",
+                  "make"
+                ],
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -486,7 +538,11 @@
                 "signpost"
               ]
             }
-          }
+          },
+          "levelTag": "Intermediate",
+          "targetWeakness": [
+            "Listening"
+          ]
         }
       ]
     },
@@ -532,28 +588,49 @@
                   "right": "Giữ một lập trường nhất quán",
                   "noteVi": "Quan điểm không rõ làm giảm TR."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "Public transport is good.",
+                  "bandHigh": "Although private cars offer convenience, public transport can reduce urban congestion.",
+                  "analysisVi": "Mệnh đề nhượng bộ và can thể hiện lập trường có giới hạn."
+                },
+                {
+                  "bandLow": "This idea is good for cities.",
+                  "bandHigh": "A compelling argument is that reliable buses reduce traffic, as illustrated by dedicated bus lanes.",
+                  "analysisVi": "Lập luận được phát triển bằng that-clause và ví dụ cụ thể."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "Although... I believe...",
                 "back": "Mặc dù... tôi tin rằng... (nêu quan điểm có nhượng bộ)",
-                "example": "Although cars are convenient, I believe public transport is better for cities."
+                "example": "Although cars are convenient, I believe public transport is better for cities.",
+                "ipa": "/ɔːlˈðəʊ aɪ bɪˈliːv/",
+                "clozeSentence": "Complete the expression: ___ (Mặc dù... tôi tin rằng... (nêu quan điểm có nhượng bộ))."
               },
               {
                 "front": "a compelling argument",
                 "back": "một lập luận thuyết phục",
-                "example": "One compelling argument is the reduction in air pollution."
+                "example": "One compelling argument is the reduction in air pollution.",
+                "ipa": "/ə kəmˈpelɪŋ ˈɑːɡjumənt/",
+                "clozeSentence": "Complete the expression: ___ (một lập luận thuyết phục)."
               },
               {
                 "front": "to substantiate a claim",
                 "back": "chứng minh/làm rõ một luận điểm",
-                "example": "Statistics can substantiate this claim."
+                "example": "Statistics can substantiate this claim.",
+                "ipa": "/tə səbˈstænʃieɪt ə kleɪm/",
+                "clozeSentence": "Complete the expression: ___ (chứng minh/làm rõ một luận điểm)."
               },
               {
                 "front": "a case in point",
                 "back": "một ví dụ điển hình",
-                "example": "Singapore is a case in point."
+                "example": "Singapore is a case in point.",
+                "ipa": "/ə keɪs ɪn pɔɪnt/",
+                "clozeSentence": "Singapore is ___."
               }
             ],
             "quiz": [
@@ -604,37 +681,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn câu nêu quan điểm tốt hơn.",
-                "sentence": "Which is better for an introduction?",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "Some people think A, others think B.",
-                  "Although A has merits, I believe B is more beneficial.",
-                  "A and B are both topics."
-                ],
-                "answer": 1,
-                "explanation": "Câu B nêu lập trường kèm nhượng bộ."
-              },
-              {
-                "instruction": "Chọn phần thiếu trong đoạn PEEL.",
-                "sentence": "Point → Explanation → ___ → Link",
-                "options": [
-                  "Example",
-                  "Opinion",
-                  "Conclusion"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "Thiếu Example (ví dụ cụ thể)."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Điền từ phù hợp.",
-                "sentence": "___ remote work saves time, it can reduce team collaboration.",
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "Because",
-                  "Although",
-                  "Unless"
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
-                "answer": 1,
-                "explanation": "\"Although\" diễn tả sự nhượng bộ."
+                "answer": 0,
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
+              },
+              {
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
+                "options": [
+                  "mitigate",
+                  "do",
+                  "make"
+                ],
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -648,7 +728,12 @@
                 "advantage"
               ]
             }
-          }
+          },
+          "levelTag": "Intermediate",
+          "targetWeakness": [
+            "TR",
+            "CC"
+          ]
         },
         {
           "id": "mind-u2",
@@ -678,28 +763,49 @@
                   "right": "Dùng this/such/the latter để quy chiếu",
                   "noteVi": "Referencing giúp đoạn văn tự nhiên hơn."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "Cars cause pollution. Also trains are clean.",
+                  "bandHigh": "Cars generate emissions, whereas electric trains can offer a cleaner alternative.",
+                  "analysisVi": "Whereas nối hai ý đối lập trong cùng câu."
+                },
+                {
+                  "bandLow": "The city built buses. The buses helped.",
+                  "bandHigh": "The city expanded bus services; such measures subsequently reduced congestion.",
+                  "analysisVi": "Such measures quy chiếu ý trước; subsequently thể hiện trình tự."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "consequently",
                 "back": "do đó, vì vậy (chỉ kết quả)",
-                "example": "Prices rose; consequently, demand fell."
+                "example": "Prices rose; consequently, demand fell.",
+                "ipa": "/ˈkɒnsɪkwəntli/",
+                "clozeSentence": "Prices rose; ___, demand fell."
               },
               {
                 "front": "whereas",
                 "back": "trong khi (đối lập)",
-                "example": "Urban areas are crowded, whereas rural areas are quiet."
+                "example": "Urban areas are crowded, whereas rural areas are quiet.",
+                "ipa": "/weərˈæz/",
+                "clozeSentence": "Urban areas are crowded, ___ rural areas are quiet."
               },
               {
                 "front": "such measures",
                 "back": "những biện pháp như vậy (quy chiếu)",
-                "example": "The government banned plastic bags. Such measures reduce waste."
+                "example": "The government banned plastic bags. Such measures reduce waste.",
+                "ipa": "/sʌtʃ ˈmeʒəz/",
+                "clozeSentence": "The government banned plastic bags. ___ reduce waste."
               },
               {
                 "front": "the latter",
                 "back": "cái thứ hai (trong hai thứ vừa nhắc)",
-                "example": "Of cars and trains, the latter is greener."
+                "example": "Of cars and trains, the latter is greener.",
+                "ipa": "/ðə ˈlætə/",
+                "clozeSentence": "Of cars and trains, ___ is greener."
               }
             ],
             "quiz": [
@@ -750,37 +856,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn từ nối phù hợp.",
-                "sentence": "Some people prefer cities; ___, others choose the countryside.",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "therefore",
-                  "whereas",
-                  "for instance"
-                ],
-                "answer": 1,
-                "explanation": "Quan hệ đối lập → whereas."
-              },
-              {
-                "instruction": "Sửa lỗi lặp từ.",
-                "sentence": "Governments introduced new laws. ___ were effective.",
-                "options": [
-                  "The laws",
-                  "Such measures",
-                  "New laws laws"
-                ],
-                "answer": 1,
-                "explanation": "\"Such measures\" tránh lặp lại."
-              },
-              {
-                "instruction": "Chọn từ nối kết quả.",
-                "sentence": "Sea levels are rising; ___, coastal cities face flooding.",
-                "options": [
-                  "as a result",
-                  "in contrast",
-                  "besides"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "Chỉ kết quả → as a result."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
+              },
+              {
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
+                "options": [
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
+                ],
+                "answer": 0,
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
+              },
+              {
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
+                "options": [
+                  "mitigate",
+                  "do",
+                  "make"
+                ],
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -794,7 +903,12 @@
                 "however"
               ]
             }
-          }
+          },
+          "levelTag": "Intermediate",
+          "targetWeakness": [
+            "CC",
+            "TR"
+          ]
         }
       ]
     },
@@ -841,28 +955,49 @@
                   "right": "If I had time, I would travel.",
                   "noteVi": "Mệnh đề if của loại 2 dùng quá khứ đơn."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "If people will recycle, waste will fall.",
+                  "bandHigh": "If households recycle consistently, the volume of landfill waste will decline.",
+                  "analysisVi": "Điều kiện loại một dùng hiện tại đơn sau if, will ở mệnh đề chính."
+                },
+                {
+                  "bandLow": "If I knew earlier, I would have helped.",
+                  "bandHigh": "Had I known earlier, I would have offered practical assistance.",
+                  "analysisVi": "Đảo ngữ điều kiện loại ba bỏ if và đặt had trước chủ ngữ."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "unless",
                 "back": "trừ khi (= if ... not)",
-                "example": "Unless governments act, emissions will keep rising."
+                "example": "Unless governments act, emissions will keep rising.",
+                "ipa": "/ənˈles/",
+                "clozeSentence": "___ governments act, emissions will keep rising."
               },
               {
                 "front": "provided that",
                 "back": "với điều kiện là",
-                "example": "Students may use phones provided that they stay silent."
+                "example": "Students may use phones provided that they stay silent.",
+                "ipa": "/prəˈvaɪdɪd ðæt/",
+                "clozeSentence": "Students may use phones ___ they stay silent."
               },
               {
                 "front": "had I known",
                 "back": "giá mà tôi biết (đảo ngữ loại 3)",
-                "example": "Had I known the risk, I would have declined."
+                "example": "Had I known the risk, I would have declined.",
+                "ipa": "/hæd aɪ nəʊn/",
+                "clozeSentence": "___ the risk, I would have declined."
               },
               {
                 "front": "were it not for",
                 "back": "nếu không nhờ có",
-                "example": "Were it not for scholarships, many students could not study abroad."
+                "example": "Were it not for scholarships, many students could not study abroad.",
+                "ipa": "/wɜːr ɪt nɒt fɔː/",
+                "clozeSentence": "___ scholarships, many students could not study abroad."
               }
             ],
             "quiz": [
@@ -913,37 +1048,40 @@
             ],
             "drill": [
               {
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
+                "options": [
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
+                ],
+                "answer": 0,
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
+              },
+              {
                 "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If the government will invest more, air quality improves.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "If the government invests more, air quality will improve.",
-                  "If the government invested more, air quality improves.",
-                  "If the government will invest more, air quality will improve."
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
                 "answer": 0,
-                "explanation": "Loại 1: If + hiện tại đơn, will + V."
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Điền dạng đúng.",
-                "sentence": "If she ___ earlier, she would have caught the train.",
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
                 "options": [
-                  "left",
-                  "had left",
-                  "would leave"
-                ],
-                "answer": 1,
-                "explanation": "Loại 3: If + had + V3."
-              },
-              {
-                "instruction": "Chọn câu đúng.",
-                "sentence": "Which sentence is a correct second conditional?",
-                "options": [
-                  "If I won the lottery, I would buy a house.",
-                  "If I win the lottery, I would buy a house.",
-                  "If I would win the lottery, I buy a house."
+                  "mitigate",
+                  "do",
+                  "make"
                 ],
                 "answer": 0,
-                "explanation": "If + V2, would + V."
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -957,7 +1095,11 @@
                 "provided that"
               ]
             }
-          }
+          },
+          "levelTag": "Foundation",
+          "targetWeakness": [
+            "GRA"
+          ]
         },
         {
           "id": "gram-u2",
@@ -987,28 +1129,49 @@
                   "right": "The book which I read was great.",
                   "noteVi": "Không lặp đại từ tân ngữ."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "Students who study abroad learn a lot.",
+                  "bandHigh": "Students studying abroad often develop greater independence.",
+                  "analysisVi": "Rút gọn mệnh đề chủ động bằng V-ing."
+                },
+                {
+                  "bandLow": "Hanoi, that is busy, has many buses.",
+                  "bandHigh": "Hanoi, which has a dense population, relies heavily on public transport.",
+                  "analysisVi": "Mệnh đề không xác định dùng which sau dấu phẩy."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "whose",
                 "back": "của người/vật mà (sở hữu)",
-                "example": "The students whose scores improved received awards."
+                "example": "The students whose scores improved received awards.",
+                "ipa": "/huːz/",
+                "clozeSentence": "The students ___ scores improved received awards."
               },
               {
                 "front": "non-defining clause",
                 "back": "mệnh đề không xác định (thông tin thêm, có dấu phẩy)",
-                "example": "Tokyo, which is huge, has excellent transport."
+                "example": "Tokyo, which is huge, has excellent transport.",
+                "ipa": "/nɒn dɪˈfaɪnɪŋ klɔːz/",
+                "clozeSentence": "Complete the expression: ___ (mệnh đề không xác định (thông tin thêm, có dấu phẩy))."
               },
               {
                 "front": "reduced relative clause",
                 "back": "mệnh đề quan hệ rút gọn",
-                "example": "Students studying abroad face new challenges."
+                "example": "Students studying abroad face new challenges.",
+                "ipa": "/rɪˈdjuːst ˈrelətɪv klɔːz/",
+                "clozeSentence": "Complete the expression: ___ (mệnh đề quan hệ rút gọn)."
               },
               {
                 "front": "where",
                 "back": "nơi mà (thay cho địa điểm)",
-                "example": "This is the city where I grew up."
+                "example": "This is the city where I grew up.",
+                "ipa": "/weə/",
+                "clozeSentence": "This is the city ___ I grew up."
               }
             ],
             "quiz": [
@@ -1059,37 +1222,40 @@
             ],
             "drill": [
               {
-                "instruction": "Sửa lỗi.",
-                "sentence": "Hanoi, that is the capital of Vietnam, attracts many tourists.",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "Hanoi, which is the capital of Vietnam, attracts many tourists.",
-                  "Hanoi that, is the capital of Vietnam attracts many tourists.",
-                  "Hanoi, who is the capital of Vietnam, attracts many tourists."
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "Dùng which sau dấu phẩy khi nói về vật/địa điểm."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Rút gọn mệnh đề.",
-                "sentence": "Students who study abroad often become independent.",
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "Students studying abroad often become independent.",
-                  "Students studied abroad often become independent.",
-                  "Students to study abroad often become independent."
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
                 "answer": 0,
-                "explanation": "Chủ động → V-ing."
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Điền từ.",
-                "sentence": "The scientist ___ research changed medicine won an award.",
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
                 "options": [
-                  "who",
-                  "whose",
-                  "which"
+                  "mitigate",
+                  "do",
+                  "make"
                 ],
-                "answer": 1,
-                "explanation": "Whose chỉ sở hữu."
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -1103,7 +1269,11 @@
                 "where"
               ]
             }
-          }
+          },
+          "levelTag": "Foundation",
+          "targetWeakness": [
+            "GRA"
+          ]
         }
       ]
     },
@@ -1149,33 +1319,56 @@
                   "right": "generate / produce pollution",
                   "noteVi": "Make ít được dùng với pollution."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "We should make pollution less.",
+                  "bandHigh": "Governments should mitigate climate change by investing in renewable energy.",
+                  "analysisVi": "Mitigate climate change và renewable energy là các kết hợp từ chính xác."
+                },
+                {
+                  "bandLow": "People use too many resources.",
+                  "bandHigh": "Unsustainable consumption can deplete natural resources and damage ecosystems.",
+                  "analysisVi": "Deplete kết hợp natural resources; can tránh khẳng định tuyệt đối."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "mitigate climate change",
                 "back": "giảm nhẹ tác động của biến đổi khí hậu",
-                "example": "Governments must mitigate climate change through green policies."
+                "example": "Governments must mitigate climate change through green policies.",
+                "ipa": "/ˈmɪtɪɡeɪt ˈklaɪmət tʃeɪndʒ/",
+                "clozeSentence": "Governments must ___ through green policies."
               },
               {
                 "front": "carbon footprint",
                 "back": "lượng khí thải carbon của một cá nhân/tổ chức",
-                "example": "Cycling to work reduces your carbon footprint."
+                "example": "Cycling to work reduces your carbon footprint.",
+                "ipa": "/ˈkɑːbən ˈfʊtprɪnt/",
+                "clozeSentence": "Cycling to work reduces your ___."
               },
               {
                 "front": "deplete natural resources",
                 "back": "làm cạn kiệt tài nguyên thiên nhiên",
-                "example": "Overfishing depletes natural resources."
+                "example": "Overfishing depletes natural resources.",
+                "ipa": "/dɪˈpliːt ˈnætʃrəl rɪˈsɔːsɪz/",
+                "clozeSentence": "Complete the expression: ___ (làm cạn kiệt tài nguyên thiên nhiên)."
               },
               {
                 "front": "renewable energy",
                 "back": "năng lượng tái tạo",
-                "example": "Investment in renewable energy is growing rapidly."
+                "example": "Investment in renewable energy is growing rapidly.",
+                "ipa": "/rɪˈnjuːəbl ˈenədʒi/",
+                "clozeSentence": "Investment in ___ is growing rapidly."
               },
               {
                 "front": "sustainable development",
                 "back": "phát triển bền vững",
-                "example": "Sustainable development balances growth with protection."
+                "example": "Sustainable development balances growth with protection.",
+                "ipa": "/səˈsteɪnəbl dɪˈveləpmənt/",
+                "clozeSentence": "___ balances growth with protection."
               }
             ],
             "quiz": [
@@ -1226,37 +1419,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn từ học thuật hơn.",
-                "sentence": "Factories ___ the rivers.",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "do bad to",
-                  "pollute",
-                  "make dirty"
-                ],
-                "answer": 1,
-                "explanation": "pollute là động từ chính xác."
-              },
-              {
-                "instruction": "Điền từ.",
-                "sentence": "We should adopt ___ energy sources such as wind and solar.",
-                "options": [
-                  "renewable",
-                  "repeatable",
-                  "removable"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "renewable energy = năng lượng tái tạo."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi dùng từ.",
-                "sentence": "Deforestation causes irreversible ___ to ecosystems.",
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "damage",
-                  "damages",
-                  "damaging"
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
                 "answer": 0,
-                "explanation": "damage là danh từ không đếm được ở nghĩa này."
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
+              },
+              {
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
+                "options": [
+                  "mitigate",
+                  "do",
+                  "make"
+                ],
+                "answer": 0,
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -1270,7 +1466,12 @@
                 "sustainable"
               ]
             }
-          }
+          },
+          "levelTag": "Advanced",
+          "targetWeakness": [
+            "LR",
+            "Reading"
+          ]
         },
         {
           "id": "vocab-u2",
@@ -1300,33 +1501,56 @@
                   "right": "technological advancements",
                   "noteVi": "Dùng tính từ technological."
                 }
-              ]
+              ],
+              "bandUpgradeExamples": [
+                {
+                  "bandLow": "Schools should teach students to think.",
+                  "bandHigh": "Collaborative projects can foster critical thinking among students.",
+                  "analysisVi": "Foster critical thinking là cụm từ học thuật tự nhiên."
+                },
+                {
+                  "bandLow": "Some people cannot use technology.",
+                  "bandHigh": "Affordable internet access can help bridge the digital divide.",
+                  "analysisVi": "Bridge the digital divide diễn đạt giải pháp cho khoảng cách số."
+                }
+              ],
+              "feynmanPromptVi": "Hãy tự giải thích bằng lời của bạn quy tắc cốt lõi trong bài này và nêu một ví dụ để kiểm tra cách áp dụng."
             },
             "flashcards": [
               {
                 "front": "foster critical thinking",
                 "back": "thúc đẩy tư duy phản biện",
-                "example": "Group projects foster critical thinking."
+                "example": "Group projects foster critical thinking.",
+                "ipa": "/ˈfɒstə ˈkrɪtɪkəl ˈθɪŋkɪŋ/",
+                "clozeSentence": "Group projects ___."
               },
               {
                 "front": "the digital divide",
                 "back": "khoảng cách số",
-                "example": "Free internet access can bridge the digital divide."
+                "example": "Free internet access can bridge the digital divide.",
+                "ipa": "/ðə ˈdɪdʒɪtəl dɪˈvaɪd/",
+                "clozeSentence": "Free internet access can bridge ___."
               },
               {
                 "front": "tertiary education",
                 "back": "giáo dục đại học/cao đẳng",
-                "example": "More young people are pursuing tertiary education."
+                "example": "More young people are pursuing tertiary education.",
+                "ipa": "/ˈtɜːʃəri ˌedʒʊˈkeɪʃən/",
+                "clozeSentence": "More young people are pursuing ___."
               },
               {
                 "front": "automation",
                 "back": "tự động hóa",
-                "example": "Automation may replace routine jobs."
+                "example": "Automation may replace routine jobs.",
+                "ipa": "/ˌɔːtəˈmeɪʃən/",
+                "clozeSentence": "___ may replace routine jobs."
               },
               {
                 "front": "lifelong learning",
                 "back": "học tập suốt đời",
-                "example": "Lifelong learning keeps workers adaptable."
+                "example": "Lifelong learning keeps workers adaptable.",
+                "ipa": "/ˈlaɪflɒŋ ˈlɜːnɪŋ/",
+                "clozeSentence": "___ keeps workers adaptable."
               }
             ],
             "quiz": [
@@ -1377,37 +1601,40 @@
             ],
             "drill": [
               {
-                "instruction": "Chọn từ đúng.",
-                "sentence": "Governments must ___ the digital divide.",
+                "instruction": "Chọn câu diễn đạt lại cùng ý.",
+                "sentence": "The policy reduced pollution significantly.",
                 "options": [
-                  "bridge",
-                  "fix up",
-                  "cross over"
+                  "The policy substantially lowered pollution.",
+                  "The policy caused more pollution.",
+                  "The policy had no effect."
                 ],
                 "answer": 0,
-                "explanation": "bridge the digital divide là collocation chuẩn."
+                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi.",
-                "sentence": "Technological ___ have transformed classrooms.",
+                "instruction": "Sửa lỗi ngữ pháp.",
+                "sentence": "If people will recycle, waste will decrease.",
                 "options": [
-                  "advancements",
-                  "advance",
-                  "advancing"
+                  "If people recycle, waste will decrease.",
+                  "If people recycled, waste decrease.",
+                  "If people will recycle, waste decreases."
                 ],
                 "answer": 0,
-                "explanation": "technological advancements."
+                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Điền từ.",
-                "sentence": "Many adults pursue ___ learning to update their skills.",
+                "instruction": "Chọn kết hợp từ tự nhiên.",
+                "sentence": "The government should ___ climate change.",
                 "options": [
-                  "lifelong",
-                  "lifeless",
-                  "lifetimes"
+                  "mitigate",
+                  "do",
+                  "make"
                 ],
                 "answer": 0,
-                "explanation": "lifelong learning."
+                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "skillTag": "Lexical Collocation (LR)"
               }
             ],
             "challenge": {
@@ -1421,7 +1648,12 @@
                 "automation"
               ]
             }
-          }
+          },
+          "levelTag": "Advanced",
+          "targetWeakness": [
+            "LR",
+            "FC"
+          ]
         }
       ]
     }
@@ -1463,6 +1695,8 @@
       "mastery": 100
     }
   ],
-  "studyUnitPrompt": "You are an expert IELTS tutor in the style of Astra AI. Design ONE interactive 5-step study unit from the SOURCE MATERIAL, targeting the learner's weak areas and target band. Write explanations in bilingual English and Vietnamese (Vietnamese with full diacritics). Respond ONLY with a raw JSON object, with this exact schema:\n{\n  \"title\": \"string\",\n  \"lesson\": { \"titleEn\": \"string\", \"titleVi\": \"string\", \"explanationEn\": \"string\", \"explanationVi\": \"string\", \"formulas\": [\"string\"], \"commonMistakes\": [{ \"wrong\": \"string\", \"right\": \"string\", \"noteVi\": \"string\" }] },\n  \"flashcards\": [ { \"front\": \"string\", \"back\": \"Vietnamese meaning\", \"example\": \"Band 7.5+ example sentence\" } ],\n  \"quiz\": [ { \"type\": \"tf or mcq\", \"question\": \"string\", \"options\": [\"True\",\"False\"] or 4 options, \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"drill\": [ { \"instruction\": \"string\", \"sentence\": \"string\", \"options\": [\"3 options\"], \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"challenge\": { \"prompt\": \"string\", \"minWords\": 50, \"maxWords\": 80, \"targetWords\": [\"3-4 words from the flashcards\"] }\n}\nRequirements: exactly 4 to 6 flashcards; exactly 4 quiz questions (2 with type \"tf\" and options [\"True\",\"False\"], 2 with type \"mcq\" and 4 options); exactly 3 drill items that target the learner's weak areas; one challenge that requires using the flashcard vocabulary.",
-  "studyEvaluatePrompt": "You are a strict but encouraging IELTS examiner. Score the learner's short output (50–80 words) on a 0.0–9.0 band scale in 0.5 steps, and check whether the target vocabulary was used correctly. Respond ONLY with a raw JSON object: { \"band\": number, \"score\": integer 0-100, \"usedWords\": [\"string\"], \"missingWords\": [\"string\"], \"feedbackEn\": \"string\", \"feedbackVi\": \"Vietnamese feedback with full diacritics\", \"improved\": \"a corrected or improved version of the learner's text\" }"
+  "studyUnitPrompt": "You are an expert IELTS tutor in the style of Astra AI. Design ONE interactive 5-step study unit from the SOURCE MATERIAL, targeting the learner's weak areas and target band. Write explanations in bilingual English and Vietnamese (Vietnamese with full diacritics). Respond ONLY with a raw JSON object, with this exact schema:\n{\n  \"title\": \"string\",\n  \"lesson\": { \"titleEn\": \"string\", \"titleVi\": \"string\", \"explanationEn\": \"string\", \"explanationVi\": \"string\", \"formulas\": [\"string\"], \"commonMistakes\": [{ \"wrong\": \"string\", \"right\": \"string\", \"noteVi\": \"string\" }] },\n  \"flashcards\": [ { \"front\": \"string\", \"back\": \"Vietnamese meaning\", \"example\": \"Band 7.5+ example sentence\" } ],\n  \"quiz\": [ { \"type\": \"tf or mcq\", \"question\": \"string\", \"options\": [\"True\",\"False\"] or 4 options, \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"drill\": [ { \"instruction\": \"string\", \"sentence\": \"string\", \"options\": [\"3 options\"], \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"challenge\": { \"prompt\": \"string\", \"minWords\": 50, \"maxWords\": 80, \"targetWords\": [\"3-4 words from the flashcards\"] }\n}\nRequirements: exactly 4 to 6 flashcards; exactly 4 quiz questions (2 with type \"tf\" and options [\"True\",\"False\"], 2 with type \"mcq\" and 4 options); exactly 3 drill items that target the learner's weak areas; one challenge that requires using the flashcard vocabulary.\nAlso include levelTag (Foundation, Intermediate or Advanced), targetWeakness (array of Reading, Listening, TR, CC, LR, GRA, FC, PR), lesson.bandUpgradeExamples (at least two objects with bandLow, bandHigh, analysisVi), lesson.feynmanPromptVi, ipa and clozeSentence containing ___ on every flashcard, and skillTag on each drill. Mix three meaningful drill tasks: Reading Paraphrase, Grammar Error Fix (GRA), Lexical Collocation (LR).",
+  "studyEvaluatePrompt": "You are a strict but encouraging IELTS examiner. Score the learner's short output (50–80 words) on a 0.0–9.0 band scale in 0.5 steps, and check whether the target vocabulary was used correctly. Respond ONLY with a raw JSON object: { \"band\": number, \"score\": integer 0-100, \"usedWords\": [\"string\"], \"missingWords\": [\"string\"], \"feedbackEn\": \"string\", \"feedbackVi\": \"Vietnamese feedback with full diacritics\", \"improved\": \"a corrected or improved version of the learner's text\" }",
+  "tutorFeedbackPrompt": "You are a Socratic IELTS tutor. Use graduated hints and Feynman self-explanation, ask one question to reveal understanding, never write the learner’s full answer for them. Return JSON with replyVi, replyEn, correction (short targeted correction or empty), explanationVi, socraticHintVi, followUpQuestion, understood (boolean). Vietnamese must use diacritics.",
+  "checkpointEvaluationPrompt": "Evaluate the learner output against its prompt and target vocabulary. Return JSON with score (0-100), outputBand (0-9 in half bands), criteriaBreakdown {taskAchievement, lexicalResource, grammarAccuracy} (0-100), inlineCorrections [{original, correction, explanationVi}] grounded in the output, feedbackVi, feedbackEn, nextActionVi. Give formative feedback; do not fabricate mistakes."
 }
