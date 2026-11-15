@@ -146,6 +146,7 @@
             <ul class="suggestions-list" id="suggestions-list"></ul>
           </div>
           <div class="writing-result-actions">
+            <button type="button" class="btn-mistake-unit" id="btn-create-mistake-unit" onclick="SpeakingApp.createMistakeUnit(this)" title="Biến tiêu chí yếu nhất và gợi ý của bài nói này thành 1 bài học 5 bước trong Study Hub">🎯 Tạo Bài Học Khắc Phục Lỗi Này</button>
             <button type="button" class="btn-try-again" onclick="SpeakingApp.resetForm()"><span>Practice Another Topic</span></button>
           </div>
         </section>
@@ -177,6 +178,7 @@
     </div>
   </main>
 
+  <script src="js/auth-profile.js"></script>
   <script src="js/speaking.js"></script>
   <script src="js/api-keys.js"></script>
   <script src="js/exam-security.js"></script>

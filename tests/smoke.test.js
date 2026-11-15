@@ -884,3 +884,81 @@ test('Phase 9B establishes session on the application page before parallel API c
   const profiles=await Promise.all(Array.from({length:3},async()=> (await (await globalThis.fetch(BASE+'/api/me',{headers:{Cookie:cookie}})).json()).userId));
   assert.equal(new Set(profiles).size,1);
 });
+
+/* ── Phase 9B frontend: Learner Profile Pill, Sync modal, mistakes launcher, PDF/DOCX ── */
+
+test('Phase 9B frontend: all 5 pages load js/auth-profile.js before their page script', async () => {
+  const pages = { '/index.html': 'js/questions.js', '/writing.html': 'js/writing.js', '/speaking.html': 'js/speaking.js', '/study.html': 'js/study.js', '/analytics.html': 'js/analytics.js' };
+  for (const [page, pageScript] of Object.entries(pages)) {
+    const html = await (await fetch(BASE + page)).text();
+    const at = html.indexOf('<script src="js/auth-profile.js"></script>');
+    assert.ok(at > 0, `${page} should load js/auth-profile.js`);
+    assert.ok(at < html.indexOf(`<script src="${pageScript}"></script>`), `${page} should load auth-profile.js before ${pageScript}`);
+    assert.ok(html.includes('class="header-right"'), `${page} needs a .header-right slot for the pill`);
+  }
+  const src = await (await fetch(`${BASE}/js/auth-profile.js`)).text();
+  const vm = await import('node:vm');
+  assert.doesNotThrow(() => new vm.Script(src), 'auth-profile.js should compile');
+  for (const token of ['user-profile-pill', '/api/me', '/api/auth/passcode', '/api/auth/redeem', '/api/auth/sessions', '/api/auth/logout',
+    'device_limit', 'revokeSessionId', 'ephemeral', 'IELTS-XXXX-XXXX', 'ielts_custom_units_v1', '/api/study/generate-unit', 'mistakeContext',
+    'study.html#unit=', 'ielts:profile-updated', 'aria-modal', 'localData']) {
+    assert.ok(src.includes(token), `auth-profile.js should include ${token}`);
+  }
+});
+
+test('Phase 9B frontend: Writing and Speaking results offer the mistake-unit launcher', async () => {
+  for (const [page, script, app] of [['/writing.html', '/js/writing.js', 'WritingApp'], ['/speaking.html', '/js/speaking.js', 'SpeakingApp']]) {
+    const html = await (await fetch(BASE + page)).text();
+    assert.ok(html.includes('id="btn-create-mistake-unit"') && html.includes('🎯 Tạo Bài Học Khắc Phục Lỗi Này'), `${page} button`);
+    assert.ok(html.includes(`${app}.createMistakeUnit(this)`), `${page} wires ${app}.createMistakeUnit`);
+    assert.ok(html.indexOf('id="btn-create-mistake-unit"') > html.indexOf('id="results-area"'), `${page} button lives in the results area`);
+    const src = await (await fetch(BASE + script)).text();
+    for (const token of ['createMistakeUnit', 'AuthProfile.createMistakeUnit', 'weakestCriterion', 'recordId', 'suggestions']) {
+      assert.ok(src.includes(token), `${script} should include ${token}`);
+    }
+  }
+  assert.ok((await (await fetch(`${BASE}/js/writing.js`)).text()).includes('inline_corrections'));
+  assert.ok((await (await fetch(`${BASE}/js/speaking.js`)).text()).includes('transcriptExcerpt'));
+  assert.ok((await (await fetch(`${BASE}/css/writing.css`)).text()).includes('.btn-mistake-unit'));
+});
+
+test('Phase 9B frontend: Study Hub restores mistake units past the gate and extracts PDF/DOCX client-side', async () => {
+  const html = await (await fetch(`${BASE}/study.html`)).text();
+  assert.ok(html.includes('id="custom-units-section"') && html.includes('id="custom-units-list"'));
+  assert.ok(/id="source-file"[^>]*accept="[^"]*\.pdf[^"]*\.docx/.test(html), 'file input accepts .pdf and .docx');
+  const src = await (await fetch(`${BASE}/js/study.js`)).text();
+  for (const token of ['ielts_custom_units_v1', 'hashIsMistakeUnit', "source === 'mistakes'", 'pdfjs-dist@', 'pdf.worker.min.js', 'mammoth@',
+    'extractRawText', 'getTextContent', 'GlobalWorkerOptions', 'MAX_SOURCE_CHARS', 'applyServerProfile', 'AuthProfile']) {
+    assert.ok(src.includes(token), `study.js should include ${token}`);
+  }
+});
+
+test('Phase 9B redeem can revoke one old device of the target account in the same step', async () => {
+  const owner = browser(); await owner.request('/api/me');
+  const code = (await (await owner.request('/api/auth/passcode', { method: 'POST' })).json()).passcode;
+  const second = browser(), third = browser(), fourth = browser();
+  assert.equal((await second.request('/api/auth/redeem', { method: 'POST', body: { passcode: code } })).status, 200);
+  assert.equal((await third.request('/api/auth/redeem', { method: 'POST', body: { passcode: code } })).status, 200);
+  const blocked = await fourth.request('/api/auth/redeem', { method: 'POST', body: { passcode: code } });
+  assert.equal(blocked.status, 409);
+  const { devices } = await blocked.json();
+  const bogus = await fourth.request('/api/auth/redeem', { method: 'POST', body: { passcode: code, revokeSessionId: 'ses_unknown' } });
+  assert.equal(bogus.status, 409, 'an unknown session id must not bypass the limit');
+  const victimId = devices.find(d => d.id).id;
+  const ok = await fourth.request('/api/auth/redeem', { method: 'POST', body: { passcode: code, revokeSessionId: victimId } });
+  assert.equal(ok.status, 200);
+  const me = await (await fourth.request('/api/me')).json();
+  assert.equal(me.devices.length, 3);
+  assert.ok(!me.devices.some(d => d.id === victimId), 'revoked device is gone');
+});
+
+test('Phase 9B PATCH /api/me stores commitment and merges streak days', async () => {
+  const a = browser(); await a.request('/api/me');
+  assert.equal((await a.request('/api/me', { method: 'PATCH', body: { commitment: { time: '25:99x', minutes: 3 } } })).status, 400);
+  assert.equal((await a.request('/api/me', { method: 'PATCH', body: { streak: ['not-a-date'] } })).status, 400);
+  assert.equal((await a.request('/api/me', { method: 'PATCH', body: { commitment: { time: '20:30', minutes: 30 }, streak: ['2026-11-14'] } })).status, 200);
+  await a.request('/api/me', { method: 'PATCH', body: { streak: ['2026-11-16', '2026-11-14'] } });
+  const me = await (await a.request('/api/me')).json();
+  assert.deepEqual(me.commitment, { time: '20:30', minutes: 30 });
+  assert.deepEqual(me.streak, ['2026-11-14', '2026-11-16']);
+});

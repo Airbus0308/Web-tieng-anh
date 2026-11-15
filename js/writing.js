@@ -16,6 +16,7 @@ const WritingApp = (() => {
   /* ── State ───────────────────────────────────────────── */
   let _topics = [];
   let _currentTopic = null;
+  let _lastResult = null; // last rendered score, used by "Learn From My Mistakes"
   let _isLoading = false;
   let _timerSeconds = 40 * 60; // 40 minutes for Task 2
   let _timerInterval = null;
@@ -396,6 +397,7 @@ const WritingApp = (() => {
   /* ── Feature 4: renderResults(data) ──────────────────── */
   function renderResults(data) {
     if (!data) return;
+    _lastResult = data;
 
     const resultsArea = _el('results-area');
     if (!resultsArea) return;
@@ -738,7 +740,7 @@ const WritingApp = (() => {
       `;
 
       card.addEventListener('click', () => {
-        renderResults({ ...savedResult, timestamp: item.timestamp, wordCount: item.wordCount });
+        renderResults({ ...savedResult, id: savedResult.id || item.id, topic: item.topic, timestamp: item.timestamp, wordCount: item.wordCount });
         showToast(`Loaded review for attempt from ${formattedDate}.`, 'info');
       });
 
@@ -884,8 +886,32 @@ const WritingApp = (() => {
       .replace(/'/g, '&#039;');
   }
 
+  /* ── Phase 9B: Learn From My Mistakes ─────────────────── */
+  /** Send this essay's inline corrections + weakest criterion to Study Hub as a personalised 5-step unit. */
+  async function createMistakeUnit(button) {
+    const data = _lastResult;
+    if (!data || typeof AuthProfile === 'undefined') { showToast('Hãy chấm một bài viết trước.', 'error'); return; }
+    const weakest = AuthProfile.weakestCriterion(_normalizeCriteria(data));
+    const corrections = (Array.isArray(data.inline_corrections) ? data.inline_corrections : [])
+      .filter(c => c && typeof c.original === 'string' && typeof c.correction === 'string')
+      .slice(0, 10)
+      .map(c => ({ original: c.original, correction: c.correction, explanation: c.explanation || '' }));
+    const mistakeContext = {
+      source: 'writing',
+      recordId: String(data.id || data.timestamp || `local_${Date.now()}`),
+      prompt: data.topic || _el('topic-prompt')?.textContent.trim() || '',
+      overallBand: Number(data.overall_band ?? data.overallBand) || null,
+      weakestCriterion: weakest || undefined,
+      corrections,
+      suggestions: (data.suggestions || data.result?.suggestions || []).slice(0, 6)
+    };
+    try { await AuthProfile.createMistakeUnit(mistakeContext, button); }
+    catch (e) { showToast(e.message, 'error'); }
+  }
+
   /* ── Public API ──────────────────────────────────────── */
   return {
+    createMistakeUnit,
     init,
     updateWordCount,
     handleSubmit,

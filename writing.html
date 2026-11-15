@@ -266,6 +266,7 @@
 
           <!-- Action Buttons: Try Again -->
           <div class="writing-result-actions">
+            <button type="button" class="btn-mistake-unit" id="btn-create-mistake-unit" onclick="WritingApp.createMistakeUnit(this)" title="Biến các lỗi sai và tiêu chí yếu nhất của bài này thành 1 bài học 5 bước trong Study Hub">🎯 Tạo Bài Học Khắc Phục Lỗi Này</button>
             <button type="button" class="btn-try-again" id="btn-try-again" onclick="WritingApp.resetForm()">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"/>
@@ -400,6 +401,7 @@
   </main>
 
   <!-- ── Script Loader ──────────────────────────────── -->
+  <script src="js/auth-profile.js"></script>
   <script src="js/writing.js"></script>
 
   <script src="js/api-keys.js"></script>

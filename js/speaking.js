@@ -22,6 +22,7 @@ const SpeakingApp = (() => {
   let _topics = [];
   let _topicIndex = -1;
   let _currentTopic = null;
+  let _lastResult = null; // last rendered score, used by "Learn From My Mistakes"
   let _minWords = MIN_WORDS_DEFAULT;
   let _isLoading = false;
 
@@ -298,7 +299,7 @@ const SpeakingApp = (() => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Scoring failed.');
       _saveLocalAttempt(data, transcript, duration);
-      renderResults(data);
+      renderResults({ ...data, transcript, topic: _topicText() });
       loadHistory();
     } catch (err) {
       showToast(err.message || 'Could not score your response.', 'error');
@@ -328,6 +329,7 @@ const SpeakingApp = (() => {
   }
 
   function renderResults(data) {
+    _lastResult = data;
     const src = data.result || data;
     const band = Number(src.overall_band ?? src.overallBand ?? 0);
     const colorClass = _colorClass(band);
@@ -438,6 +440,26 @@ const SpeakingApp = (() => {
     updateWordCount();
   }
 
+  /* ── Phase 9B: Learn From My Mistakes ─────────────────── */
+  /** Speaking results have no inline corrections, so the unit is built from the weakest criterion, suggestions and transcript. */
+  async function createMistakeUnit(button) {
+    const data = _lastResult;
+    if (!data || typeof AuthProfile === 'undefined') { showToast('Hãy chấm một bài nói trước.', 'error'); return; }
+    const src = data.result || data;
+    const mistakeContext = {
+      source: 'speaking',
+      recordId: String(data.id || data.timestamp || `local_${Date.now()}`),
+      prompt: data.topic || _topicText(),
+      overallBand: Number(src.overall_band ?? src.overallBand) || null,
+      weakestCriterion: AuthProfile.weakestCriterion(_normalizeCriteria(data)) || undefined,
+      corrections: [],
+      suggestions: (src.suggestions || []).slice(0, 6),
+      transcriptExcerpt: String(data.transcript || _el('speaking-input')?.value || '').slice(0, 1500)
+    };
+    try { await AuthProfile.createMistakeUnit(mistakeContext, button); }
+    catch (e) { showToast(e.message, 'error'); }
+  }
+
   function resetForm() {
     clearDraft();
     _el('results-area').style.display = 'none';
@@ -445,7 +467,7 @@ const SpeakingApp = (() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  return { init, changeTopic, startPrep, startSpeaking, resetTimer, toggleRecording, handleSubmit, clearDraft, resetForm, updateWordCount };
+  return { init, changeTopic, startPrep, startSpeaking, resetTimer, toggleRecording, handleSubmit, clearDraft, resetForm, updateWordCount, createMistakeUnit };
 })();
 
 document.addEventListener('DOMContentLoaded', SpeakingApp.init);

@@ -103,6 +103,16 @@ export function installAuth(app, store) {
       if (d.displayName !== undefined) { if (typeof d.displayName !== 'string' || !d.displayName.trim() || d.displayName.trim().length > 120) return res.status(400).json({ error: 'invalid_display_name' }); profile.displayName = d.displayName.trim(); }
       if (d.targetBand !== undefined) { if (d.targetBand !== null && (!Number.isFinite(Number(d.targetBand)) || Number(d.targetBand) < 0 || Number(d.targetBand) > 9)) return res.status(400).json({ error: 'invalid_target_band' }); profile.targetBand = d.targetBand === null ? null : Number(d.targetBand); }
       if (d.examDate !== undefined) { if (d.examDate !== null && (typeof d.examDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.examDate) || Number.isNaN(Date.parse(d.examDate)))) return res.status(400).json({ error: 'invalid_exam_date' }); profile.examDate = d.examDate; }
+      if (d.commitment !== undefined) {
+        const c = d.commitment;
+        if (c !== null && (typeof c !== 'object' || !/^\d{2}:\d{2}$/.test(String(c.time)) || !(Number(c.minutes) >= 5 && Number(c.minutes) <= 240))) return res.status(400).json({ error: 'invalid_commitment' });
+        profile.commitment = c === null ? null : { time: c.time, minutes: Math.round(Number(c.minutes)) };
+      }
+      // Streak dates are merged (union), never replaced, so a stale device cannot erase another device's study days.
+      if (d.streak !== undefined) {
+        if (!Array.isArray(d.streak) || d.streak.length > 400 || !d.streak.every(x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x))) return res.status(400).json({ error: 'invalid_streak' });
+        profile.streak = [...new Set([...(Array.isArray(profile.streak) ? profile.streak : []), ...d.streak])].sort().slice(-120);
+      }
       profile.updatedAt = new Date().toISOString(); await store.putProfile(req.userId, profile); return res.json(profile);
     } catch { return res.status(500).json({ error: 'profile_update_failed' }); }
   }
@@ -135,7 +145,13 @@ export function installAuth(app, store) {
         const sessions = (await store.auth('sessions')).filter(active);
         if (!sessions.some(s => s.id === req.session.id && s.userId === req.userId)) return res.status(401).json({ error: 'session_revoked' });
         const existing = sessions.filter(s => s.userId === target.userId);
-        if (req.userId !== target.userId && existing.length >= MAX_DEVICES_PER_USER) return res.status(409).json({ error: 'device_limit', maxDevices: MAX_DEVICES_PER_USER, devices: existing.map(publicSession) });
+        if (req.userId !== target.userId && existing.length >= MAX_DEVICES_PER_USER) {
+          // The valid passcode proves ownership, so the new device may sign out one of the account's devices in the same step.
+          const revokeId = typeof req.body?.revokeSessionId === 'string' ? req.body.revokeSessionId : '';
+          const victim = revokeId && existing.find(s => s.id === revokeId);
+          if (!victim) return res.status(409).json({ error: 'device_limit', maxDevices: MAX_DEVICES_PER_USER, devices: existing.map(publicSession) });
+          sessions.splice(sessions.indexOf(victim), 1);
+        }
         if (req.userId === target.userId) return res.json({ userId: target.userId, currentSessionId: req.session.id });
         const sourceProfile = await store.getProfile(req.userId);
         if (sourceProfile?.role !== 'guest') return res.status(409).json({ error: 'account_not_guest' });

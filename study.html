@@ -152,6 +152,12 @@
           <div id="recommended-list" class="recommended-list"><p class="muted">Đang tải gợi ý...</p></div>
         </section>
 
+        <section class="study-card" id="custom-units-section" hidden>
+          <h2 class="study-h2">🎯 Bài học của tôi</h2>
+          <p class="muted">Bài học tạo từ lỗi sai Writing/Speaking và từ tài liệu bạn nạp (lưu trên trình duyệt này).</p>
+          <div id="custom-units-list" class="custom-units-list"></div>
+        </section>
+
         <section class="library-section" id="library-section">
           <h2 class="study-h2">📚 Kho giáo trình chuẩn</h2>
           <div id="textbook-list" class="course-grid">Đang tải...</div>
@@ -168,15 +174,15 @@
           <h2 class="study-h2">📝 Nạp tài liệu cá nhân</h2>
           <div class="source-tabs" role="tablist">
             <button type="button" class="source-tab active" data-tab="paste">Dán văn bản</button>
-            <button type="button" class="source-tab" data-tab="file">Tải .txt / .md</button>
+            <button type="button" class="source-tab" data-tab="file">Tải .pdf / .docx / .txt</button>
             <button type="button" class="source-tab" data-tab="url">URL / YouTube</button>
           </div>
           <div class="source-pane" data-pane="paste">
             <textarea id="source-text" class="study-input study-textarea" rows="6" placeholder="Dán ghi chú, đề thi cũ hoặc đoạn văn tiếng Anh (tối thiểu 50 ký tự)..."></textarea>
           </div>
           <div class="source-pane" data-pane="file" hidden>
-            <input type="file" id="source-file" class="study-input" accept=".txt,.md,text/plain,text/markdown">
-            <p class="muted" id="source-file-info">Chưa chọn file.</p>
+            <input type="file" id="source-file" class="study-input" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown">
+            <p class="muted" id="source-file-info" role="status">Chưa chọn file. Hỗ trợ .pdf, .docx, .txt, .md (tối đa 10 MB; PDF scan ảnh không đọc được chữ).</p>
           </div>
           <div class="source-pane" data-pane="url" hidden>
             <input type="url" id="source-url" class="study-input" placeholder="https://... (bài báo tiếng Anh hoặc link YouTube có phụ đề)">
@@ -232,6 +238,7 @@
     </section>
   </main>
 
+  <script src="js/auth-profile.js"></script>
   <script src="js/study.js"></script>
   <script src="js/api-keys.js"></script>
   <script src="js/exam-security.js"></script>

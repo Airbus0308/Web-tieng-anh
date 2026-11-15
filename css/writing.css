@@ -1726,6 +1726,26 @@
   box-shadow: 0 6px 24px rgba(45, 212, 191, 0.35);
 }
 
+/* Phase 9B — "Learn From My Mistakes" launcher (writing.html + speaking.html) */
+.writing-result-actions { flex-wrap: wrap; }
+.btn-mistake-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid var(--accent-amber);
+  transition: all var(--duration) var(--ease-out);
+}
+.btn-mistake-unit:hover:not([disabled]) { transform: translateY(-1px); background: rgba(251, 191, 36, 0.2); }
+.btn-mistake-unit[disabled] { opacity: 0.6; cursor: wait; }
+
 /* ── Sidebar ──────────────────────────────────────────── */
 .writing-sidebar {
   position: sticky;

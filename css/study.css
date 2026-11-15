@@ -311,3 +311,7 @@ input.study-input[type="url"], input.study-input[type="file"] { width: 100%; box
   .course-grid { grid-template-columns: minmax(0, 1fr); }
   .hub-tab { padding: 10px 12px; font-size: 0.88rem; }
 }
+
+/* ── Phase 9B: personal & mistake units ── */
+.custom-units-list .unit-row.mistake-unit { border-color: rgba(251, 191, 36, 0.45); }
+.custom-units-list .unit-title .muted { display: block; font-size: 0.75rem; }

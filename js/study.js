@@ -14,6 +14,13 @@ const StudyApp = (() => {
   const STREAK_KEY = 'ielts_study_streak';
   const LAST_UNIT_KEY = 'ielts_study_last_unit';
   const HUB_TAB_KEY = 'ielts_study_hub_tab';
+  const CUSTOM_UNITS_KEY = 'ielts_custom_units_v1'; // shared with js/auth-profile.js (mistake units)
+  const MAX_CUSTOM_UNITS = 20;
+  const MAX_FILE_BYTES = 10 * 1024 * 1024;
+  const MAX_SOURCE_CHARS = 60000;
+  const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+  const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const MAMMOTH_URL = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
   const SRS_PREVIEW = 3;
   const STEP_META = [
     { step: 1, key: 'lesson', label: 'Deep Lesson & Feynman', icon: '📖', mastery: 20 },
@@ -87,6 +94,7 @@ const StudyApp = (() => {
 
   function saveGoal() {
     writeStorage(GOAL_KEY, { examDate: $('exam-date').value, targetBand: $('target-band').value });
+    syncProfile({ examDate: $('exam-date').value || null, targetBand: parseBand($('target-band').value, null) });
     renderCountdown();
     computeSuggestion();
     renderLibrary();
@@ -288,6 +296,7 @@ const StudyApp = (() => {
     mergeProgress(await getJson('/api/study/progress', []));
     renderTodo();
     renderLibrary();
+    renderCustomUnits();
   }
 
   /* ── Lesson player ──────────────────────────────────────── */
@@ -313,7 +322,9 @@ const StudyApp = (() => {
     const saved = savedMastery(unitId);
     STEP_META.filter(s => s.mastery <= saved).forEach(s => state.session.done.add(s.step));
     state.step = Math.min(5, state.session.done.size + 1);
-    writeStorage(LAST_UNIT_KEY, { unit, unitId, title: state.unitTitle, source, provider: state.provider, textbookId, savedAt: new Date().toISOString() });
+    const record = { unit, unitId, title: state.unitTitle, source, provider: state.provider, textbookId, savedAt: new Date().toISOString() };
+    writeStorage(LAST_UNIT_KEY, record);
+    if (source !== 'textbook') saveCustomUnit(record);
     $('tutor-reply').innerHTML = '';
     $('lesson-title').textContent = state.unitTitle;
     $('lesson-provider').textContent = provider ? `Nguồn AI: ${provider}` : '';
@@ -332,6 +343,7 @@ const StudyApp = (() => {
     const inClassroom = state.view === 'classroom';
     $('classroom-view').hidden = !inClassroom || (state.locked && state.unitSource !== 'mistakes');
     $('hub-view').hidden = inClassroom || state.locked || !state.ready;
+    $('diagnostic-gate').hidden = !state.locked || inClassroom; // focus mode hides the gate for gate-exempt mistake units
     if (inClassroom && push && location.hash !== unitHash(state.unitId)) {
       history.pushState({ view: 'classroom', unitId: state.unitId }, '', unitHash(state.unitId));
     }
@@ -369,13 +381,59 @@ const StudyApp = (() => {
     else if (match) restoreFromHash();
   }
 
-  /** Reopen the unit named in the URL hash from ielts_study_last_unit (works for AI-generated units too). */
-  function restoreFromHash() {
-    const match = /^#unit=(.+)$/.exec(location.hash);
-    if (!match) return false;
-    const id = decodeURIComponent(match[1]);
+  /* ── Personal units (AI from sources + "Learn From My Mistakes") ── */
+
+  function customUnitMap() {
+    const map = readStorage(CUSTOM_UNITS_KEY, {});
+    return map && typeof map === 'object' && !Array.isArray(map) ? map : {};
+  }
+
+  function saveCustomUnit(record) {
+    const map = customUnitMap();
+    map[record.unitId] = { ...record, savedAt: new Date().toISOString() };
+    const kept = Object.values(map).filter(r => r?.unitId && r.unit)
+      .sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt))).slice(0, MAX_CUSTOM_UNITS);
+    writeStorage(CUSTOM_UNITS_KEY, Object.fromEntries(kept.map(r => [r.unitId, r])));
+    renderCustomUnits();
+  }
+
+  function renderCustomUnits() {
+    const host = $('custom-units-list');
+    if (!host) return;
+    const units = Object.values(customUnitMap()).filter(r => r?.unitId && r.unit)
+      .sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+    $('custom-units-section').hidden = !units.length;
+    host.innerHTML = units.map(r => {
+      const st = unitStatus(savedMastery(r.unitId));
+      const mistakes = r.source === 'mistakes';
+      return `<div class="unit-row ${mistakes ? 'mistake-unit' : ''}">
+        <span class="unit-status ${st.cls}" aria-hidden="true">${st.icon}</span>
+        <span class="unit-title">${mistakes ? '🎯 ' : '📝 '}${esc(r.title || r.unit.title || 'Unit')}
+          <span class="muted">${mistakes ? 'Học từ lỗi sai' : 'Tài liệu cá nhân'} · ${esc(String(r.savedAt || '').slice(0, 10))}</span></span>
+        <span class="unit-badge ${st.cls}">${esc(st.label)}</span>
+        <span class="unit-actions"><button type="button" class="btn-small" data-action="open-custom" data-unit="${esc(r.unitId)}">Học ngay</button></span>
+      </div>`;
+    }).join('');
+  }
+
+  /** Mistake units are allowed to bypass the diagnostic gate (decision 0.2-3 in docs/PHASE_9_DESIGN.md). */
+  function findStoredUnit(id) {
     const last = readStorage(LAST_UNIT_KEY, null);
-    if (last?.unitId === id && last.unit) { openUnit(last, { push: false }); return true; }
+    if (last?.unitId === id && last.unit) return last;
+    const custom = customUnitMap()[id];
+    return custom?.unit ? custom : null;
+  }
+
+  const hashUnitId = () => { const m = /^#unit=(.+)$/.exec(location.hash); return m ? decodeURIComponent(m[1]) : null; };
+  const hashIsMistakeUnit = () => { const id = hashUnitId(); return !!id && findStoredUnit(id)?.source === 'mistakes'; };
+
+  /** Reopen the unit named in the URL hash from ielts_study_last_unit / ielts_custom_units_v1 (AI and mistake units too). */
+  function restoreFromHash() {
+    const id = hashUnitId();
+    if (!id) return false;
+    const stored = findStoredUnit(id);
+    if (stored && (!state.locked || stored.source === 'mistakes')) { openUnit(stored, { push: false }); return true; }
+    if (state.locked) return false;
     const book = (state.config?.sampleTextbooks || []).find(b => b.units.some(u => u.id === id));
     if (book) { openSample(book.id, id, { push: false }); return state.view === 'classroom'; }
     history.replaceState(null, '', location.pathname + location.search);
@@ -385,6 +443,34 @@ const StudyApp = (() => {
   function continueLastUnit() {
     const last = readStorage(LAST_UNIT_KEY, null);
     if (last?.unit) openUnit(last);
+  }
+
+  /* ── Profile sync with /api/me (js/auth-profile.js) ──────── */
+
+  function syncProfile(patch) {
+    if (window.AuthProfile?.updateProfile) window.AuthProfile.updateProfile(patch);
+  }
+
+  /** Fill empty local goal/commitment from the account profile and merge server streak days (other devices). */
+  function applyServerProfile(me) {
+    if (!me) return;
+    const goal = readStorage(GOAL_KEY, {});
+    if (!goal.examDate && me.examDate) $('exam-date').value = me.examDate;
+    if (!goal.targetBand && me.targetBand != null) {
+      const value = Number(me.targetBand).toFixed(1);
+      if ([...$('target-band').options].some(o => o.value === value)) $('target-band').value = value;
+    }
+    if ((!goal.examDate && me.examDate) || (!goal.targetBand && me.targetBand != null)) {
+      writeStorage(GOAL_KEY, { examDate: $('exam-date').value, targetBand: $('target-band').value });
+      renderCountdown();
+    }
+    if (!readStorage(COMMIT_KEY, null) && me.commitment?.time) { writeStorage(COMMIT_KEY, me.commitment); loadCommitment(); }
+    if (Array.isArray(me.streak) && me.streak.length) {
+      const days = new Set(readStorage(STREAK_KEY, []));
+      const before = days.size;
+      me.streak.forEach(d => days.add(d));
+      if (days.size !== before) { writeStorage(STREAK_KEY, [...days].sort().slice(-120)); renderStreak(); }
+    }
   }
 
   function switchHubTab(tab, { focus = false } = {}) {
@@ -959,21 +1045,68 @@ const StudyApp = (() => {
     }
   }
 
-  function onFileChosen(event) {
+  /** Load a UMD library from the CDN once, only when the learner actually picks a PDF/DOCX file. */
+  const scriptCache = {};
+  function loadScript(url, globalName) {
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    scriptCache[url] ||= new Promise((resolve, reject) => {
+      const tag = document.createElement('script');
+      tag.src = url;
+      tag.async = true;
+      tag.onload = () => (window[globalName] ? resolve(window[globalName]) : reject(new Error(`${globalName} không khả dụng`)));
+      tag.onerror = () => { delete scriptCache[url]; reject(new Error('Không tải được thư viện đọc file (kiểm tra kết nối mạng).')); };
+      document.head.appendChild(tag);
+    });
+    return scriptCache[url];
+  }
+
+  async function extractPdfText(file) {
+    const pdfjsLib = await loadScript(PDFJS_URL, 'pdfjsLib');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages = [];
+    let total = 0;
+    for (let i = 1; i <= pdf.numPages && total < MAX_SOURCE_CHARS; i++) {
+      const content = await (await pdf.getPage(i)).getTextContent();
+      const text = content.items.map(item => item.str + (item.hasEOL ? '\n' : ' ')).join('').replace(/[ \t]+/g, ' ').trim();
+      pages.push(text);
+      total += text.length;
+    }
+    return pages.join('\n\n');
+  }
+
+  async function extractDocxText(file) {
+    const mammoth = await loadScript(MAMMOTH_URL, 'mammoth');
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return String(result.value || '');
+  }
+
+  async function onFileChosen(event) {
     const file = event.target.files?.[0];
     const info = $('source-file-info');
     state.fileText = '';
     if (!file) { info.textContent = 'Chưa chọn file.'; return; }
-    if (!/\.(txt|md)$/i.test(file.name)) { info.textContent = 'Chỉ hỗ trợ file .txt hoặc .md.'; return; }
-    if (file.size > 1024 * 1024) { info.textContent = 'File quá lớn (tối đa 1 MB).'; return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      state.fileText = String(reader.result || '');
-      state.fileName = file.name.replace(/\.(txt|md)$/i, '');
-      info.textContent = `${file.name} — ${countWords(state.fileText)} từ.`;
-    };
-    reader.onerror = () => { info.textContent = 'Không đọc được file.'; };
-    reader.readAsText(file);
+    const ext = (/\.([a-z0-9]+)$/i.exec(file.name)?.[1] || '').toLowerCase();
+    if (!['txt', 'md', 'pdf', 'docx'].includes(ext)) { info.textContent = 'Chỉ hỗ trợ file .txt, .md, .pdf hoặc .docx.'; return; }
+    if (file.size > MAX_FILE_BYTES) { info.textContent = 'File quá lớn (tối đa 10 MB).'; return; }
+    const token = (state.fileToken = (state.fileToken || 0) + 1);
+    info.textContent = ext === 'pdf' || ext === 'docx' ? `Đang đọc ${file.name}...` : '';
+    try {
+      let text;
+      if (ext === 'pdf') text = await extractPdfText(file);
+      else if (ext === 'docx') text = await extractDocxText(file);
+      else text = await file.text();
+      if (token !== state.fileToken) return; // a newer file was chosen meanwhile
+      text = text.replace(/\n{3,}/g, '\n\n').trim();
+      const truncated = text.length > MAX_SOURCE_CHARS;
+      state.fileText = text.slice(0, MAX_SOURCE_CHARS);
+      state.fileName = file.name.replace(/\.[a-z0-9]+$/i, '');
+      info.textContent = !state.fileText
+        ? (ext === 'pdf' ? 'Không tìm thấy chữ trong PDF (có thể là bản scan ảnh).' : 'File không có nội dung văn bản.')
+        : `${file.name} — ${countWords(state.fileText)} từ${truncated ? ` (đã cắt còn ${MAX_SOURCE_CHARS.toLocaleString('vi-VN')} ký tự đầu)` : ''}.`;
+    } catch (e) {
+      if (token === state.fileToken) info.textContent = `Không đọc được file: ${e.message}`;
+    }
   }
 
   function switchTab(tab) {
@@ -1019,7 +1152,9 @@ const StudyApp = (() => {
 
   function markStreak() {
     const days = new Set(readStorage(STREAK_KEY, []));
-    days.add(dateKey(new Date()));
+    const today = dateKey(new Date());
+    if (!days.has(today)) syncProfile({ streak: [today] });
+    days.add(today);
     writeStorage(STREAK_KEY, [...days].sort().slice(-120));
     renderStreak();
   }
@@ -1067,6 +1202,7 @@ const StudyApp = (() => {
       return;
     }
     writeStorage(COMMIT_KEY, { time, minutes });
+    syncProfile({ commitment: { time, minutes } });
     status.textContent = `Đã lưu: Nếu đến ${time} mỗi ngày, tôi sẽ học ít nhất ${minutes} phút tại bàn học.`;
   }
 
@@ -1085,7 +1221,7 @@ const StudyApp = (() => {
   }
 
   function renderStageBar() {
-    const stage = state.locked || state.view !== 'classroom' ? 1 : (state.step === 5 ? 3 : 2);
+    const stage = state.view !== 'classroom' ? 1 : (state.step === 5 ? 3 : 2);
     document.querySelectorAll('.srl-stage').forEach(el => {
       const n = Number(el.dataset.stage);
       el.classList.toggle('current', n === stage);
@@ -1250,6 +1386,7 @@ const StudyApp = (() => {
     mergeProgress(await getJson('/api/study/progress', []));
     renderTodo();
     renderLibrary();
+    renderCustomUnits();
     if (!state.locked && state.diag?.unlocked) {
       state.diag = await getJson('/api/study/diagnostic-status', state.diag);
       renderProfile();
@@ -1276,9 +1413,16 @@ const StudyApp = (() => {
     loadWeaknesses().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); });
     loadCheckpoints();
     switchHubTab(/^#create/.test(location.hash) ? 'create' : readStorage(HUB_TAB_KEY, 'courses'));
+    renderCustomUnits();
+    window.AuthProfile?.ready?.then(applyServerProfile);
     loadDiagnostic().then(() => {
       computeSuggestion(); renderLibrary(); renderGaps(); renderProfile();
-      if (!state.locked) restoreFromHash();
+      if (!state.locked || hashIsMistakeUnit()) restoreFromHash();
+    });
+    $('custom-units-list').addEventListener('click', event => {
+      const btn = event.target.closest('[data-action="open-custom"]');
+      const stored = btn && findStoredUnit(btn.dataset.unit);
+      if (stored) openUnit(stored);
     });
 
     $('btn-back-to-hub').addEventListener('click', backToHub);
