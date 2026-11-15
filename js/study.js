@@ -902,6 +902,11 @@ const StudyApp = (() => {
     if (!days.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
     while (days.has(dateKey(cursor))) { streak += 1; cursor.setDate(cursor.getDate() - 1); }
     $('streak-count').textContent = `${streak} ngày liên tiếp`;
+    const svgImg = $('streak-stats-svg');
+    if (svgImg) {
+      const datesParam = encodeURIComponent([...days].sort().slice(-120).join(','));
+      svgImg.src = `/api/study/streak-stats.svg?dates=${datesParam}&t=${Date.now()}`;
+    }
   }
 
   function loadCommitment() {

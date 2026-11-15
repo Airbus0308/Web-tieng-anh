@@ -615,7 +615,21 @@ test('Phase 8B js/study.js is valid and wires every SRL-SLA API and learning tec
 test('Phase 8B css/study.css styles the SRL-SLA components', async () => {
   const css = await (await fetch(`${BASE}/css/study.css`)).text();
   for (const selector of ['.srl-stage-bar', '.diagnostic-gate', '.streak-bar', '.srs-item', '.band-upgrade', '.feynman-box', '.skill-tag',
-    '.calibration-box', '.band-compare', '.crit-row', '.status-badge', '.correction-row']) {
+    '.calibration-box', '.band-compare', '.crit-row', '.status-badge', '.correction-row', '.streak-stats-card', '.streak-stats-svg']) {
     assert.ok(css.includes(selector), `study.css should style ${selector}`);
   }
+});
+
+test('GET /api/study/streak-stats and /api/study/streak-stats.svg render DenverCoder1-style 3-column streak card', async () => {
+  const jsonRes = await fetch(`${BASE}/api/study/streak-stats?dates=2026-11-13,2026-11-14,2026-11-15`);
+  assert.equal(jsonRes.status, 200);
+  const stats = await jsonRes.json();
+  assert.ok(stats.totalContributions >= 3);
+  assert.ok(stats.longestStreak.length >= 3);
+
+  const svgRes = await fetch(`${BASE}/api/study/streak-stats.svg?dates=2026-11-13,2026-11-14,2026-11-15`);
+  assert.equal(svgRes.status, 200);
+  assert.ok((svgRes.headers.get('content-type') || '').includes('image/svg+xml'));
+  const svg = await svgRes.text();
+  assert.ok(svg.includes('<svg') && svg.includes('Chuỗi Ngày Liên Tiếp') && svg.includes('Kỷ Lục Chuỗi Ngày'));
 });

@@ -207,6 +207,8 @@ input.study-input[type="url"], input.study-input[type="file"] { width: 100%; box
 .correction-row { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg-card); font-size: 0.9rem; }
 .correction-row del { color: var(--accent-red); }
 .correction-row ins { color: var(--accent-green); text-decoration: none; font-weight: 600; }
+.streak-stats-card { display: flex; justify-content: center; margin: 10px 0 12px; }
+.streak-stats-svg { width: 100%; max-width: 495px; height: auto; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
 
 @media (max-width: 760px) {
   .srl-stage-bar { grid-template-columns: 1fr; }

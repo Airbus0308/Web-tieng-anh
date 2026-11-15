@@ -1552,6 +1552,188 @@ app.post('/api/study/checkpoint-evaluate', async (req, res) => {
   } catch { return res.status(500).json({ error: 'Failed to save checkpoint.' }); }
 });
 
+/* ── GitHub-Readme-Streak-Stats Style Study Streak Engine & SVG Generator ──
+ * Modeled after https://github.com/DenverCoder1/github-readme-streak-stats
+ * Computes Total Contributions, Current Streak (with circular ring & flame), and Longest Streak.
+ */
+function computeStudyStreakStats(extraDatesRaw = '') {
+  const placement = readJsonArray(placementResultsFile);
+  const writing = readJsonArray(resultsFile);
+  const speaking = readJsonArray(speakingResultsFile);
+  const progress = readJsonArray(studyProgressFile);
+  const checkpoints = readJsonArray(studyCheckpointsFile);
+  const srs = readJsonArray(studySrsFile);
+
+  const dateSet = new Set();
+  const addIso = ts => {
+    if (!ts || typeof ts !== 'string') return;
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      dateSet.add(d.toISOString().slice(0, 10));
+    }
+  };
+
+  placement.forEach(r => addIso(r?.timestamp));
+  writing.forEach(r => addIso(r?.timestamp));
+  speaking.forEach(r => addIso(r?.timestamp));
+  progress.forEach(r => addIso(r?.updatedAt));
+  checkpoints.forEach(r => addIso(r?.timestamp));
+  srs.forEach(r => addIso(r?.lastReviewedAt));
+
+  String(extraDatesRaw || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s))
+    .forEach(s => dateSet.add(s));
+
+  const sortedDates = [...dateSet].sort();
+  const totalActivities =
+    placement.length + writing.length + speaking.length + checkpoints.length + srs.filter(x => x?.lastReviewedAt).length;
+  const totalContributions = Math.max(totalActivities, sortedDates.length);
+
+  const dayDiff = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 86400000);
+
+  let longest = { length: 0, start: null, end: null };
+  let runStart = null;
+  let runEnd = null;
+  let runLen = 0;
+
+  for (const d of sortedDates) {
+    if (!runEnd || dayDiff(runEnd, d) === 1) {
+      runStart = runStart || d;
+      runEnd = d;
+      runLen += 1;
+    } else if (dayDiff(runEnd, d) > 1) {
+      runStart = d;
+      runEnd = d;
+      runLen = 1;
+    }
+    if (runLen >= longest.length) {
+      longest = { length: runLen, start: runStart, end: runEnd };
+    }
+  }
+
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const yesterdayUtc = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  let current = { length: 0, start: todayUtc, end: todayUtc };
+
+  if (sortedDates.length > 0) {
+    const anchor = dateSet.has(todayUtc) ? todayUtc : (dateSet.has(yesterdayUtc) ? yesterdayUtc : null);
+    if (anchor) {
+      let cLen = 0;
+      let cursor = new Date(`${anchor}T00:00:00Z`);
+      let startStr = anchor;
+      while (true) {
+        const key = cursor.toISOString().slice(0, 10);
+        if (!dateSet.has(key)) break;
+        startStr = key;
+        cLen += 1;
+        cursor = new Date(cursor.getTime() - 86400000);
+      }
+      current = { length: cLen, start: startStr, end: anchor };
+    }
+  }
+
+  return {
+    totalContributions,
+    activeDaysCount: sortedDates.length,
+    firstDate: sortedDates[0] || todayUtc,
+    currentStreak: current,
+    longestStreak: longest.length ? longest : { length: 0, start: todayUtc, end: todayUtc },
+    activeDates: sortedDates
+  };
+}
+
+function formatStreakDateRange(start, end) {
+  const fmt = s => {
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return 'Hôm nay';
+    const [y, m, d] = s.split('-').map(Number);
+    return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+  };
+  if (!start && !end) return 'Hôm nay';
+  if (!end || start === end) return fmt(start || end);
+  return `${fmt(start)} - ${fmt(end)}`;
+}
+
+function renderStreakStatsSvg(stats) {
+  const firstRange = `${formatStreakDateRange(stats.firstDate, null)} - Nay`;
+  const currentRange = formatStreakDateRange(stats.currentStreak.start, stats.currentStreak.end);
+  const longestRange = stats.longestStreak.length > 0
+    ? formatStreakDateRange(stats.longestStreak.start, stats.longestStreak.end)
+    : 'Chưa có kỷ lục';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 495 195" width="495" height="195" role="img" aria-label="IELTS Master Study Streak Stats">
+  <defs>
+    <linearGradient id="streakBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .stat-num { font: 800 28px 'Inter', 'Segoe UI', Ubuntu, sans-serif; fill: #f8fafc; }
+    .streak-num { font: 800 30px 'Inter', 'Segoe UI', Ubuntu, sans-serif; fill: #fb923c; }
+    .stat-label { font: 700 13px 'Inter', 'Segoe UI', Ubuntu, sans-serif; fill: #cbd5e1; }
+    .streak-label { font: 700 13.5px 'Inter', 'Segoe UI', Ubuntu, sans-serif; fill: #fdba74; }
+    .stat-date { font: 500 11.5px 'Inter', 'Segoe UI', Ubuntu, sans-serif; fill: #94a3b8; }
+    @keyframes ringPulse { 0% { stroke-dashoffset: 251; } 100% { stroke-dashoffset: 0; } }
+    .ring-anim { stroke-dasharray: 251; animation: ringPulse 0.9s ease-out forwards; }
+  </style>
+  <rect x="1" y="1" width="493" height="193" rx="12" fill="url(#streakBg)" stroke="#3730a3" stroke-width="1.5"/>
+  <line x1="165" y1="28" x2="165" y2="167" stroke="#334155" stroke-width="1.2"/>
+  <line x1="330" y1="28" x2="330" y2="167" stroke="#334155" stroke-width="1.2"/>
+
+  <!-- Column 1: Total Study Contributions -->
+  <g transform="translate(82.5, 0)">
+    <text x="0" y="76" text-anchor="middle" class="stat-num">${stats.totalContributions}</text>
+    <text x="0" y="114" text-anchor="middle" class="stat-label">Tổng Phiên Học</text>
+    <text x="0" y="144" text-anchor="middle" class="stat-date">${firstRange}</text>
+  </g>
+
+  <!-- Column 2: Current Streak Ring + Flame (DenverCoder1/github-readme-streak-stats style) -->
+  <g transform="translate(247.5, 0)">
+    <circle cx="0" cy="72" r="40" fill="none" stroke="#1e293b" stroke-width="5"/>
+    <circle cx="0" cy="72" r="40" fill="none" stroke="url(#ringGrad)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 0 72)" class="ring-anim"/>
+    <!-- Cutout behind flame -->
+    <circle cx="0" cy="32" r="13" fill="#151934"/>
+    <!-- Flame icon -->
+    <path transform="translate(-10, 18) scale(0.85)" fill="#fb923c" d="M12 1.5C9.5 5 6 8.2 6 13a6 6 0 0 0 12 0c0-2.6-1.2-5-2.6-6.9-.3 1.4-1.3 2.4-2.4 2.4 0-2.6-.3-4.8-1-7Zm0 14.5a3.2 3.2 0 0 1-3.2-3.2c0-1.7 1.1-3.3 2.5-4.7.3 1.2 1.2 2 2.2 2 .3-.6.5-1.3.5-2.1 1 .9 1.6 2.1 1.6 3.5A3.4 3.4 0 0 1 12 16Z"/>
+    <text x="0" y="83" text-anchor="middle" class="streak-num">${stats.currentStreak.length}</text>
+    <text x="0" y="138" text-anchor="middle" class="streak-label">🔥 Chuỗi Ngày Liên Tiếp</text>
+    <text x="0" y="160" text-anchor="middle" class="stat-date">${currentRange}</text>
+  </g>
+
+  <!-- Column 3: Longest Streak -->
+  <g transform="translate(412.5, 0)">
+    <text x="0" y="76" text-anchor="middle" class="stat-num">${stats.longestStreak.length}</text>
+    <text x="0" y="114" text-anchor="middle" class="stat-label">Kỷ Lục Chuỗi Ngày</text>
+    <text x="0" y="144" text-anchor="middle" class="stat-date">${longestRange}</text>
+  </g>
+</svg>`;
+}
+
+app.get('/api/study/streak-stats', (req, res) => {
+  try {
+    return res.json(computeStudyStreakStats(req.query?.dates || ''));
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to compute streak stats.', details: err.message });
+  }
+});
+
+app.get('/api/study/streak-stats.svg', (req, res) => {
+  try {
+    const stats = computeStudyStreakStats(req.query?.dates || '');
+    res.set('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.set('Cache-Control', 'no-store');
+    return res.send(renderStreakStatsSvg(stats));
+  } catch (err) {
+    return res.status(500).send('<svg xmlns="http://www.w3.org/2000/svg"/>');
+  }
+});
+
 // Export the app so tests can mount it in-process
 export default app;
 
