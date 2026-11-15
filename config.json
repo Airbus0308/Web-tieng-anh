@@ -279,7 +279,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Không được nhắc tới là NOT GIVEN. FALSE cần bài nói điều trái ngược."
+                "explanation": "Không được nhắc tới là NOT GIVEN. FALSE cần bài nói điều trái ngược.",
+                "skillTag": "Reading"
               },
               {
                 "type": "tf",
@@ -289,7 +290,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng: mọi đáp án phải dựa trên văn bản."
+                "explanation": "Đúng: mọi đáp án phải dựa trên văn bản.",
+                "skillTag": "Reading"
               },
               {
                 "type": "mcq",
@@ -301,7 +303,8 @@
                   "Cannot be decided"
                 ],
                 "answer": 1,
-                "explanation": "\"Some\" mâu thuẫn với \"All\" nên là FALSE."
+                "explanation": "\"Some\" mâu thuẫn với \"All\" nên là FALSE.",
+                "skillTag": "Reading"
               },
               {
                 "type": "mcq",
@@ -313,44 +316,45 @@
                   "in"
                 ],
                 "answer": 1,
-                "explanation": "\"only\" là quantifier giới hạn nghĩa, dễ biến TRUE thành FALSE."
+                "explanation": "\"only\" là quantifier giới hạn nghĩa, dễ biến TRUE thành FALSE.",
+                "skillTag": "Reading"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Fewer than half of the participants completed the survey.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "Most participants completed the survey.",
+                  "A minority of participants completed the survey.",
+                  "No participants completed the survey."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 1,
+                "explanation": "\"Fewer than half\" = \"a minority\" — kiểu paraphrase định lượng hay gặp ở câu TRUE.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "The study suggest that sleep improves memory.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "The study suggesting that sleep improves memory.",
+                  "The study are suggest that sleep improves memory.",
+                  "The study suggests that sleep improves memory."
                 ],
-                "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "answer": 2,
+                "explanation": "Chủ ngữ số ít \"the study\" → động từ chia \"suggests\".",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "The writer ___ the earlier theory, so the statement is FALSE.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "contradicts",
+                  "makes",
+                  "does"
                 ],
                 "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "explanation": "\"Contradict a theory\" = phủ định trực tiếp — dấu hiệu của đáp án FALSE.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -452,7 +456,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Người nói có thể sửa lại; đáp án cuối mới là key."
+                "explanation": "Người nói có thể sửa lại; đáp án cuối mới là key.",
+                "skillTag": "Listening"
               },
               {
                 "type": "tf",
@@ -462,7 +467,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đây là tín hiệu sửa lời phổ biến."
+                "explanation": "Đây là tín hiệu sửa lời phổ biến.",
+                "skillTag": "Listening"
               },
               {
                 "type": "mcq",
@@ -474,7 +480,8 @@
                   "in addition"
                 ],
                 "answer": 1,
-                "explanation": "\"I mean\" dùng để nói lại chính xác hơn."
+                "explanation": "\"I mean\" dùng để nói lại chính xác hơn.",
+                "skillTag": "Listening"
               },
               {
                 "type": "mcq",
@@ -486,44 +493,45 @@
                   "Skip the questions"
                 ],
                 "answer": 1,
-                "explanation": "Gạch từ khóa giúp bạn định hướng khi nghe."
+                "explanation": "Gạch từ khóa giúp bạn định hướng khi nghe.",
+                "skillTag": "Listening"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "We'd planned to meet on Monday, but actually Wednesday suits everyone better.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "The meeting will stay on Monday.",
+                  "The meeting has been moved to Wednesday.",
+                  "Nobody can attend on Wednesday."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 1,
+                "explanation": "\"Actually\" báo hiệu đáp án được sửa: Monday là distractor, Wednesday là đáp án cuối.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "The tutor have changed the deadline to Friday.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "The tutor has changed the deadline to Friday.",
+                  "The tutor have change the deadline to Friday.",
+                  "The tutor having changed the deadline to Friday."
                 ],
                 "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "explanation": "Chủ ngữ số ít \"the tutor\" → hiện tại hoàn thành \"has changed\".",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "Listen carefully because speakers often ___ their minds in Section 3.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "make",
+                  "turn",
+                  "change"
                 ],
-                "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "answer": 2,
+                "explanation": "\"Change your mind\" = đổi ý — chính là cơ chế tạo distractor trong Section 3.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -642,7 +650,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng: nhất quán quan điểm giúp tăng TR."
+                "explanation": "Đúng: nhất quán quan điểm giúp tăng TR.",
+                "skillTag": "Writing TR"
               },
               {
                 "type": "tf",
@@ -652,7 +661,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "PEEL = Point, Explanation, Example, Link."
+                "explanation": "PEEL = Point, Explanation, Example, Link.",
+                "skillTag": "Writing CC"
               },
               {
                 "type": "mcq",
@@ -664,7 +674,8 @@
                   "This essay will discuss the issue."
                 ],
                 "answer": 2,
-                "explanation": "Chỉ câu C nêu lập trường rõ ràng."
+                "explanation": "Chỉ câu C nêu lập trường rõ ràng.",
+                "skillTag": "Writing TR"
               },
               {
                 "type": "mcq",
@@ -676,44 +687,45 @@
                   "Labels the example"
                 ],
                 "answer": 1,
-                "explanation": "Link nối đoạn về câu hỏi đề bài."
+                "explanation": "Link nối đoạn về câu hỏi đề bài.",
+                "skillTag": "Writing CC"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "I am firmly convinced that university education should be free.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "I have no clear view on free university education.",
+                  "I strongly believe tuition fees should be abolished.",
+                  "University education should be more expensive."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 1,
+                "explanation": "\"Firmly convinced\" = \"strongly believe\"; \"should be free\" = \"fees should be abolished\" — quan điểm rõ ràng.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "Although free tuition is costly, but it benefits society.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "Although free tuition is costly, it benefits society.",
+                  "Although free tuition is costly, but benefits society.",
+                  "Free tuition although is costly, it benefits society."
                 ],
                 "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "explanation": "Không dùng \"although\" và \"but\" trong cùng một câu.",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "This example ___ the claim that free education increases social mobility.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "does",
+                  "substantiates",
+                  "makes"
                 ],
-                "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "answer": 1,
+                "explanation": "\"Substantiate a claim\" = chứng minh luận điểm — đúng vai trò Evidence trong PEEL.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -817,7 +829,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Lạm dụng làm bài máy móc và giảm điểm CC."
+                "explanation": "Lạm dụng làm bài máy móc và giảm điểm CC.",
+                "skillTag": "Writing CC"
               },
               {
                 "type": "tf",
@@ -827,7 +840,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng."
+                "explanation": "Đúng.",
+                "skillTag": "Writing CC"
               },
               {
                 "type": "mcq",
@@ -839,7 +853,8 @@
                   "Meanwhile"
                 ],
                 "answer": 1,
-                "explanation": "Quan hệ nguyên nhân - kết quả."
+                "explanation": "Quan hệ nguyên nhân - kết quả.",
+                "skillTag": "Writing CC"
               },
               {
                 "type": "mcq",
@@ -851,44 +866,45 @@
                   "to conclude"
                 ],
                 "answer": 0,
-                "explanation": "\"such measures\" quy chiếu về ý đã nêu."
+                "explanation": "\"such measures\" quy chiếu về ý đã nêu.",
+                "skillTag": "Writing CC"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Public transport is cheap, whereas private cars are expensive to run.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "Unlike private cars, public transport is inexpensive.",
+                  "Public transport and private cars cost the same.",
+                  "Private cars are cheaper than buses."
                 ],
                 "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "explanation": "\"Whereas\" thể hiện tương phản; \"unlike\" diễn đạt lại cùng quan hệ đó.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "Many cities banned cars from their centres; consequently, air quality improve.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "Many cities banned cars from their centres; consequently, air quality improving.",
+                  "Many cities banned cars from their centres; consequently, air quality have improved.",
+                  "Many cities banned cars from their centres; consequently, air quality improved."
                 ],
-                "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "answer": 2,
+                "explanation": "Mệnh đề kết quả cần động từ chia thì quá khứ, chủ ngữ số ít: \"air quality improved\".",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "Several governments introduced congestion charges. ___ measures have reduced traffic.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "Such",
+                  "So",
+                  "These kind of"
                 ],
                 "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "explanation": "\"Such measures\" là phép quy chiếu (referencing) tự nhiên; \"these kind of\" sai ngữ pháp.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -1009,7 +1025,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Mệnh đề if dùng hiện tại đơn, không dùng will."
+                "explanation": "Mệnh đề if dùng hiện tại đơn, không dùng will.",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "tf",
@@ -1019,11 +1036,12 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng."
+                "explanation": "Đúng.",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "mcq",
-                "question": "Choose the correct sentence.",
+                "question": "Choose the correct second conditional sentence.",
                 "options": [
                   "If I had more time, I will study abroad.",
                   "If I had more time, I would study abroad.",
@@ -1031,7 +1049,8 @@
                   "If I have had more time, I would study abroad."
                 ],
                 "answer": 1,
-                "explanation": "Loại 2: If + V2, would + V."
+                "explanation": "Loại 2: If + V2, would + V.",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "mcq",
@@ -1043,44 +1062,45 @@
                   "when it rained"
                 ],
                 "answer": 1,
-                "explanation": "Unless = if not."
+                "explanation": "Unless = if not.",
+                "skillTag": "Grammar (GRA)"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Had I known about the scholarship, I would have applied.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "I applied because I knew about the scholarship.",
+                  "I didn't know about the scholarship, so I didn't apply.",
+                  "I will apply for the scholarship next year."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 1,
+                "explanation": "Đảo ngữ \"Had I known\" = câu điều kiện loại 3 → điều trái với quá khứ: tôi đã không biết nên không nộp.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "If I would have studied harder, I would have passed the exam.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "If I studied harder, I would have passed the exam.",
+                  "If I have studied harder, I would pass the exam.",
+                  "If I had studied harder, I would have passed the exam."
                 ],
-                "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "answer": 2,
+                "explanation": "Điều kiện loại 3: If + had + V3, would have + V3. Không dùng \"would\" trong mệnh đề if.",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "You can join the advanced course ___ that you pass the entrance test.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "provided",
+                  "unless",
+                  "despite"
                 ],
                 "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "explanation": "\"Provided that\" = với điều kiện là — cụm nối điều kiện trang trọng, ăn điểm GRA/LR.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -1183,7 +1203,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Mệnh đề không xác định không dùng \"that\"."
+                "explanation": "Mệnh đề không xác định không dùng \"that\".",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "tf",
@@ -1193,11 +1214,12 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Rút gọn bằng V-ing cho nghĩa chủ động."
+                "explanation": "Rút gọn bằng V-ing cho nghĩa chủ động.",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "mcq",
-                "question": "Choose the correct sentence.",
+                "question": "Choose the correct relative pronoun.",
                 "options": [
                   "The man who he called is my uncle.",
                   "The man whom he called is my uncle.",
@@ -1205,7 +1227,8 @@
                   "The man whose he called is my uncle."
                 ],
                 "answer": 1,
-                "explanation": "Whom làm tân ngữ chỉ người."
+                "explanation": "Whom làm tân ngữ chỉ người.",
+                "skillTag": "Grammar (GRA)"
               },
               {
                 "type": "mcq",
@@ -1217,44 +1240,45 @@
                   "Anyone who tries can improve."
                 ],
                 "answer": 1,
-                "explanation": "Nếu chỉ có một người chị, thông tin thêm cần dấu phẩy."
+                "explanation": "Nếu chỉ có một người chị, thông tin thêm cần dấu phẩy.",
+                "skillTag": "Grammar (GRA)"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Students living in dormitories tend to save money.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "Students live in dormitories and spend more.",
+                  "Students who live in dormitories tend to save money.",
+                  "Dormitories are where students lose money."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 1,
+                "explanation": "\"Living in dormitories\" là mệnh đề quan hệ rút gọn của \"who live in dormitories\".",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "Hanoi, that is the capital of Vietnam, has many lakes.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "Hanoi, which is the capital of Vietnam, has many lakes.",
+                  "Hanoi which is the capital of Vietnam has many lakes.",
+                  "Hanoi, what is the capital of Vietnam, has many lakes."
                 ],
                 "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "explanation": "Mệnh đề không xác định dùng \"which\" và có dấu phẩy; không dùng \"that\".",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "Cities that offer a high ___ of living attract skilled workers.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "level",
+                  "degree",
+                  "standard"
                 ],
-                "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "answer": 2,
+                "explanation": "\"Standard of living\" là collocation cố định = mức sống.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -1380,7 +1404,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Mitigate = giảm nhẹ."
+                "explanation": "Mitigate = giảm nhẹ.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "tf",
@@ -1390,7 +1415,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng."
+                "explanation": "Đúng.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "mcq",
@@ -1402,7 +1428,8 @@
                   "play"
                 ],
                 "answer": 1,
-                "explanation": "reduce carbon emissions là collocation chuẩn."
+                "explanation": "reduce carbon emissions là collocation chuẩn.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "mcq",
@@ -1414,44 +1441,45 @@
                   "natural gas"
                 ],
                 "answer": 1,
-                "explanation": "Solar power là năng lượng tái tạo."
+                "explanation": "Solar power là năng lượng tái tạo.",
+                "skillTag": "Lexical (LR)"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Burning fossil fuels depletes natural resources.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "Fossil fuels create new natural resources.",
+                  "Natural resources are unaffected by fossil fuels.",
+                  "Burning fossil fuels uses up natural resources."
                 ],
-                "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "answer": 2,
+                "explanation": "\"Deplete\" = \"use up\" — làm cạn kiệt.",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "Carbon emissions has risen sharply since 1990.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "Carbon emissions have risen sharply since 1990.",
+                  "Carbon emissions has rose sharply since 1990.",
+                  "Carbon emissions rising sharply since 1990."
                 ],
                 "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "explanation": "\"Emissions\" số nhiều → \"have risen\" (hiện tại hoàn thành với \"since\").",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "Developing countries must balance economic growth with ___ development.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "maintainable",
+                  "sustainable",
+                  "durable"
                 ],
-                "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "answer": 1,
+                "explanation": "\"Sustainable development\" = phát triển bền vững — collocation chuẩn chủ đề môi trường.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -1562,7 +1590,8 @@
                   "False"
                 ],
                 "answer": 0,
-                "explanation": "Đúng."
+                "explanation": "Đúng.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "tf",
@@ -1572,7 +1601,8 @@
                   "False"
                 ],
                 "answer": 1,
-                "explanation": "Đó là khoảng cách giữa người có và không có tiếp cận công nghệ."
+                "explanation": "Đó là khoảng cách giữa người có và không có tiếp cận công nghệ.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "mcq",
@@ -1584,7 +1614,8 @@
                   "hold"
                 ],
                 "answer": 0,
-                "explanation": "foster critical thinking là collocation chuẩn."
+                "explanation": "foster critical thinking là collocation chuẩn.",
+                "skillTag": "Lexical (LR)"
               },
               {
                 "type": "mcq",
@@ -1596,44 +1627,45 @@
                   "rainfall"
                 ],
                 "answer": 0,
-                "explanation": "Data privacy thuộc chủ đề công nghệ."
+                "explanation": "Data privacy thuộc chủ đề công nghệ.",
+                "skillTag": "Lexical (LR)"
               }
             ],
             "drill": [
               {
                 "instruction": "Chọn câu diễn đạt lại cùng ý.",
-                "sentence": "The policy reduced pollution significantly.",
+                "sentence": "Automation may render many low-skilled jobs obsolete.",
                 "options": [
-                  "The policy substantially lowered pollution.",
-                  "The policy caused more pollution.",
-                  "The policy had no effect."
+                  "Machines could make many low-skilled jobs unnecessary.",
+                  "Automation will create more low-skilled jobs.",
+                  "Low-skilled jobs will become better paid."
                 ],
                 "answer": 0,
-                "explanation": "Substantially lowered diễn đạt lại reduced significantly.",
+                "explanation": "\"Render ... obsolete\" = \"make ... unnecessary/out of date\".",
                 "skillTag": "Reading Paraphrase"
               },
               {
-                "instruction": "Sửa lỗi ngữ pháp.",
-                "sentence": "If people will recycle, waste will decrease.",
+                "instruction": "Chọn câu đã sửa đúng ngữ pháp.",
+                "sentence": "Digital literacy are essential for today's students.",
                 "options": [
-                  "If people recycle, waste will decrease.",
-                  "If people recycled, waste decrease.",
-                  "If people will recycle, waste decreases."
+                  "Digital literacy being essential for today's students.",
+                  "Digital literacy is essential for today's students.",
+                  "Digital literacies is essential for today's students."
                 ],
-                "answer": 0,
-                "explanation": "Điều kiện loại một dùng hiện tại đơn sau if.",
+                "answer": 1,
+                "explanation": "\"Digital literacy\" là danh từ không đếm được → \"is\".",
                 "skillTag": "Grammar Error Fix (GRA)"
               },
               {
-                "instruction": "Chọn kết hợp từ tự nhiên.",
-                "sentence": "The government should ___ climate change.",
+                "instruction": "Chọn từ tạo kết hợp tự nhiên nhất.",
+                "sentence": "Governments must invest in rural broadband to bridge the digital ___.",
                 "options": [
-                  "mitigate",
-                  "do",
-                  "make"
+                  "division",
+                  "separation",
+                  "divide"
                 ],
-                "answer": 0,
-                "explanation": "Mitigate climate change là kết hợp từ phù hợp.",
+                "answer": 2,
+                "explanation": "\"Bridge the digital divide\" = thu hẹp khoảng cách số — collocation chuẩn chủ đề công nghệ.",
                 "skillTag": "Lexical Collocation (LR)"
               }
             ],
@@ -1695,7 +1727,7 @@
       "mastery": 100
     }
   ],
-  "studyUnitPrompt": "You are an expert IELTS tutor in the style of Astra AI. Design ONE interactive 5-step study unit from the SOURCE MATERIAL, targeting the learner's weak areas and target band. Write explanations in bilingual English and Vietnamese (Vietnamese with full diacritics). Respond ONLY with a raw JSON object, with this exact schema:\n{\n  \"title\": \"string\",\n  \"lesson\": { \"titleEn\": \"string\", \"titleVi\": \"string\", \"explanationEn\": \"string\", \"explanationVi\": \"string\", \"formulas\": [\"string\"], \"commonMistakes\": [{ \"wrong\": \"string\", \"right\": \"string\", \"noteVi\": \"string\" }] },\n  \"flashcards\": [ { \"front\": \"string\", \"back\": \"Vietnamese meaning\", \"example\": \"Band 7.5+ example sentence\" } ],\n  \"quiz\": [ { \"type\": \"tf or mcq\", \"question\": \"string\", \"options\": [\"True\",\"False\"] or 4 options, \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"drill\": [ { \"instruction\": \"string\", \"sentence\": \"string\", \"options\": [\"3 options\"], \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"challenge\": { \"prompt\": \"string\", \"minWords\": 50, \"maxWords\": 80, \"targetWords\": [\"3-4 words from the flashcards\"] }\n}\nRequirements: exactly 4 to 6 flashcards; exactly 4 quiz questions (2 with type \"tf\" and options [\"True\",\"False\"], 2 with type \"mcq\" and 4 options); exactly 3 drill items that target the learner's weak areas; one challenge that requires using the flashcard vocabulary.\nAlso include levelTag (Foundation, Intermediate or Advanced), targetWeakness (array of Reading, Listening, TR, CC, LR, GRA, FC, PR), lesson.bandUpgradeExamples (at least two objects with bandLow, bandHigh, analysisVi), lesson.feynmanPromptVi, ipa and clozeSentence containing ___ on every flashcard, and skillTag on each drill. Mix three meaningful drill tasks: Reading Paraphrase, Grammar Error Fix (GRA), Lexical Collocation (LR).",
+  "studyUnitPrompt": "You are an expert IELTS tutor in the style of Astra AI. Design ONE interactive 5-step study unit from the SOURCE MATERIAL, targeting the learner's weak areas and target band. Write explanations in bilingual English and Vietnamese (Vietnamese with full diacritics). Respond ONLY with a raw JSON object, with this exact schema:\n{\n  \"title\": \"string\",\n  \"lesson\": { \"titleEn\": \"string\", \"titleVi\": \"string\", \"explanationEn\": \"string\", \"explanationVi\": \"string\", \"formulas\": [\"string\"], \"commonMistakes\": [{ \"wrong\": \"string\", \"right\": \"string\", \"noteVi\": \"string\" }] },\n  \"flashcards\": [ { \"front\": \"string\", \"back\": \"Vietnamese meaning\", \"example\": \"Band 7.5+ example sentence\" } ],\n  \"quiz\": [ { \"type\": \"tf or mcq\", \"question\": \"string\", \"options\": [\"True\",\"False\"] or 4 options, \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\", \"skillTag\": \"one of Reading, Listening, Writing TR, Writing CC, Grammar (GRA), Lexical (LR)\" } ],\n  \"drill\": [ { \"instruction\": \"string\", \"sentence\": \"string\", \"options\": [\"3 options\"], \"answer\": 0-based index, \"explanation\": \"Vietnamese explanation\" } ],\n  \"challenge\": { \"prompt\": \"string\", \"minWords\": 50, \"maxWords\": 80, \"targetWords\": [\"3-4 words from the flashcards\"] }\n}\nRequirements: exactly 4 to 6 flashcards; exactly 4 quiz questions (2 with type \"tf\" and options [\"True\",\"False\"], 2 with type \"mcq\" and 4 options); exactly 3 drill items that target the learner's weak areas; one challenge that requires using the flashcard vocabulary.\nAlso include levelTag (Foundation, Intermediate or Advanced), targetWeakness (array of Reading, Listening, TR, CC, LR, GRA, FC, PR), lesson.bandUpgradeExamples (at least two objects with bandLow, bandHigh, analysisVi), lesson.feynmanPromptVi, ipa and clozeSentence containing ___ on every flashcard, and skillTag on each drill. Mix three meaningful drill tasks: Reading Paraphrase, Grammar Error Fix (GRA), Lexical Collocation (LR).",
   "studyEvaluatePrompt": "You are a strict but encouraging IELTS examiner. Score the learner's short output (50–80 words) on a 0.0–9.0 band scale in 0.5 steps, and check whether the target vocabulary was used correctly. Respond ONLY with a raw JSON object: { \"band\": number, \"score\": integer 0-100, \"usedWords\": [\"string\"], \"missingWords\": [\"string\"], \"feedbackEn\": \"string\", \"feedbackVi\": \"Vietnamese feedback with full diacritics\", \"improved\": \"a corrected or improved version of the learner's text\" }",
   "tutorFeedbackPrompt": "You are a Socratic IELTS tutor. Use graduated hints and Feynman self-explanation, ask one question to reveal understanding, never write the learner’s full answer for them. Return JSON with replyVi, replyEn, correction (short targeted correction or empty), explanationVi, socraticHintVi, followUpQuestion, understood (boolean). Vietnamese must use diacritics.",
   "checkpointEvaluationPrompt": "Evaluate the learner output against its prompt and target vocabulary. Return JSON with score (0-100), outputBand (0-9 in half bands), criteriaBreakdown {taskAchievement, lexicalResource, grammarAccuracy} (0-100), inlineCorrections [{original, correction, explanationVi}] grounded in the output, feedbackVi, feedbackEn, nextActionVi. Give formative feedback; do not fabricate mistakes."

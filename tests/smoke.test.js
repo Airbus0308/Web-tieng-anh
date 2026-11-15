@@ -633,3 +633,68 @@ test('GET /api/study/streak-stats and /api/study/streak-stats.svg render DenverC
   const svg = await svgRes.text();
   assert.ok(svg.includes('<svg') && svg.includes('Chuỗi Ngày Liên Tiếp') && svg.includes('Kỷ Lục Chuỗi Ngày'));
 });
+
+/* ── Phase 9A: Progressive Disclosure Study Cockpit + Focus Classroom ── */
+
+test('Phase 9A study.html splits into Study Cockpit hub and Focus Classroom views', async () => {
+  const html = await (await fetch(`${BASE}/study.html`)).text();
+  for (const id of ['hub-view', 'classroom-view', 'btn-back-to-hub', 'hub-tabs', 'tab-courses', 'tab-create', 'panel-courses', 'panel-create',
+    'profile-card', 'btn-continue-unit', 'btn-open-suggested', 'countdown-label', 'band-input', 'band-target', 'step-outline', 'classroom-breadcrumb']) {
+    assert.ok(html.includes(`id="${id}"`), `study.html should include #${id}`);
+  }
+  assert.ok(!html.includes('id="study-banner"'), '#study-banner should be merged into the cockpit');
+  assert.ok(html.includes('class="cockpit"'), 'cockpit grid wrapper');
+  assert.ok(html.includes('role="tablist"') && html.includes('role="tabpanel"'), 'hub tabs use ARIA tab roles');
+  // The countdown, gap list and suggested-unit button now live inside the cockpit, before the tabs.
+  const cockpitEnd = html.indexOf('id="hub-tabs"');
+  for (const id of ['countdown-number', 'countdown-label', 'gap-list', 'btn-open-suggested', 'exam-date', 'target-band', 'streak-bar', 'srs-due-list']) {
+    const at = html.indexOf(`id="${id}"`);
+    assert.ok(at > html.indexOf('id="forethought-panel"') && at < cockpitEnd, `#${id} should be inside the cockpit`);
+  }
+  // The 5-step player and the Socratic tutor live only in the classroom view.
+  const classroomStart = html.indexOf('id="classroom-view"');
+  for (const id of ['lesson-section', 'mastery-fill', 'step-body', 'tutor-feedback-panel']) {
+    assert.ok(html.indexOf(`id="${id}"`) > classroomStart, `#${id} should be inside #classroom-view`);
+  }
+});
+
+test('Phase 9A css/study.css and js/study.js implement the cockpit, course cards and view switching', async () => {
+  const css = await (await fetch(`${BASE}/css/study.css`)).text();
+  for (const selector of ['.cockpit', '.course-card', '.course-grid', '.hub-tab', '.classroom-view', '.classroom-layout', '.step-outline']) {
+    assert.ok(css.includes(selector), `study.css should style ${selector}`);
+  }
+  const src = await (await fetch(`${BASE}/js/study.js`)).text();
+  for (const token of ['setView', 'ielts_study_last_unit', 'pushState', 'popstate', '#unit=', 'course-card', 'btn-back-to-hub', 'switchHubTab']) {
+    assert.ok(src.includes(token), `study.js should include ${token}`);
+  }
+});
+
+test('Phase 9A config.json gives every unit its own skill-tagged quiz and interleaved drill', async () => {
+  const cfg = await (await fetch(`${BASE}/api/study/config`)).json();
+  const QUIZ_TAGS = ['Reading', 'Listening', 'Writing TR', 'Writing CC', 'Grammar (GRA)', 'Lexical (LR)'];
+  const DRILL_TAGS = ['Reading Paraphrase', 'Grammar Error Fix (GRA)', 'Lexical Collocation (LR)'];
+  const owners = new Map();
+  let units = 0;
+  for (const book of cfg.sampleTextbooks) {
+    for (const unit of book.units) {
+      units += 1;
+      const { quiz, drill } = unit.sample;
+      assert.ok(quiz.every(q => QUIZ_TAGS.includes(q.skillTag)), `${unit.id} quiz needs a valid skillTag`);
+      assert.deepEqual([...drill.map(d => d.skillTag)].sort(), [...DRILL_TAGS].sort(), `${unit.id} drill must interleave the 3 skills`);
+      for (const item of [...quiz.map(q => q.question), ...drill.map(d => d.sentence)]) {
+        const key = item.trim().toLowerCase();
+        assert.ok(!owners.has(key) || owners.get(key) === unit.id, `"${item}" is shared by ${owners.get(key)} and ${unit.id}`);
+        owners.set(key, unit.id);
+      }
+    }
+  }
+  assert.ok(units >= 8, 'all 8 standard units checked');
+});
+
+test('Phase 9A generate-unit keeps quiz skillTag through normalizeStudyUnit', async () => {
+  await withoutAiProviders(async () => {
+    const data = await (await post('/api/study/generate-unit', { textbookId: 'grammar-complex-sentences', unitId: 'gram-u1' })).json();
+    assert.ok(data.unit.quiz.every(q => q.skillTag === 'Grammar (GRA)'));
+    assert.ok(data.unit.drill.some(d => d.skillTag === 'Lexical Collocation (LR)'));
+  });
+});

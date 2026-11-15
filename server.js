@@ -1043,7 +1043,7 @@ function normalizeStudyUnit(raw, fallbackTitle) {
     .slice(0, 6)
     .map(q => ({
       type: q.type === 'tf' ? 'tf' : 'mcq', question: str(q.question),
-      options: q.options.map(o => String(o)), answer: q.answer, explanation: str(q.explanation)
+      options: q.options.map(o => String(o)), answer: q.answer, explanation: str(q.explanation), skillTag: str(q.skillTag)
     }));
   const drill = (Array.isArray(raw.drill) ? raw.drill : [])
     .filter(d => d && str(d.sentence || d.instruction) && Array.isArray(d.options) && d.options.length >= 2 &&

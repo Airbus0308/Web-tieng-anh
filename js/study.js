@@ -2,6 +2,8 @@
  * Study Hub (Phase 7 + 8B) — Astra-style personalized mastery with an SRL-SLA 3-stage closed loop:
  * Forethought (diagnostic gate, KBCP, SRS) → Performance (5-step unit, Feynman, Active Recall, Interleaving, Socratic tutor)
  * → Self-Reflection (output checkpoint with COPES metacognitive calibration).
+ * Phase 9A — Progressive Disclosure: a Study Cockpit dashboard (#hub-view) and a LearnHouse-style
+ * Focus Classroom (#classroom-view); setView() is the single source of truth for which one is shown.
  */
 const StudyApp = (() => {
   const GOAL_KEY = 'ielts_study_goal';
@@ -10,6 +12,9 @@ const StudyApp = (() => {
   const SYNCED_KEY = 'ielts_study_synced_placement';
   const COMMIT_KEY = 'ielts_study_commitment';
   const STREAK_KEY = 'ielts_study_streak';
+  const LAST_UNIT_KEY = 'ielts_study_last_unit';
+  const HUB_TAB_KEY = 'ielts_study_hub_tab';
+  const SRS_PREVIEW = 3;
   const STEP_META = [
     { step: 1, key: 'lesson', label: 'Deep Lesson & Feynman', icon: '📖', mastery: 20 },
     { step: 2, key: 'flashcards', label: 'Active Recall & SRS', icon: '🗂️', mastery: 40 },
@@ -24,7 +29,8 @@ const StudyApp = (() => {
     progress: [],          // merged server + local records
     weak: [],              // [{ key, label, detail }]
     suggested: null,       // { textbookId, unitId }
-    unit: null, unitId: null, unitTitle: '', unitSource: 'textbook', provider: '',
+    unit: null, unitId: null, unitTitle: '', unitSource: 'textbook', provider: '', textbookId: null,
+    view: 'hub', hubTab: 'courses', srsExpanded: false,
     step: 1,
     session: null,         // per-unit UI state
     sourceTab: 'paste',
@@ -71,6 +77,7 @@ const StudyApp = (() => {
     const number = $('countdown-number');
     const label = $('countdown-label');
     number.classList.remove('urgent');
+    $('band-target').textContent = $('target-band').value;
     if (days == null) { number.textContent = '—'; label.textContent = 'Chưa đặt ngày thi'; return; }
     if (days < 0) { number.textContent = '0'; label.textContent = 'Ngày thi đã qua — hãy đặt ngày mới'; return; }
     number.textContent = String(days);
@@ -184,29 +191,64 @@ const StudyApp = (() => {
     return book && unit ? { book, unit } : null;
   }
 
+  const SKILL_ICON = [[/listen|read/i, '🎧', 'reading'], [/writ/i, '✍️', 'writing'], [/gram/i, '🧩', 'grammar'], [/vocab|lexi/i, '📚', 'vocab']];
+
+  function skillLook(skill) {
+    const hit = SKILL_ICON.find(([re]) => re.test(String(skill || '')));
+    return hit ? { icon: hit[1], cls: hit[2] } : { icon: '📖', cls: 'default' };
+  }
+
+  function unitStatus(mastery) {
+    if (mastery >= 100) return { icon: '✓', label: 'PASSED ✓', cls: 'passed' };
+    if (mastery > 0) return { icon: '◐', label: `${mastery}%`, cls: 'progress' };
+    return { icon: '○', label: 'Chưa học', cls: 'new' };
+  }
+
+  /** Frappe LMS-style course cards: cover, band chip, aggregate progress, primary CTA and a collapsible unit list. */
   function renderLibrary() {
     const host = $('textbook-list');
     const books = state.config?.sampleTextbooks || [];
     if (!books.length) { host.textContent = 'Không tải được kho giáo trình.'; return; }
-    host.innerHTML = books.map(book => `
-      <div class="textbook">
-        <div class="textbook-head">
-          <span class="textbook-title">${esc(book.title)}</span>
-          <span class="band-chip">Band ${esc(book.bandRange)} · ${esc(book.skill)}</span>
+    host.innerHTML = books.map(book => {
+      const masteries = book.units.map(u => savedMastery(u.id));
+      const percent = Math.round(masteries.reduce((a, b) => a + b, 0) / (masteries.length || 1));
+      const next = book.units.find(u => savedMastery(u.id) < 100) || book.units[0];
+      const cta = percent >= 100 ? 'Ôn lại' : masteries.some(Boolean) ? 'Tiếp tục' : 'Bắt đầu';
+      const isSuggested = state.suggested?.textbookId === book.id;
+      const look = skillLook(book.skill);
+      return `<article class="course-card ${isSuggested ? 'is-suggested' : ''}">
+        <div class="course-cover skill-${look.cls}">
+          <span class="course-icon" aria-hidden="true">${look.icon}</span>
+          ${isSuggested ? '<span class="course-flag">⭐ Gợi ý cho bạn</span>' : ''}
         </div>
-        ${book.units.map(unit => {
-          const mastery = savedMastery(unit.id);
-          const suggested = state.suggested?.unitId === unit.id;
-          return `<div class="unit-row ${suggested ? 'suggested' : ''}">
-            <span class="unit-title">${suggested ? '⭐ ' : ''}${esc(unit.title)} <span class="muted">(Band ${esc(unit.bandRange)})</span>${unit.levelTag ? ` <span class="level-chip">${esc(unit.levelTag)}</span>` : ''}</span>
-            ${mastery ? `<span class="unit-badge">${mastery}% Mastery</span>` : ''}
-            <span class="unit-actions">
-              <button type="button" class="btn-small" data-action="open-sample" data-book="${esc(book.id)}" data-unit="${esc(unit.id)}">Học ngay</button>
-              <button type="button" class="btn-small" data-action="generate" data-book="${esc(book.id)}" data-unit="${esc(unit.id)}">Tạo mới bằng AI</button>
-            </span>
-          </div>`;
-        }).join('')}
-      </div>`).join('');
+        <div class="course-body">
+          <h3 class="course-title">${esc(book.title)}</h3>
+          <div class="course-meta"><span class="band-chip">Band ${esc(book.bandRange)} · ${esc(book.skill)}</span></div>
+          <div class="course-progress">
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-label="Tiến độ bộ sách"><div style="width:${percent}%"></div></div>
+            <span class="muted">${book.units.length} Unit · ${percent}% hoàn thành</span>
+          </div>
+          <button type="button" class="btn-primary course-cta" data-action="open-sample" data-book="${esc(book.id)}" data-unit="${esc(next.id)}">${cta}: ${esc(next.title.split('—')[0].trim())}</button>
+          <details class="course-units" ${isSuggested ? 'open' : ''}>
+            <summary>Danh sách Unit (${book.units.length})</summary>
+            ${book.units.map(unit => {
+              const mastery = savedMastery(unit.id);
+              const st = unitStatus(mastery);
+              const suggested = state.suggested?.unitId === unit.id;
+              return `<div class="unit-row ${suggested ? 'suggested' : ''}">
+                <span class="unit-status ${st.cls}" title="${esc(st.label)}" aria-hidden="true">${st.icon}</span>
+                <span class="unit-title">${suggested ? '⭐ ' : ''}${esc(unit.title)} <span class="muted">(Band ${esc(unit.bandRange)})</span>${unit.levelTag ? ` <span class="level-chip">${esc(unit.levelTag)}</span>` : ''}</span>
+                <span class="unit-badge ${st.cls}">${esc(st.label)}</span>
+                <span class="unit-actions">
+                  <button type="button" class="btn-small" data-action="open-sample" data-book="${esc(book.id)}" data-unit="${esc(unit.id)}">Học ngay</button>
+                  <button type="button" class="btn-small" data-action="generate" data-book="${esc(book.id)}" data-unit="${esc(unit.id)}">Tạo mới bằng AI</button>
+                </span>
+              </div>`;
+            }).join('')}
+          </details>
+        </div>
+      </article>`;
+    }).join('');
   }
 
   /* ── Progress ───────────────────────────────────────────── */
@@ -221,17 +263,14 @@ const StudyApp = (() => {
     state.progress = [...map.values()];
   }
 
-  function renderProgress() {
-    const list = $('progress-list');
-    $('progress-count').textContent = String(state.progress.length);
-    if (!state.progress.length) { list.innerHTML = '<p class="muted">Chưa có Unit nào.</p>'; return; }
-    list.innerHTML = state.progress
-      .slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 12)
-      .map(p => `<div class="progress-item">
-        <div class="p-title">${esc(p.title || p.unitId)}</div>
-        <div class="progress-bar"><div style="width:${Number(p.mastery) || 0}%"></div></div>
-        <div class="p-meta">${Number(p.mastery) || 0}% Mastery${p.miniScore != null ? ` · Mini ${esc(p.miniScore)}/100` : ''}</div>
-      </div>`).join('');
+  /** Canvas-style To-Do: resume the unit in progress (saved in ielts_study_last_unit). */
+  function renderTodo() {
+    const button = $('btn-continue-unit');
+    const last = readStorage(LAST_UNIT_KEY, null);
+    const mastery = last?.unitId ? savedMastery(last.unitId) : 0;
+    const show = !!last?.unit && mastery < 100 && !state.locked;
+    button.hidden = !show;
+    if (show) button.textContent = `▶ Tiếp tục: ${String(last.title || 'Unit').slice(0, 42)} (${mastery}%)`;
   }
 
   async function persistProgress(mastery) {
@@ -247,7 +286,7 @@ const StudyApp = (() => {
     writeStorage(PROGRESS_KEY, local);
     try { await postJson('/api/study/progress', record); } catch { /* offline: localStorage already has it */ }
     mergeProgress(await getJson('/api/study/progress', []));
-    renderProgress();
+    renderTodo();
     renderLibrary();
   }
 
@@ -261,25 +300,120 @@ const StudyApp = (() => {
     };
   }
 
-  function openUnit({ unit, unitId, title, source, provider }) {
-    if (state.locked) return;
+  function openUnit({ unit, unitId, title, source, provider, textbookId = null }, { push = true } = {}) {
+    if (state.locked && source !== 'mistakes') return;
     stopRecording();
     state.unit = unit;
     state.unitId = unitId;
     state.unitTitle = title || unit.title;
     state.unitSource = source;
     state.provider = provider || '';
+    state.textbookId = textbookId;
     state.session = newSession();
-    state.step = 1;
     const saved = savedMastery(unitId);
     STEP_META.filter(s => s.mastery <= saved).forEach(s => state.session.done.add(s.step));
-    $('lesson-section').hidden = false;
-    $('tutor-feedback-panel').hidden = false;
+    state.step = Math.min(5, state.session.done.size + 1);
+    writeStorage(LAST_UNIT_KEY, { unit, unitId, title: state.unitTitle, source, provider: state.provider, textbookId, savedAt: new Date().toISOString() });
     $('tutor-reply').innerHTML = '';
     $('lesson-title').textContent = state.unitTitle;
     $('lesson-provider').textContent = provider ? `Nguồn AI: ${provider}` : '';
+    renderBreadcrumb();
+    setView('classroom', { push });
     renderPlayer();
-    $('lesson-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('lesson-title').focus({ preventScroll: true });
+  }
+
+  /* ── Views: Study Cockpit (hub) ↔ Focus Classroom ───────── */
+
+  const unitHash = id => `#unit=${encodeURIComponent(id)}`;
+
+  function setView(view, { push = false } = {}) {
+    state.view = view === 'classroom' && state.unit ? 'classroom' : 'hub';
+    const inClassroom = state.view === 'classroom';
+    $('classroom-view').hidden = !inClassroom || (state.locked && state.unitSource !== 'mistakes');
+    $('hub-view').hidden = inClassroom || state.locked || !state.ready;
+    if (inClassroom && push && location.hash !== unitHash(state.unitId)) {
+      history.pushState({ view: 'classroom', unitId: state.unitId }, '', unitHash(state.unitId));
+    }
+    if (!inClassroom) stopRecording();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    renderStageBar();
+  }
+
+  function renderBreadcrumb() {
+    const book = state.textbookId && (state.config?.sampleTextbooks || []).find(b => b.id === state.textbookId);
+    const middle = book ? book.title.split('—')[0].trim() : (state.unitSource === 'mistakes' ? 'Học từ lỗi sai' : 'Tài liệu cá nhân');
+    $('classroom-breadcrumb').innerHTML = `<span>Kho khóa học</span><span aria-hidden="true">›</span><span>${esc(middle)}</span><span aria-hidden="true">›</span><strong>${esc(state.unitTitle)}</strong>`;
+  }
+
+  function backToHub() {
+    const id = state.unitId;
+    if (history.state?.view === 'classroom') history.back();
+    else {
+      history.replaceState(null, '', location.pathname + location.search);
+      showHub(id);
+    }
+  }
+
+  function showHub(focusUnitId) {
+    setView('hub');
+    renderTodo();
+    const target = focusUnitId && document.querySelector(`#hub-view [data-action="open-sample"][data-unit="${CSS.escape(focusUnitId)}"]`);
+    (target || $('tab-courses')).focus({ preventScroll: true });
+  }
+
+  function onPopState() {
+    const match = /^#unit=(.+)$/.exec(location.hash);
+    if (match && state.unit && decodeURIComponent(match[1]) === state.unitId) setView('classroom');
+    else if (!match && state.view === 'classroom') showHub(state.unitId);
+    else if (match) restoreFromHash();
+  }
+
+  /** Reopen the unit named in the URL hash from ielts_study_last_unit (works for AI-generated units too). */
+  function restoreFromHash() {
+    const match = /^#unit=(.+)$/.exec(location.hash);
+    if (!match) return false;
+    const id = decodeURIComponent(match[1]);
+    const last = readStorage(LAST_UNIT_KEY, null);
+    if (last?.unitId === id && last.unit) { openUnit(last, { push: false }); return true; }
+    const book = (state.config?.sampleTextbooks || []).find(b => b.units.some(u => u.id === id));
+    if (book) { openSample(book.id, id, { push: false }); return state.view === 'classroom'; }
+    history.replaceState(null, '', location.pathname + location.search);
+    return false;
+  }
+
+  function continueLastUnit() {
+    const last = readStorage(LAST_UNIT_KEY, null);
+    if (last?.unit) openUnit(last);
+  }
+
+  function switchHubTab(tab, { focus = false } = {}) {
+    state.hubTab = tab === 'create' ? 'create' : 'courses';
+    writeStorage(HUB_TAB_KEY, state.hubTab);
+    document.querySelectorAll('.hub-tab').forEach(b => {
+      const active = b.dataset.hubTab === state.hubTab;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', String(active));
+      b.tabIndex = active ? 0 : -1;
+      if (active && focus) b.focus();
+    });
+    $('panel-courses').hidden = state.hubTab !== 'courses';
+    $('panel-create').hidden = state.hubTab !== 'create';
+  }
+
+  function onHubTabKey(event) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    switchHubTab(state.hubTab === 'courses' ? 'create' : 'courses', { focus: true });
+  }
+
+  function renderStepOutline() {
+    $('step-outline').innerHTML = STEP_META.map(m => {
+      const done = state.session.done.has(m.step);
+      const cls = [done ? 'done' : '', state.step === m.step ? 'current' : ''].join(' ');
+      return `<li class="${cls}"><button type="button" data-step="${m.step}" ${state.step === m.step ? 'aria-current="step"' : ''}>
+        <span class="outline-icon">${done ? '✓' : m.icon}</span><span>${m.label}</span><em>${m.mastery}%</em></button></li>`;
+    }).join('');
   }
 
   function currentMastery() {
@@ -317,6 +451,7 @@ const StudyApp = (() => {
       return `<li class="${cls}" data-step="${s.step}">${s.icon}<br>${s.mastery}%</li>`;
     }).join('');
     $('step-body').innerHTML = renderStep(state.step);
+    renderStepOutline();
     updateNav();
     if (state.step !== 5) stopRecording();
     renderStageBar();
@@ -759,16 +894,19 @@ const StudyApp = (() => {
 
   /* ── Opening units ──────────────────────────────────────── */
 
-  function openSample(textbookId, unitId) {
+  function openSample(textbookId, unitId, opts) {
     const found = findUnit(textbookId, unitId);
     if (state.locked || !found?.unit.sample) return;
-    openUnit({ unit: found.unit.sample, unitId, title: found.unit.title, source: 'textbook', provider: 'Built-in sample unit' });
+    openUnit({ unit: found.unit.sample, unitId, title: found.unit.title, source: 'textbook', provider: 'Built-in sample unit', textbookId }, opts);
   }
 
   const weakLabels = () => state.weak.map(w => w.label);
 
   async function generateFromTextbook(button, textbookId, unitId) {
     const original = button.textContent;
+    const hubStatus = $('hub-status');
+    hubStatus.classList.remove('step-error');
+    hubStatus.textContent = 'Đang tạo bài học bằng AI...';
     button.disabled = true;
     button.textContent = 'Đang tạo...';
     try {
@@ -776,9 +914,12 @@ const StudyApp = (() => {
         textbookId, unitId, weakAreas: weakLabels(), targetBand: parseBand($('target-band').value, null)
       });
       const found = findUnit(textbookId, unitId);
-      openUnit({ unit: data.unit, unitId: found?.unit.id || data.unitId, title: found?.unit.title || data.unit.title, source: 'textbook', provider: data.fallback ? `${data.provider} (AI không khả dụng)` : data.provider });
+      hubStatus.textContent = '';
+      openUnit({ unit: data.unit, unitId: found?.unit.id || data.unitId, title: found?.unit.title || data.unit.title, source: 'textbook', provider: data.fallback ? `${data.provider} (AI không khả dụng)` : data.provider, textbookId });
     } catch (e) {
-      alertInline(`Không tạo được bài học: ${e.message}`);
+      const status = $('hub-status');
+      status.textContent = `Không tạo được bài học: ${e.message}`;
+      status.classList.add('step-error');
     } finally {
       button.disabled = false;
       button.textContent = original;
@@ -944,7 +1085,7 @@ const StudyApp = (() => {
   }
 
   function renderStageBar() {
-    const stage = state.locked || !state.unit ? 1 : (state.step === 5 ? 3 : 2);
+    const stage = state.locked || state.view !== 'classroom' ? 1 : (state.step === 5 ? 3 : 2);
     document.querySelectorAll('.srl-stage').forEach(el => {
       const n = Number(el.dataset.stage);
       el.classList.toggle('current', n === stage);
@@ -955,15 +1096,15 @@ const StudyApp = (() => {
   function applyGate() {
     const d = state.diag;
     state.locked = !!d && !d.unlocked;
+    state.ready = true;
+    $('hub-loading').hidden = true;
     $('diagnostic-gate').hidden = !state.locked;
     const notice = $('diagnostic-notice');
     notice.hidden = !!d;
     if (!d) notice.textContent = 'Không kết nối được máy chủ chẩn đoán nên giáo trình tạm mở ở chế độ ngoại tuyến. Hãy tải lại trang khi có mạng.';
-    $('forethought-panel').hidden = !(d && d.unlocked);
-    $('library-section').hidden = state.locked;
-    $('source-section').hidden = state.locked;
-    if (state.locked) { $('lesson-section').hidden = true; $('tutor-feedback-panel').hidden = true; }
-    renderStageBar();
+    $('recommended-curriculum').hidden = !(d && d.unlocked);
+    setView(state.view);
+    renderTodo();
   }
 
   const fmtBand = v => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(1));
@@ -971,6 +1112,7 @@ const StudyApp = (() => {
   function renderProfile() {
     const p = state.diag?.profile;
     const host = $('profile-body');
+    $('band-input').textContent = fmtBand(p?.inputBand);
     if (!p) { host.textContent = 'Chưa có hồ sơ.'; return; }
     const counts = state.diag.counts || {};
     const skills = [['reading', 'Reading'], ['listening', 'Listening'], ['writing', 'Writing'], ['speaking', 'Speaking']];
@@ -1048,16 +1190,19 @@ const StudyApp = (() => {
     $('srs-due-count').textContent = String(due?.length || 0);
     if (!due) { host.innerHTML = '<p class="muted">Không tải được hàng đợi ôn tập.</p>'; return; }
     if (!due.length) { host.innerHTML = '<p class="muted">🎉 Không có thẻ nào đến hạn hôm nay.</p>'; return; }
-    host.innerHTML = due.map(item => `
+    const visible = state.srsExpanded ? due : due.slice(0, SRS_PREVIEW);
+    host.innerHTML = visible.map(item => `
       <div class="srs-item" data-item="${esc(item.itemId)}">
         <div class="srs-word">${esc(item.word)}</div>
         ${item.meaning ? `<div class="muted">${esc(item.meaning)}</div>` : ''}
         ${item.example ? `<div class="muted srs-example">${esc(item.example)}</div>` : ''}
         <div class="srs-rate">${SRS_RATINGS.map(r => `<button type="button" class="btn-small srs-${r.quality}" data-srs-rate="${r.quality}" data-item-id="${esc(item.itemId)}" title="${r.hint}">${r.label}</button>`).join('')}</div>
-      </div>`).join('');
+      </div>`).join('') + (due.length > SRS_PREVIEW
+      ? `<button type="button" class="btn-small srs-more" data-srs-more>${state.srsExpanded ? 'Thu gọn' : `Xem tất cả (${due.length})`}</button>` : '');
   }
 
   async function onSrsRate(event) {
+    if (event.target.closest('[data-srs-more]')) { state.srsExpanded = !state.srsExpanded; renderSrsDue(); return; }
     const button = event.target.closest('[data-srs-rate]');
     if (!button || !state.srs) return;
     const quality = button.dataset.srsRate;
@@ -1103,7 +1248,7 @@ const StudyApp = (() => {
   async function refreshAfterCheckpoint() {
     await loadCheckpoints();
     mergeProgress(await getJson('/api/study/progress', []));
-    renderProgress();
+    renderTodo();
     renderLibrary();
     if (!state.locked && state.diag?.unlocked) {
       state.diag = await getJson('/api/study/diagnostic-status', state.diag);
@@ -1125,13 +1270,28 @@ const StudyApp = (() => {
       state.steps = state.config.masterySteps;
     }
     mergeProgress(await getJson('/api/study/progress', []));
-    renderProgress();
     computeSuggestion();
     renderLibrary();
     renderGaps();
     loadWeaknesses().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); });
     loadCheckpoints();
-    loadDiagnostic().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); renderProfile(); });
+    switchHubTab(/^#create/.test(location.hash) ? 'create' : readStorage(HUB_TAB_KEY, 'courses'));
+    loadDiagnostic().then(() => {
+      computeSuggestion(); renderLibrary(); renderGaps(); renderProfile();
+      if (!state.locked) restoreFromHash();
+    });
+
+    $('btn-back-to-hub').addEventListener('click', backToHub);
+    $('btn-continue-unit').addEventListener('click', continueLastUnit);
+    window.addEventListener('popstate', onPopState);
+    document.querySelectorAll('.hub-tab').forEach(b => {
+      b.addEventListener('click', () => switchHubTab(b.dataset.hubTab));
+      b.addEventListener('keydown', onHubTabKey);
+    });
+    $('step-outline').addEventListener('click', event => {
+      const btn = event.target.closest('[data-step]');
+      if (btn) goStep(Number(btn.dataset.step));
+    });
 
     $('btn-save-goal').addEventListener('click', saveGoal);
     $('btn-save-commitment').addEventListener('click', saveCommitment);
@@ -1166,5 +1326,5 @@ const StudyApp = (() => {
   }
 
   document.addEventListener('DOMContentLoaded', init);
-  return { init, daysUntil, openSample };
+  return { init, daysUntil, openSample, setView };
 })();

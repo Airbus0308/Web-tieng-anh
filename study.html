@@ -64,75 +64,106 @@
     </section>
     <p class="muted step-error" id="diagnostic-notice" role="status" hidden></p>
 
-    <!-- Exam countdown & knowledge gap banner -->
-    <section class="study-banner" id="study-banner" aria-label="Exam countdown and knowledge gaps">
-      <div class="countdown-box">
-        <div class="countdown-number" id="countdown-number">—</div>
-        <div class="countdown-label" id="countdown-label">Chưa đặt ngày thi</div>
-      </div>
-      <div class="gap-box">
-        <div class="gap-title">🎯 Lỗ hổng kiến thức &amp; gợi ý</div>
-        <div id="gap-list" class="gap-list">Đang đọc lịch sử luyện tập...</div>
-        <button type="button" class="btn-secondary" id="btn-open-suggested" hidden>Học Unit được gợi ý</button>
-      </div>
-    </section>
+    <p class="muted hub-loading" id="hub-loading" role="status">Đang tải sảnh học tập...</p>
 
-    <!-- Stage 1 (unlocked): profile, KBCP commitment, SRS queue, personalised curriculum -->
-    <section class="forethought-panel" id="forethought-panel" hidden>
-      <div class="study-card" id="profile-card">
-        <h2 class="study-h2">🧭 Hồ Sơ Năng Lực Đầu Vào</h2>
-        <div id="profile-body" class="profile-body">Đang tải hồ sơ...</div>
-      </div>
-
-      <div class="study-card" id="kbcp-commitment-box">
-        <h2 class="study-h2">📅 Cam Kết Thực Thi KBCP (If-Then)</h2>
-        <div class="goal-form">
-        <label class="goal-field">Target Exam Date
-          <input type="date" id="exam-date" class="study-input">
-        </label>
-        <label class="goal-field">Target Band
-          <select id="target-band" class="study-input">
-            <option>5.5</option><option>6.0</option><option>6.5</option><option selected>7.0</option>
-            <option>7.5</option><option>8.0</option><option>8.5</option>
-          </select>
-        </label>
-        <button type="button" class="btn-primary" id="btn-save-goal">Lưu mục tiêu</button>
-      </div>
-        <p class="if-then-line">Nếu đến
-          <input type="time" id="commit-time" class="study-input" value="20:00" aria-label="Giờ học cam kết">
-          mỗi ngày, tôi sẽ học ít nhất
-          <input type="number" id="commit-minutes" class="study-input commit-minutes" min="5" max="240" value="25" aria-label="Số phút học tối thiểu">
-          phút tại bàn học.
-          <button type="button" class="btn-small" id="btn-save-commitment">Lưu cam kết</button></p>
-        <p class="muted" id="commit-status" role="status"></p>
-        <div class="streak-wrap"><div class="streak-title">🔥 Streak 7 ngày <strong id="streak-count">0</strong></div>
-          <div class="streak-stats-card" id="streak-stats-card" aria-label="GitHub-style Study Streak Stats Card">
-            <img id="streak-stats-svg" class="streak-stats-svg" src="/api/study/streak-stats.svg" alt="IELTS Master Study Streak Stats">
+    <!-- ═══ VIEW 1 — Study Cockpit Dashboard (Sảnh Học Tập) ═══ -->
+    <div class="hub-view" id="hub-view" hidden>
+      <section class="cockpit" id="forethought-panel" aria-label="Bảng điều khiển học tập">
+        <!-- Col 1: profile + exam countdown -->
+        <div class="study-card cockpit-card" id="profile-card">
+          <h2 class="study-h2">🧭 Hồ Sơ &amp; Kỳ Thi</h2>
+          <div class="countdown-row">
+            <div class="countdown-box">
+              <div class="countdown-number" id="countdown-number">—</div>
+              <div class="countdown-label" id="countdown-label">Chưa đặt ngày thi</div>
+            </div>
+            <div class="band-journey" aria-label="Band đầu vào và Band mục tiêu">
+              <div><span>Đầu vào</span><strong id="band-input">—</strong></div>
+              <div class="band-journey-arrow" aria-hidden="true">→</div>
+              <div><span>Mục tiêu</span><strong id="band-target">7.0</strong></div>
+            </div>
           </div>
-          <ol class="streak-bar" id="streak-bar" aria-label="Chuỗi học trong tuần"></ol></div>
+          <div class="gap-title">🎯 Lỗ hổng kiến thức</div>
+          <div id="gap-list" class="gap-list">Đang đọc lịch sử luyện tập...</div>
+          <details class="cockpit-more">
+            <summary>Hồ sơ năng lực chi tiết</summary>
+            <div id="profile-body" class="profile-body">Đang tải hồ sơ...</div>
+          </details>
+          <details class="cockpit-more" id="goal-details">
+            <summary>⚙ Chỉnh ngày thi &amp; Band mục tiêu</summary>
+            <div class="goal-form">
+              <label class="goal-field">Target Exam Date
+                <input type="date" id="exam-date" class="study-input">
+              </label>
+              <label class="goal-field">Target Band
+                <select id="target-band" class="study-input">
+                  <option>5.5</option><option>6.0</option><option>6.5</option><option selected>7.0</option>
+                  <option>7.5</option><option>8.0</option><option>8.5</option>
+                </select>
+              </label>
+              <button type="button" class="btn-primary" id="btn-save-goal">Lưu mục tiêu</button>
+            </div>
+          </details>
+        </div>
+
+        <!-- Col 2: habit — streak SVG + week bar + KBCP if-then commitment -->
+        <div class="study-card cockpit-card" id="kbcp-commitment-box">
+          <h2 class="study-h2">🔥 Thói Quen &amp; Cam Kết KBCP</h2>
+          <div class="streak-wrap">
+            <div class="streak-title">Chuỗi học: <strong id="streak-count">0</strong></div>
+            <div class="streak-stats-card" id="streak-stats-card" aria-label="GitHub-style Study Streak Stats Card">
+              <img id="streak-stats-svg" class="streak-stats-svg" src="/api/study/streak-stats.svg" alt="IELTS Master Study Streak Stats">
+            </div>
+            <ol class="streak-bar" id="streak-bar" aria-label="Chuỗi học trong tuần"></ol>
+          </div>
+          <p class="muted commit-status" id="commit-status" role="status">Chưa đặt cam kết If-Then.</p>
+          <details class="cockpit-more">
+            <summary>⚙ Sửa cam kết If-Then</summary>
+            <p class="if-then-line">Nếu đến
+              <input type="time" id="commit-time" class="study-input" value="20:00" aria-label="Giờ học cam kết">
+              mỗi ngày, tôi sẽ học ít nhất
+              <input type="number" id="commit-minutes" class="study-input commit-minutes" min="5" max="240" value="25" aria-label="Số phút học tối thiểu">
+              phút tại bàn học.
+              <button type="button" class="btn-small" id="btn-save-commitment">Lưu cam kết</button></p>
+          </details>
+        </div>
+
+        <!-- Col 3: Canvas-style To-Do — continue unit, i+1 suggestion, SRS queue -->
+        <div class="study-card cockpit-card todo-card" id="srs-due-panel">
+          <h2 class="study-h2">✅ Việc Cần Làm Hôm Nay</h2>
+          <div class="todo-actions">
+            <button type="button" class="btn-primary todo-btn" id="btn-continue-unit" hidden>▶ Tiếp tục Unit đang dở</button>
+            <button type="button" class="btn-secondary todo-btn" id="btn-open-suggested" hidden>Học Unit được gợi ý</button>
+          </div>
+          <div class="todo-srs-head">🔁 Ôn tập ngắt quãng <span class="history-count-pill" id="srs-due-count">0</span></div>
+          <div id="srs-due-list" class="srs-due-list"><p class="muted">Đang tải hàng đợi...</p></div>
+        </div>
+      </section>
+
+      <div class="hub-tabs" id="hub-tabs" role="tablist" aria-label="Khu vực học tập">
+        <button type="button" class="hub-tab active" role="tab" id="tab-courses" data-hub-tab="courses" aria-controls="panel-courses" aria-selected="true">📚 Kho Khóa Học</button>
+        <button type="button" class="hub-tab" role="tab" id="tab-create" data-hub-tab="create" aria-controls="panel-create" aria-selected="false" tabindex="-1">➕ Nạp Tài Liệu / Tạo bài AI</button>
       </div>
+      <p class="muted hub-status" id="hub-status" role="status"></p>
 
-      <div class="study-card" id="srs-due-panel">
-        <h2 class="study-h2">🔁 Ôn Tập Ngắt Quãng Hôm Nay <span class="history-count-pill" id="srs-due-count">0</span></h2>
-        <div id="srs-due-list" class="srs-due-list"><p class="muted">Đang tải hàng đợi...</p></div>
-      </div>
-
-      <div class="study-card" id="recommended-curriculum">
-        <h2 class="study-h2">⭐ Lộ Trình Giáo Trình Cá Nhân Hóa (i+1)</h2>
-        <div id="recommended-list" class="recommended-list"><p class="muted">Đang tải gợi ý...</p></div>
-      </div>
-    </section>
-
-    <div class="writing-layout">
-      <div class="writing-main">
-
-        <!-- Library -->
-        <section class="study-card" id="library-section">
-          <h2 class="study-h2">📚 Kho giáo trình chuẩn</h2>
-          <div id="textbook-list" class="textbook-list">Đang tải...</div>
+      <section class="hub-panel" id="panel-courses" role="tabpanel" aria-labelledby="tab-courses">
+        <section class="study-card" id="recommended-curriculum" hidden>
+          <h2 class="study-h2">⭐ Lộ Trình Cá Nhân Hóa (i+1)</h2>
+          <div id="recommended-list" class="recommended-list"><p class="muted">Đang tải gợi ý...</p></div>
         </section>
 
-        <!-- Personal source -->
+        <section class="library-section" id="library-section">
+          <h2 class="study-h2">📚 Kho giáo trình chuẩn</h2>
+          <div id="textbook-list" class="course-grid">Đang tải...</div>
+        </section>
+
+        <details class="study-card checkpoint-details" id="checkpoint-details">
+          <summary class="study-h2">📈 Lịch sử Lượng giá Định kỳ <span class="history-count-pill" id="checkpoint-count">0</span></summary>
+          <div class="history-list" id="checkpoint-history"><p class="muted">Chưa có lượng giá nào.</p></div>
+        </details>
+      </section>
+
+      <section class="hub-panel" id="panel-create" role="tabpanel" aria-labelledby="tab-create" hidden>
         <section class="study-card" id="source-section">
           <h2 class="study-h2">📝 Nạp tài liệu cá nhân</h2>
           <div class="source-tabs" role="tablist">
@@ -155,54 +186,50 @@
             <span class="muted" id="source-status" role="status"></span>
           </div>
         </section>
-
-        <!-- Lesson player -->
-        <section class="study-card" id="lesson-section" hidden>
-          <div class="lesson-head">
-            <h2 class="study-h2" id="lesson-title">Unit</h2>
-            <span class="provider-chip" id="lesson-provider"></span>
-          </div>
-          <div class="mastery-wrap">
-            <div class="mastery-label"><span>Mastery</span><strong id="mastery-percent">0%</strong></div>
-            <div class="mastery-track"><div class="mastery-fill" id="mastery-fill" style="width:0%"></div></div>
-            <ol class="step-dots" id="step-dots"></ol>
-          </div>
-          <div id="step-body" class="step-body"></div>
-          <div class="step-nav">
-            <button type="button" class="btn-secondary" id="btn-prev">← Quay lại</button>
-            <button type="button" class="btn-primary" id="btn-next">Tiếp tục →</button>
-          </div>
-        </section>
-      </div>
-
-      <aside class="writing-sidebar">
-        <section class="sidebar-card tutor-panel" id="tutor-feedback-panel" hidden>
-          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">🤖 Gia sư AI Siêu Nhận Thức</h2></div></div>
-          <p class="muted">Hỏi bài hoặc dán câu của bạn để xin gợi ý. Gia sư sẽ gợi mở từng bước, không chép hộ đáp án.</p>
-          <textarea id="tutor-input" class="study-input study-textarea" rows="3" placeholder="Ví dụ: Vì sao câu này là NOT GIVEN chứ không phải FALSE?"></textarea>
-          <div class="tutor-actions"><button type="button" class="btn-primary" id="btn-tutor-ask">Hỏi Gia sư</button><span class="muted" id="tutor-status" role="status"></span></div>
-          <div id="tutor-reply" class="tutor-reply" aria-live="polite"></div>
-        </section>
-        <section class="sidebar-card">
-          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Lịch sử Lượng giá Định kỳ</h2></div>
-            <span class="history-count-pill" id="checkpoint-count">0</span></div>
-          <div class="history-list" id="checkpoint-history"><p class="muted">Chưa có lượng giá nào.</p></div>
-        </section>
-        <section class="sidebar-card">
-          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Tiến độ Mastery</h2></div>
-            <span class="history-count-pill" id="progress-count">0</span></div>
-          <div class="history-list" id="progress-list"><p class="muted">Chưa có Unit nào.</p></div>
-        </section>
-        <section class="sidebar-card">
-          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Chuỗi 5 bước</h2></div></div>
-          <div class="tips-item"><div class="tips-icon">📖</div><div><strong style="color: var(--text-primary);">20% — Deep Lesson + Feynman</strong><p>Bảng nâng cấp câu theo Band và tự giải thích.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🗂️</div><div><strong style="color: var(--text-primary);">40% — Active Recall + SRS</strong><p>Nhớ lại từ trước khi lật thẻ.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">⚡</div><div><strong style="color: var(--text-primary);">60% — Quick Quiz</strong><p>Câu hỏi đan xen kỹ năng.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🧩</div><div><strong style="color: var(--text-primary);">80% — Interleaved Drill</strong><p>Trộn Reading, GRA, LR.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🏆</div><div><strong style="color: var(--text-primary);">100% — Output Checkpoint</strong><p>Viết/nói, tự dự đoán Band, AI lượng giá.</p></div></div>
-        </section>
-      </aside>
+      </section>
     </div>
+
+    <!-- ═══ VIEW 2 — Focus Classroom Mode (Phòng Học Tập Trung) ═══ -->
+    <section class="classroom-view" id="classroom-view" aria-label="Phòng học tập trung" hidden>
+      <div class="classroom-bar">
+        <button type="button" class="btn-secondary" id="btn-back-to-hub">← Quay lại Kho khóa học</button>
+        <nav class="classroom-breadcrumb" id="classroom-breadcrumb" aria-label="Vị trí bài học"></nav>
+      </div>
+      <div class="writing-layout classroom-layout">
+        <div class="writing-main">
+          <section class="study-card" id="lesson-section">
+            <div class="lesson-head">
+              <h2 class="study-h2" id="lesson-title" tabindex="-1">Unit</h2>
+              <span class="provider-chip" id="lesson-provider"></span>
+            </div>
+            <div class="mastery-wrap">
+              <div class="mastery-label"><span>Mastery</span><strong id="mastery-percent">0%</strong></div>
+              <div class="mastery-track"><div class="mastery-fill" id="mastery-fill" style="width:0%"></div></div>
+              <ol class="step-dots" id="step-dots"></ol>
+            </div>
+            <div id="step-body" class="step-body"></div>
+            <div class="step-nav">
+              <button type="button" class="btn-secondary" id="btn-prev">← Quay lại</button>
+              <button type="button" class="btn-primary" id="btn-next">Tiếp tục →</button>
+            </div>
+          </section>
+        </div>
+
+        <aside class="writing-sidebar classroom-sidebar">
+          <section class="sidebar-card tutor-panel" id="tutor-feedback-panel">
+            <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">🤖 Gia sư AI Siêu Nhận Thức</h2></div></div>
+            <p class="muted">Hỏi bài hoặc dán câu của bạn để xin gợi ý. Gia sư sẽ gợi mở từng bước, không chép hộ đáp án.</p>
+            <textarea id="tutor-input" class="study-input study-textarea" rows="3" placeholder="Ví dụ: Vì sao câu này là NOT GIVEN chứ không phải FALSE?"></textarea>
+            <div class="tutor-actions"><button type="button" class="btn-primary" id="btn-tutor-ask">Hỏi Gia sư</button><span class="muted" id="tutor-status" role="status"></span></div>
+            <div id="tutor-reply" class="tutor-reply" aria-live="polite"></div>
+          </section>
+          <section class="sidebar-card">
+            <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Chuỗi 5 bước</h2></div></div>
+            <ol class="step-outline" id="step-outline" aria-label="Các bước của Unit"></ol>
+          </section>
+        </aside>
+      </div>
+    </section>
   </main>
 
   <script src="js/study.js"></script>
