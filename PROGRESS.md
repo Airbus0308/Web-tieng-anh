@@ -19,7 +19,7 @@
 | **Phase 6** | **Anti-Copy DRM & Exam Proctoring Security (`js/exam-security.js`)** — Chặn copy đề, chặn paste bài mẫu, cảnh báo chuyển tab & đo tốc độ gõ phím | ✅ DONE | Codex | [phase-06-exam-security.md](progress/phase-06-exam-security.md) | `a69b37e`, `498789b` |
 | **Phase 7** | **Study Hub v1 (Initial Prototype)** — Khung trang Study Hub ban đầu | ✅ DONE | Claude Code | [phase-07-astra-study-hub.md](progress/phase-07-astra-study-hub.md) | `a8462cc`, `6fc9563` |
 | **Phase 8A** | **SRL-SLA Adaptive Backend Engine (`server.js`, `config.json`)** — Vòng lặp Tự điều chỉnh 3 giai đoạn (Zimmerman + COPES + KBCP): Cổng Test Đầu vào + Giáo trình i+1 + SRS Spaced Repetition + Feynman/Socratic Tutor + Lượng giá Siêu nhận thức | ✅ DONE | OpenAI Codex | [phase-08a-adaptive-backend.md](progress/phase-08a-adaptive-backend.md) | `669c813` |
-| **Phase 8B** | **SRL-SLA 3-Stage Closed-Loop Study Hub UI (`study.html`, `js/study.js`, `css/study.css`)** — Giao diện Tự điều chỉnh 3 Giai đoạn: (1) Forethought & Test Gate + KBCP Plan ➔ (2) Performance 4 Kỹ thuật Nhận thức + Socratic Coach ➔ (3) Self-Reflection Checkpoint + SRS Queue | 🟡 READY FOR HANDOFF | Claude Code | `progress/phase-08b-adaptive-study-ui.md` *(chờ tạo)* | — |
+| **Phase 8B** | **SRL-SLA 3-Stage Closed-Loop Study Hub UI (`study.html`, `js/study.js`, `css/study.css`)** — Giao diện Tự điều chỉnh 3 Giai đoạn: (1) Forethought & Test Gate + KBCP Plan ➔ (2) Performance 4 Kỹ thuật Nhận thức + Socratic Coach ➔ (3) Self-Reflection Checkpoint + SRS Queue | ✅ DONE | Claude Code | [phase-08b-adaptive-study-ui.md](progress/phase-08b-adaptive-study-ui.md) | `c726f13` |
 
 ---
 
