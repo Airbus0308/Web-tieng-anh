@@ -1,16 +1,21 @@
 /**
- * Study Hub (Phase 7) — Astra-style personalized mastery.
- * Library → source → 5-step unit (0% → 100% mastery) with exam countdown and knowledge-gap targeting.
+ * Study Hub (Phase 7 + 8B) — Astra-style personalized mastery with an SRL-SLA 3-stage closed loop:
+ * Forethought (diagnostic gate, KBCP, SRS) → Performance (5-step unit, Feynman, Active Recall, Interleaving, Socratic tutor)
+ * → Self-Reflection (output checkpoint with COPES metacognitive calibration).
  */
 const StudyApp = (() => {
   const GOAL_KEY = 'ielts_study_goal';
   const PROGRESS_KEY = 'ielts_study_progress';
+  const PLACEMENT_KEY = 'ielts_placement_results';
+  const SYNCED_KEY = 'ielts_study_synced_placement';
+  const COMMIT_KEY = 'ielts_study_commitment';
+  const STREAK_KEY = 'ielts_study_streak';
   const STEP_META = [
-    { step: 1, key: 'lesson', label: 'Smart Lesson', icon: '📖', mastery: 20 },
-    { step: 2, key: 'flashcards', label: 'Flashcards', icon: '🗂️', mastery: 40 },
+    { step: 1, key: 'lesson', label: 'Deep Lesson & Feynman', icon: '📖', mastery: 20 },
+    { step: 2, key: 'flashcards', label: 'Active Recall & SRS', icon: '🗂️', mastery: 40 },
     { step: 3, key: 'quiz', label: 'Quick Quiz', icon: '⚡', mastery: 60 },
-    { step: 4, key: 'drill', label: 'Gap Drill', icon: '🧩', mastery: 80 },
-    { step: 5, key: 'challenge', label: 'Mini Output', icon: '🏆', mastery: 100 }
+    { step: 4, key: 'drill', label: 'Interleaved Skill Mixer', icon: '🧩', mastery: 80 },
+    { step: 5, key: 'challenge', label: 'Output Checkpoint', icon: '🏆', mastery: 100 }
   ];
 
   const state = {
@@ -23,6 +28,7 @@ const StudyApp = (() => {
     step: 1,
     session: null,         // per-unit UI state
     sourceTab: 'paste',
+    diag: null, locked: false, srs: null, checkpoints: [],
     fileText: '', fileName: ''
   };
 
@@ -139,6 +145,8 @@ const StudyApp = (() => {
   /** Pick the unit that best matches the biggest weakness and the target band. */
   function computeSuggestion() {
     state.suggested = null;
+    const rec = (state.diag?.recommendedCurriculum || []).find(u => savedMastery(u.id) < 100 && findUnit(u.textbookId, u.id));
+    if (rec) { state.suggested = { textbookId: rec.textbookId, unitId: rec.id, reason: 'i+1' }; return; }
     const books = state.config?.sampleTextbooks || [];
     const target = parseBand($('target-band').value, 7);
     const keys = state.weak.length ? state.weak.map(w => w.key) : ['vocabulary'];
@@ -190,7 +198,7 @@ const StudyApp = (() => {
           const mastery = savedMastery(unit.id);
           const suggested = state.suggested?.unitId === unit.id;
           return `<div class="unit-row ${suggested ? 'suggested' : ''}">
-            <span class="unit-title">${suggested ? '⭐ ' : ''}${esc(unit.title)} <span class="muted">(Band ${esc(unit.bandRange)})</span></span>
+            <span class="unit-title">${suggested ? '⭐ ' : ''}${esc(unit.title)} <span class="muted">(Band ${esc(unit.bandRange)})</span>${unit.levelTag ? ` <span class="level-chip">${esc(unit.levelTag)}</span>` : ''}</span>
             ${mastery ? `<span class="unit-badge">${mastery}% Mastery</span>` : ''}
             <span class="unit-actions">
               <button type="button" class="btn-small" data-action="open-sample" data-book="${esc(book.id)}" data-unit="${esc(unit.id)}">Học ngay</button>
@@ -246,10 +254,16 @@ const StudyApp = (() => {
   /* ── Lesson player ──────────────────────────────────────── */
 
   function newSession() {
-    return { done: new Set(), flipped: new Set(), known: new Set(), quiz: {}, drill: {}, answer: '', evaluation: null, error: '' };
+    return {
+      done: new Set(), flipped: new Set(), known: new Set(), quiz: {}, drill: {}, answer: '', evaluation: null, error: '',
+      spoken: '', selfBand: '', selfReason: '', listening: false, flash: '',
+      recall: {}, recallText: {}, srsAdded: new Set(), hints: {}, feynman: { text: '', result: null, loading: false, error: '' }
+    };
   }
 
   function openUnit({ unit, unitId, title, source, provider }) {
+    if (state.locked) return;
+    stopRecording();
     state.unit = unit;
     state.unitId = unitId;
     state.unitTitle = title || unit.title;
@@ -260,6 +274,8 @@ const StudyApp = (() => {
     const saved = savedMastery(unitId);
     STEP_META.filter(s => s.mastery <= saved).forEach(s => state.session.done.add(s.step));
     $('lesson-section').hidden = false;
+    $('tutor-feedback-panel').hidden = false;
+    $('tutor-reply').innerHTML = '';
     $('lesson-title').textContent = state.unitTitle;
     $('lesson-provider').textContent = provider ? `Nguồn AI: ${provider}` : '';
     renderPlayer();
@@ -280,12 +296,13 @@ const StudyApp = (() => {
     if (step === 2) return unit.flashcards.every((_, i) => s.flipped.has(i));
     if (step === 3) return unit.quiz.every((_, i) => s.quiz[i] != null);
     if (step === 4) return unit.drill.every((_, i) => s.drill[i] != null);
-    return !!s.evaluation;
+    return !!s.evaluation?.passed;
   }
 
   function markDone(step) {
     if (state.session.done.has(step)) return;
     state.session.done.add(step);
+    markStreak();
     persistProgress(currentMastery());
   }
 
@@ -301,7 +318,8 @@ const StudyApp = (() => {
     }).join('');
     $('step-body').innerHTML = renderStep(state.step);
     updateNav();
-    if (state.step === 5) bindChallenge();
+    if (state.step !== 5) stopRecording();
+    renderStageBar();
   }
 
   function updateNav() {
@@ -311,7 +329,7 @@ const StudyApp = (() => {
     const complete = stepComplete(state.step);
     if (state.step === 5) {
       next.textContent = 'Hoàn tất Unit ✓';
-      next.disabled = !state.session.evaluation;
+      next.disabled = !stepComplete(5);
     } else {
       next.textContent = 'Tiếp tục →';
       next.disabled = !complete;
@@ -322,38 +340,98 @@ const StudyApp = (() => {
   function renderStep(step) {
     const unit = state.unit;
     const meta = STEP_META[step - 1];
-    const head = `<h3 class="step-title">${meta.icon} Bước ${step} — ${meta.label} (${meta.mastery}% Mastery)</h3>`;
+    const head = `<h3 class="step-title">${meta.icon} Bước ${step} — ${meta.label} (${meta.mastery}% Mastery)</h3>${state.session.flash ? `<p class="step-error">${esc(state.session.flash)}</p>` : ''}`;
     if (step === 1) return head + renderLesson(unit.lesson);
     if (step === 2) return head + renderFlashcards(unit.flashcards);
-    if (step === 3) return head + `<p class="q-sub">Trả lời cả ${unit.quiz.length} câu để mở khóa bước tiếp theo.</p>` + renderQuestions(unit.quiz, 'quiz');
-    if (step === 4) return head + `<p class="q-sub">${unit.drill.length} bài tập xoáy vào điểm yếu của bạn.</p>` + renderQuestions(unit.drill, 'drill');
+    if (step === 3) return head + `<p class="q-sub">Trả lời cả ${unit.quiz.length} câu (đan xen kỹ năng) để mở khóa bước tiếp theo.</p>` + renderQuestions(unit.quiz, 'quiz');
+    if (step === 4) return head + `<p class="q-sub">${unit.drill.length} bài tập trộn Reading Paraphrase, GRA và LR (Interleaving).</p>` + renderQuestions(unit.drill, 'drill');
     return head + renderChallenge(unit.challenge);
+  }
+
+  const BAND_OPTIONS = ['5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5'];
+  const DIFFICULTY_REASONS = ['Nhớ từ vựng nhưng chưa biết ghép câu', 'Ngữ pháp còn lúng túng', 'Bí ý tưởng triển khai', 'Áp lực thời gian'];
+  const MIN_OUTPUT_WORDS = 30;
+
+  function renderTutorResult(r) {
+    return `<div class="tutor-result ${r.understood ? 'ok' : ''}">
+      ${r.understood ? '<strong>✓ Bạn đã nắm được ý chính.</strong>' : ''}
+      ${r.replyVi ? `<p>${esc(r.replyVi)}</p>` : ''}
+      ${r.correction ? `<p><strong>Gợi ý sửa:</strong> ${esc(r.correction)}</p>` : ''}
+      ${r.explanationVi ? `<p class="muted">${esc(r.explanationVi)}</p>` : ''}
+      ${r.socraticHintVi ? `<p>💡 <strong>Gợi ý bậc thang:</strong> ${esc(r.socraticHintVi)}</p>` : ''}
+      ${r.followUpQuestion ? `<p>❓ ${esc(r.followUpQuestion)}</p>` : ''}
+      <p class="muted">Nguồn: ${esc(r.provider || '')}</p></div>`;
+  }
+
+  function renderFeynman(lesson) {
+    if (!lesson.feynmanPromptVi) return '';
+    const f = state.session.feynman;
+    return `<div class="feynman-box" id="feynman-box">
+      <strong>💡 Thử thách Feynman</strong>
+      <p class="lesson-block">${esc(lesson.feynmanPromptVi)}</p>
+      <textarea id="feynman-input" class="study-input study-textarea" rows="3" placeholder="Giải thích lại quy tắc bằng 1–2 câu của riêng bạn, kèm một ví dụ...">${esc(f.text)}</textarea>
+      <div class="challenge-meta"><span class="step-error">${esc(f.error)}</span>
+        <button type="button" class="btn-primary" id="btn-feynman-check" ${f.loading ? 'disabled' : ''}>${f.loading ? 'Đang kiểm tra...' : 'Kiểm tra độ hiểu với Gia sư AI'}</button></div>
+      ${f.result ? renderTutorResult(f.result) : ''}</div>`;
   }
 
   function renderLesson(lesson) {
     const mistakes = (lesson.commonMistakes || []).map(m =>
       `<div class="mistake-row"><span class="wrong">${esc(m.wrong)}</span> → <span class="right">${esc(m.right)}</span><br><span class="muted">${esc(m.noteVi)}</span></div>`).join('');
+    const upgrades = (lesson.bandUpgradeExamples || []).map(u => `
+      <div class="band-row">
+        <div class="band-low"><span class="band-tag low">Band 5.5</span> ${esc(u.bandLow)}</div>
+        <div class="band-high"><span class="band-tag high">Band 7.5+</span> ${esc(u.bandHigh)}</div>
+        <p class="muted band-analysis">${esc(u.analysisVi)}</p>
+      </div>`).join('');
     return `
       <div class="lesson-block"><strong>${esc(lesson.titleEn)}</strong> · ${esc(lesson.titleVi)}</div>
       <div class="lesson-block"><strong>🇬🇧</strong> ${esc(lesson.explanationEn)}</div>
       <div class="lesson-block"><strong>🇻🇳</strong> ${esc(lesson.explanationVi)}</div>
       ${lesson.formulas?.length ? `<strong>Công thức áp dụng</strong><ul class="formula-list">${lesson.formulas.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
-      ${mistakes ? `<strong>Lỗi thường gặp</strong>${mistakes}` : ''}`;
+      ${upgrades ? `<div class="band-upgrade"><strong>📈 Bảng Nâng Cấp Câu theo Band</strong>${upgrades}</div>` : ''}
+      ${mistakes ? `<strong>Lỗi thường gặp</strong>${mistakes}` : ''}
+      ${renderFeynman(lesson)}`;
   }
 
   function renderFlashcards(cards) {
     const s = state.session;
-    return `<p class="q-sub">Bấm vào thẻ để lật (${s.flipped.size}/${cards.length}). Lật hết các thẻ để mở khóa bước tiếp theo.</p>
-      <div class="flashcard-grid">${cards.map((c, i) => `
-        <div class="flashcard-wrap">
-          <button type="button" class="flashcard ${s.flipped.has(i) ? 'flipped' : ''}" data-card="${i}" aria-label="Lật thẻ ${esc(c.front)}">
+    return `<p class="q-sub">Active Recall: đọc câu khuyết, tự nhớ từ còn thiếu rồi bấm Kiểm tra trước khi lật thẻ. Lật hết các thẻ để mở khóa bước tiếp theo (${s.flipped.size}/${cards.length}).</p>
+      <div class="flashcard-grid">${cards.map((c, i) => {
+        const cloze = !!c.clozeSentence;
+        const flipped = s.flipped.has(i);
+        const recall = s.recall[i];
+        const front = cloze
+          ? `<span class="hint">Điền từ còn thiếu</span><span class="cloze">${esc(c.clozeSentence)}</span><span class="hint">Gợi nghĩa: ${esc(c.back)}</span>`
+          : `<span class="front-word">${esc(c.front)}</span>${c.ipa ? `<span class="ipa">${esc(c.ipa)}</span>` : ''}<span class="hint">bấm để lật</span>`;
+        const back = `<span class="front-word">${esc(c.front)}</span>${c.ipa ? `<span class="ipa">${esc(c.ipa)}</span>` : ''}<strong>${esc(c.back)}</strong>${c.example ? `<span class="example">“${esc(c.example)}”</span>` : ''}`;
+        const recallRow = cloze && !recall && !flipped
+          ? `<div class="recall-row"><input type="text" class="study-input recall-input" data-recall-input="${i}" value="${esc(s.recallText[i] || '')}" placeholder="Nhập từ còn thiếu" autocomplete="off" aria-label="Từ còn thiếu của thẻ ${i + 1}">
+              <button type="button" class="btn-small" data-recall-check="${i}">Kiểm tra</button></div>`
+          : '';
+        const recallResult = recall ? `<div class="recall-result ${recall.ok ? 'ok' : 'bad'}">${recall.ok ? '✓ Nhớ chính xác!' : `✗ Đáp án: ${esc(c.front)}`}</div>` : '';
+        return `<div class="flashcard-wrap">
+          <button type="button" class="flashcard ${flipped ? 'flipped' : ''}" data-card="${i}" aria-label="Lật thẻ ${i + 1}">
             <div class="flashcard-inner">
-              <div class="flashcard-face front"><span class="front-word">${esc(c.front)}</span><span class="hint">bấm để lật</span></div>
-              <div class="flashcard-face back"><strong>${esc(c.back)}</strong>${c.example ? `<span class="example">“${esc(c.example)}”</span>` : ''}</div>
+              <div class="flashcard-face front">${front}</div>
+              <div class="flashcard-face back">${back}</div>
             </div>
           </button>
+          ${recallRow}${recallResult}
+          <div class="card-actions">
+            ${flipped || !cloze ? `<button type="button" class="btn-small" data-speak="${i}">🔊 Nghe phát âm</button>` : ''}
+            <button type="button" class="btn-small" data-srs-add="${i}" ${s.srsAdded.has(i) ? 'disabled' : ''}>${s.srsAdded.has(i) ? '✓ Đã vào lịch ôn' : '➕ Đưa vào lịch ôn SRS'}</button>
+          </div>
           <button type="button" class="btn-known ${s.known.has(i) ? 'known' : ''}" data-known="${i}">${s.known.has(i) ? '✓ Đã thuộc' : 'Đánh dấu đã thuộc'}</button>
-        </div>`).join('')}</div>`;
+        </div>`;
+      }).join('')}</div>`;
+  }
+
+  function renderHint(hint) {
+    if (!hint) return '';
+    if (hint.loading) return '<div class="tutor-result"><p class="muted">Gia sư đang suy nghĩ...</p></div>';
+    if (hint.error) return `<p class="step-error">${esc(hint.error)}</p>`;
+    return renderTutorResult(hint.result);
   }
 
   function renderQuestions(items, kind) {
@@ -363,45 +441,147 @@ const StudyApp = (() => {
     return items.map((q, i) => {
       const chosen = answers[i];
       const done = chosen != null;
+      const tag = q.skillTag || (kind === 'quiz' ? 'Core Concept Check' : 'Mixed Skill');
       const text = kind === 'drill' ? `${q.instruction ? `<p class="q-sub">${esc(q.instruction)}</p>` : ''}<p class="q-text">${esc(q.sentence)}</p>`
         : `<p class="q-text">${i + 1}. ${esc(q.question)}</p>`;
-      return `<div class="q-card">${text}
+      const key = `${kind}:${i}`;
+      return `<div class="q-card"><span class="skill-tag">🔀 ${esc(tag)}</span>${text}
         <div class="q-options">${q.options.map((o, j) => {
           const cls = done ? (j === q.answer ? 'correct' : (j === chosen ? 'wrong' : '')) : '';
           return `<button type="button" class="q-option ${cls}" data-kind="${kind}" data-q="${i}" data-opt="${j}" ${done ? 'disabled' : ''}>${esc(o)}</button>`;
         }).join('')}</div>
         ${done ? `<div class="q-feedback ${chosen === q.answer ? 'ok' : 'bad'}"><strong>${chosen === q.answer ? '✓ Chính xác!' : '✗ Chưa đúng.'}</strong> ${esc(q.explanation)}</div>` : ''}
+        <button type="button" class="btn-small btn-tutor-hint" data-hint="${key}" ${state.session.hints[key]?.loading ? 'disabled' : ''}>💬 Hỏi Gia sư AI Socratic</button>
+        ${renderHint(state.session.hints[key])}
       </div>`;
     }).join('') + (answered === items.length ? `<p class="step-summary">Kết quả: ${correctCount}/${items.length} câu đúng.</p>` : '');
+  }
+
+  function effectiveOutput() {
+    const s = state.session;
+    return (s.answer.trim() ? s.answer : s.spoken).trim();
+  }
+
+  const criteriaBar = (label, value) => {
+    const v = Math.max(0, Math.min(100, Number(value) || 0));
+    return `<div class="crit-row"><span>${label}</span><div class="crit-track"><div style="width:${v}%"></div></div><strong>${v}</strong></div>`;
+  };
+  const bandText = v => (Number(v) > 0 ? Number(v).toFixed(1) : '—');
+
+  function renderCheckpointReport(ev) {
+    const meta = ev.metacognition || {};
+    const used = ev.usedTargetWords || [];
+    const missed = ev.missedTargetWords || [];
+    const corrections = ev.inlineCorrections || [];
+    const cb = ev.criteriaBreakdown || {};
+    const gap = Number(meta.calibrationGap);
+    return `<div class="eval-card checkpoint-report ${ev.passed ? 'passed' : 'review'}">
+      <div class="report-head">
+        <span class="status-badge ${ev.passed ? 'passed' : 'review'}">${ev.passed ? 'PASSED ✓' : 'NEEDS REVIEW ↻'}</span>
+        <span class="eval-band">${esc(ev.score)}/100</span>
+      </div>
+      <div class="band-compare" aria-label="Đối chiếu 3 cột Band">
+        <div class="band-col"><span>Band Đầu vào</span><strong>${bandText(ev.inputBand)}</strong></div>
+        <span class="band-arrow">➔</span>
+        <div class="band-col"><span>Band Tự dự đoán</span><strong>${bandText(meta.selfPredictedBand)}</strong></div>
+        <span class="band-arrow">➔</span>
+        <div class="band-col actual"><span>Band Thực tế</span><strong>${bandText(ev.outputBand)}</strong></div>
+      </div>
+      <p class="muted">Chênh lệch so với đầu vào: ${Number(ev.bandDelta) > 0 ? '+' : ''}${esc(ev.bandDelta)} · Lệch so với dự đoán: ${Number.isFinite(gap) ? `${gap > 0 ? '+' : ''}${gap}` : '—'}</p>
+      ${meta.calibrationFeedbackVi ? `<p class="calibration-feedback">🪞 ${esc(meta.calibrationFeedbackVi)}</p>` : ''}
+      ${meta.selfDifficultyReason ? `<p class="muted">Trở ngại bạn nêu: ${esc(meta.selfDifficultyReason)}</p>` : ''}
+      <div class="crit-list">
+        ${criteriaBar('Task Achievement', cb.taskAchievement)}
+        ${criteriaBar('Lexical Resource', cb.lexicalResource)}
+        ${criteriaBar('Grammar Accuracy', cb.grammarAccuracy)}
+      </div>
+      <div class="word-report">
+        <div><strong>Từ đã dùng:</strong> ${used.length ? used.map(w => `<span class="target-chip used">${esc(w)}</span>`).join('') : '<span class="muted">chưa có</span>'}</div>
+        <div><strong>Từ bỏ sót:</strong> ${missed.length ? missed.map(w => `<span class="target-chip missed">${esc(w)}</span>`).join('') : '<span class="muted">không có</span>'}</div>
+        ${missed.length || corrections.length ? '<p class="muted">🔁 Các từ bỏ sót và lỗi câu đã được tự động đẩy vào lịch ôn SRS.</p>' : ''}
+      </div>
+      ${corrections.length ? `<div class="corrections"><strong>Sửa lỗi câu trực tiếp</strong>${corrections.map(c => `
+        <div class="correction-row"><del>${esc(c.original)}</del> → <ins>${esc(c.correction)}</ins><br><span class="muted">${esc(c.explanationVi)}</span></div>`).join('')}</div>` : ''}
+      ${ev.feedbackVi ? `<p>${esc(ev.feedbackVi)}</p>` : ''}${ev.feedbackEn ? `<p class="muted">${esc(ev.feedbackEn)}</p>` : ''}
+      ${ev.nextActionVi ? `<p><strong>Việc tiếp theo:</strong> ${esc(ev.nextActionVi)}</p>` : ''}
+      <p class="muted">Chấm bởi: ${esc(ev.provider || '')}${/local/i.test(ev.provider || '') ? ' (ước lượng cục bộ, không thay thế giám khảo)' : ''}</p>
+      ${ev.passed ? '' : '<button type="button" class="btn-secondary" id="btn-retry-checkpoint">↻ Chỉnh sửa và chấm lại</button>'}
+    </div>`;
   }
 
   function renderChallenge(challenge) {
     const s = state.session;
     const ev = s.evaluation;
-    const targets = (challenge.targetWords || []);
-    const used = new Set((ev?.usedWords || []).map(w => w.toLowerCase()));
+    const targets = challenge.targetWords || [];
+    const used = new Set((ev?.usedTargetWords || []).map(w => w.toLowerCase()));
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const readonly = ev ? 'readonly' : '';
     return `<p class="lesson-block">${esc(challenge.prompt)}</p>
       <div>${targets.map(w => `<span class="target-chip ${used.has(w.toLowerCase()) ? 'used' : ''}">${esc(w)}</span>`).join('')}</div>
-      <textarea id="challenge-input" class="study-input study-textarea challenge-input" placeholder="Viết câu trả lời của bạn bằng tiếng Anh..." ${ev ? 'readonly' : ''}>${esc(s.answer)}</textarea>
-      <div class="challenge-meta"><span id="challenge-count">${countWords(s.answer)} từ (mục tiêu ${challenge.minWords}–${challenge.maxWords})</span>
-        <button type="button" class="btn-primary" id="btn-evaluate" ${ev ? 'disabled' : ''}>Chấm điểm</button></div>
+      <textarea id="challenge-input" class="study-input study-textarea challenge-input" placeholder="Viết đoạn văn học thuật bằng tiếng Anh (tối thiểu ${MIN_OUTPUT_WORDS} từ)..." ${readonly}>${esc(s.answer)}</textarea>
+      <div class="record-row">
+        <button type="button" class="btn-secondary" id="btn-record" ${ev || !SR ? 'disabled' : ''} title="${SR ? '' : 'Trình duyệt không hỗ trợ nhận dạng giọng nói'}">${s.listening ? '⏹ Dừng thu âm' : '🎙️ Thu âm trả lời bằng giọng nói'}</button>
+        <span class="muted">${SR ? 'Nói tiếng Anh, bản ghi sẽ hiện bên dưới.' : 'Trình duyệt này không hỗ trợ thu âm; hãy viết bài.'}</span>
+      </div>
+      <textarea id="spoken-transcript" class="study-input study-textarea" rows="3" placeholder="Bản ghi giọng nói (có thể chỉnh sửa)..." ${readonly}>${esc(s.spoken)}</textarea>
+      <div class="challenge-meta"><span id="challenge-count">${countWords(effectiveOutput())} từ (tối thiểu ${MIN_OUTPUT_WORDS}; gợi ý ${challenge.minWords}–${challenge.maxWords})</span></div>
+      <div class="calibration-box">
+        <strong>🪞 Tự Đánh Giá Siêu Nhận Thức (COPES)</strong>
+        <label class="goal-field">Bạn tự dự đoán bài trả lời này của mình đạt Band mấy?
+          <select id="self-predicted-band" class="study-input" ${ev ? 'disabled' : ''}>
+            <option value="">-- Chọn Band --</option>${BAND_OPTIONS.map(b => `<option value="${b}" ${s.selfBand === b ? 'selected' : ''}>${b}</option>`).join('')}
+          </select></label>
+        <label class="goal-field">Trở ngại lớn nhất khi bạn làm bài này là gì?
+          <select id="self-difficulty-reason" class="study-input" ${ev ? 'disabled' : ''}>
+            <option value="">-- Chọn trở ngại --</option>${DIFFICULTY_REASONS.map(r => `<option value="${esc(r)}" ${s.selfReason === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+          </select></label>
+      </div>
+      <div class="challenge-meta"><span></span>
+        <button type="button" class="btn-primary" id="btn-evaluate" ${ev ? 'disabled' : ''}>Nộp và Chấm điểm</button></div>
       <p class="step-error" id="challenge-error">${esc(s.error)}</p>
-      ${ev ? `<div class="eval-card"><div class="eval-band">Band ${esc(ev.band)} · ${esc(ev.score)}/100</div>
-        <p>${esc(ev.feedbackVi)}</p><p>${esc(ev.feedbackEn)}</p>
-        ${ev.improved ? `<p><strong>Gợi ý bản tốt hơn:</strong> ${esc(ev.improved)}</p>` : ''}
-        <p class="muted">Chấm bởi: ${esc(ev.provider || '')}</p></div>` : ''}`;
+      ${ev ? renderCheckpointReport(ev) : ''}`;
   }
 
-  function bindChallenge() {
-    const input = $('challenge-input');
-    const button = $('btn-evaluate');
-    if (!input || !button) return;
-    input.addEventListener('input', () => {
-      state.session.answer = input.value;
-      const c = state.unit.challenge;
-      $('challenge-count').textContent = `${countWords(input.value)} từ (mục tiêu ${c.minWords}–${c.maxWords})`;
-    });
-    button.addEventListener('click', evaluateChallenge);
+  let recognizer = null;
+  function stopRecording() {
+    if (recognizer) { try { recognizer.stop(); } catch { /* already stopped */ } recognizer = null; }
+    if (state.session) state.session.listening = false;
+  }
+
+  function toggleRecording() {
+    const s = state.session;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (recognizer) { stopRecording(); renderPlayer(); return; }
+    const rec = new SR();
+    rec.lang = 'en-US';
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = event => {
+      let text = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) if (event.results[i].isFinal) text += `${event.results[i][0].transcript} `;
+      if (!text.trim()) return;
+      s.spoken = `${s.spoken.trim()} ${text.trim()}`.trim();
+      const box = $('spoken-transcript');
+      if (box) box.value = s.spoken;
+      updateChallengeCount();
+    };
+    rec.onerror = event => { s.error = event.error === 'not-allowed' ? 'Chưa cấp quyền micro cho trình duyệt.' : `Lỗi thu âm: ${event.error}`; };
+    rec.onend = () => { recognizer = null; s.listening = false; if (state.session === s && state.step === 5) renderPlayer(); };
+    try { rec.start(); recognizer = rec; s.listening = true; s.error = ''; } catch (e) { s.error = e.message; }
+    renderPlayer();
+  }
+
+  function updateChallengeCount() {
+    const c = state.unit.challenge;
+    const el = $('challenge-count');
+    if (el) el.textContent = `${countWords(effectiveOutput())} từ (tối thiểu ${MIN_OUTPUT_WORDS}; gợi ý ${c.minWords}–${c.maxWords})`;
+  }
+
+  function quizTally() {
+    const s = state.session;
+    const results = [...(state.unit.quiz || []).map((q, i) => s.quiz[i] === q.answer), ...(state.unit.drill || []).map((q, i) => s.drill[i] === q.answer)];
+    return { quizScore: results.filter(Boolean).length, quizTotal: results.length };
   }
 
   async function evaluateChallenge() {
@@ -409,27 +589,30 @@ const StudyApp = (() => {
     const c = state.unit.challenge;
     const button = $('btn-evaluate');
     const err = $('challenge-error');
-    s.answer = $('challenge-input').value;
-    const minClient = Math.max(20, Math.floor(c.minWords * 0.6));
-    if (countWords(s.answer) < minClient) { s.error = `Hãy viết ít nhất ${minClient} từ.`; err.textContent = s.error; return; }
+    const fail = message => { s.error = message; err.textContent = message; };
+    if (countWords(effectiveOutput()) < MIN_OUTPUT_WORDS) { fail(`Hãy viết hoặc nói ít nhất ${MIN_OUTPUT_WORDS} từ.`); return; }
+    if (!s.selfBand || !s.selfReason) { fail('Hãy hoàn thành phần Tự Đánh Giá Siêu Nhận Thức trước khi nộp.'); return; }
+    stopRecording();
     s.error = '';
     err.textContent = '';
     button.disabled = true;
     button.textContent = 'Đang chấm...';
+    const ctx = currentBandContext();
     try {
-      const result = await postJson('/api/study/evaluate-mini', {
-        answer: s.answer, prompt: c.prompt, targetWords: c.targetWords, unitTitle: state.unitTitle,
-        minWords: c.minWords, maxWords: c.maxWords
+      const result = await postJson('/api/study/checkpoint-evaluate', {
+        unitId: state.unitId, unitTitle: state.unitTitle, inputBand: ctx.inputBand, targetBand: ctx.targetBand,
+        selfPredictedBand: Number(s.selfBand), selfDifficultyReason: s.selfReason, ...quizTally(),
+        writtenOutput: s.answer, spokenTranscript: s.spoken, targetWords: c.targetWords, prompt: c.prompt
       });
       s.evaluation = result;
-      s.done.add(5);
-      persistProgress(currentMastery());
+      if (result.passed) { s.done.add(5); persistProgress(currentMastery()); }
+      markStreak();
       renderPlayer();
+      refreshAfterCheckpoint();
     } catch (e) {
-      s.error = e.message;
       button.disabled = false;
-      button.textContent = 'Chấm điểm';
-      err.textContent = e.message;
+      button.textContent = 'Nộp và Chấm điểm';
+      fail(e.message);
     }
   }
 
@@ -438,6 +621,7 @@ const StudyApp = (() => {
     // Only allow jumping forward to steps whose previous steps are complete.
     for (let i = 1; i < n; i++) if (!stepComplete(i)) return;
     state.step = n;
+    state.session.flash = '';
     renderPlayer();
   }
 
@@ -446,38 +630,138 @@ const StudyApp = (() => {
     if (state.step < 5) {
       markDone(state.step);
       state.step += 1;
+      state.session.flash = '';
       renderPlayer();
     } else {
       $('step-body').insertAdjacentHTML('beforeend', '<p class="step-summary">🎉 Bạn đã đạt 100% Mastery cho Unit này!</p>');
     }
   }
 
-  function onStepBodyClick(event) {
-    const card = event.target.closest('[data-card]');
-    const known = event.target.closest('[data-known]');
-    const option = event.target.closest('.q-option');
+  const normalizeWord = text => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, ' ').trim();
+
+  function speak(text) {
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return false;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+    return true;
+  }
+
+  async function runTutorHint(key) {
     const s = state.session;
-    if (card) {
-      s.flipped.add(Number(card.dataset.card));
+    const [kind, idx] = key.split(':');
+    const item = state.unit[kind]?.[Number(idx)];
+    if (!item) return;
+    const chosen = s[kind][Number(idx)];
+    const options = (item.options || []).map((o, j) => `${String.fromCharCode(65 + j)}. ${o}`).join(' | ');
+    s.hints[key] = { loading: true };
+    renderPlayer();
+    let hint;
+    try {
+      const result = await askTutor({
+        mode: 'socratic',
+        stepContext: `Bước ${kind === 'quiz' ? 3 : 4} — ${kind === 'quiz' ? 'Quick Quiz' : 'Interleaved Drill'} · ${item.skillTag || ''}`,
+        userQuestion: `${kind === 'drill' ? `${item.instruction || ''} ${item.sentence}` : item.question} Options: ${options}`,
+        userAttempt: chosen != null ? `Tôi chọn: ${item.options[chosen]}` : ''
+      });
+      hint = { result };
+    } catch (e) { hint = { error: e.message }; }
+    s.hints[key] = hint;
+    if (state.session === s) renderPlayer();
+  }
+
+  async function runFeynmanCheck() {
+    const s = state.session;
+    const f = s.feynman;
+    if (countWords(f.text) < 8) { f.error = 'Hãy viết 1–2 câu (ít nhất 8 từ) bằng lời của bạn.'; renderPlayer(); return; }
+    f.error = '';
+    f.loading = true;
+    renderPlayer();
+    try {
+      f.result = await askTutor({ mode: 'feynman', stepContext: 'Bước 1 — Deep Lesson (Feynman)', userQuestion: state.unit.lesson.feynmanPromptVi || '', userAttempt: f.text });
+    } catch (e) { f.error = e.message; }
+    f.loading = false;
+    if (state.session === s) renderPlayer();
+  }
+
+  async function addCardToSrs(i) {
+    const s = state.session;
+    const card = state.unit.flashcards[i];
+    try {
+      await postJson('/api/study/srs/review', {
+        word: card.front, meaning: card.back, example: card.example || '', unitId: state.unitId, source: 'lesson',
+        quality: s.recall[i]?.ok === false ? 'again' : 'good'
+      });
+      s.srsAdded.add(i);
+      s.flash = '';
+      markStreak();
+      refreshSrs();
+    } catch (e) { s.flash = `Không thêm được vào lịch ôn: ${e.message}`; }
+    if (state.session === s) renderPlayer();
+  }
+
+  function onStepBodyClick(event) {
+    const s = state.session;
+    const t = event.target;
+    let el;
+    if ((el = t.closest('[data-recall-check]'))) {
+      const i = Number(el.dataset.recallCheck);
+      const typed = normalizeWord(s.recallText[i]);
+      if (!typed) return;
+      s.recall[i] = { ok: typed === normalizeWord(state.unit.flashcards[i].front) };
+      s.flipped.add(i);
       renderPlayer();
-    } else if (known) {
-      const i = Number(known.dataset.known);
+    } else if ((el = t.closest('[data-speak]'))) {
+      if (!speak(state.unit.flashcards[Number(el.dataset.speak)].front)) { s.flash = 'Trình duyệt không hỗ trợ phát âm.'; renderPlayer(); }
+    } else if ((el = t.closest('[data-srs-add]'))) {
+      addCardToSrs(Number(el.dataset.srsAdd));
+    } else if ((el = t.closest('[data-hint]'))) {
+      runTutorHint(el.dataset.hint);
+    } else if (t.closest('#btn-feynman-check')) {
+      runFeynmanCheck();
+    } else if (t.closest('#btn-record')) {
+      toggleRecording();
+    } else if (t.closest('#btn-evaluate')) {
+      evaluateChallenge();
+    } else if (t.closest('#btn-retry-checkpoint')) {
+      s.evaluation = null;
+      renderPlayer();
+    } else if ((el = t.closest('[data-card]'))) {
+      s.flipped.add(Number(el.dataset.card));
+      renderPlayer();
+    } else if ((el = t.closest('[data-known]'))) {
+      const i = Number(el.dataset.known);
       if (s.known.has(i)) s.known.delete(i); else s.known.add(i);
       s.flipped.add(i);
       renderPlayer();
-    } else if (option && !option.disabled) {
-      s[option.dataset.kind][Number(option.dataset.q)] = Number(option.dataset.opt);
-      const kindStep = option.dataset.kind === 'quiz' ? 3 : 4;
+    } else if ((el = t.closest('.q-option')) && !el.disabled) {
+      s[el.dataset.kind][Number(el.dataset.q)] = Number(el.dataset.opt);
+      const kindStep = el.dataset.kind === 'quiz' ? 3 : 4;
       if (stepComplete(kindStep)) markDone(kindStep);
       renderPlayer();
     }
+  }
+
+  /** Persist free-text and select values without re-rendering (keeps focus while typing). */
+  function onStepBodyInput(event) {
+    const s = state.session;
+    const t = event.target;
+    if (!s || !t) return;
+    if (t.id === 'challenge-input') { s.answer = t.value; updateChallengeCount(); }
+    else if (t.id === 'spoken-transcript') { s.spoken = t.value; updateChallengeCount(); }
+    else if (t.id === 'self-predicted-band') s.selfBand = t.value;
+    else if (t.id === 'self-difficulty-reason') s.selfReason = t.value;
+    else if (t.id === 'feynman-input') s.feynman.text = t.value;
+    else if (t.dataset?.recallInput != null) s.recallText[Number(t.dataset.recallInput)] = t.value;
   }
 
   /* ── Opening units ──────────────────────────────────────── */
 
   function openSample(textbookId, unitId) {
     const found = findUnit(textbookId, unitId);
-    if (!found?.unit.sample) return;
+    if (state.locked || !found?.unit.sample) return;
     openUnit({ unit: found.unit.sample, unitId, title: found.unit.title, source: 'textbook', provider: 'Built-in sample unit' });
   }
 
@@ -557,10 +841,280 @@ const StudyApp = (() => {
     document.querySelectorAll('.source-pane').forEach(p => { p.hidden = p.dataset.pane !== tab; });
   }
 
+  /* ── SRL-SLA: tutor, streak, commitment ─────────────────── */
+
+  function currentBandContext() {
+    return { inputBand: state.diag?.profile?.inputBand ?? null, targetBand: parseBand($('target-band').value, null) };
+  }
+
+  function askTutor({ mode, userQuestion = '', userAttempt = '', stepContext = '' }) {
+    const ctx = currentBandContext();
+    return postJson('/api/study/tutor-feedback', {
+      mode, unitTitle: state.unitTitle, stepContext, userQuestion, userAttempt, inputBand: ctx.inputBand, targetBand: ctx.targetBand
+    });
+  }
+
+  async function askTutorFromPanel() {
+    const input = $('tutor-input');
+    const status = $('tutor-status');
+    const text = input.value.trim();
+    if (!text) { status.textContent = 'Hãy nhập câu hỏi hoặc câu cần sửa.'; return; }
+    const button = $('btn-tutor-ask');
+    button.disabled = true;
+    status.textContent = 'Gia sư đang suy nghĩ...';
+    try {
+      const meta = STEP_META[state.step - 1];
+      const result = await askTutor({ mode: 'socratic', userQuestion: text, stepContext: `Bước ${state.step} — ${meta.label}` });
+      $('tutor-reply').innerHTML = renderTutorResult(result);
+      status.textContent = '';
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  function markStreak() {
+    const days = new Set(readStorage(STREAK_KEY, []));
+    days.add(dateKey(new Date()));
+    writeStorage(STREAK_KEY, [...days].sort().slice(-120));
+    renderStreak();
+  }
+
+  function renderStreak() {
+    const bar = $('streak-bar');
+    if (!bar) return;
+    const days = new Set(readStorage(STREAK_KEY, []));
+    const now = new Date();
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const todayKey = dateKey(now);
+    bar.innerHTML = labels.map((label, i) => {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const key = dateKey(d);
+      const cls = [days.has(key) ? 'done' : '', key === todayKey ? 'today' : ''].join(' ');
+      return `<li class="${cls}"><span>${label}</span><strong>${days.has(key) ? '✓' : '·'}</strong></li>`;
+    }).join('');
+    let streak = 0;
+    const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (!days.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (days.has(dateKey(cursor))) { streak += 1; cursor.setDate(cursor.getDate() - 1); }
+    $('streak-count').textContent = `${streak} ngày liên tiếp`;
+  }
+
+  function loadCommitment() {
+    const c = readStorage(COMMIT_KEY, null);
+    if (!c) return;
+    if (c.time) $('commit-time').value = c.time;
+    if (c.minutes) $('commit-minutes').value = c.minutes;
+    $('commit-status').textContent = `Cam kết hiện tại: Nếu đến ${c.time} mỗi ngày, tôi sẽ học ít nhất ${c.minutes} phút tại bàn học.`;
+  }
+
+  function saveCommitment() {
+    const time = $('commit-time').value;
+    const minutes = Math.round(Number($('commit-minutes').value));
+    const status = $('commit-status');
+    if (!/^\d{2}:\d{2}$/.test(time) || !(minutes >= 5 && minutes <= 240)) {
+      status.textContent = 'Hãy chọn giờ học và số phút từ 5 đến 240.';
+      return;
+    }
+    writeStorage(COMMIT_KEY, { time, minutes });
+    status.textContent = `Đã lưu: Nếu đến ${time} mỗi ngày, tôi sẽ học ít nhất ${minutes} phút tại bàn học.`;
+  }
+
+  /* ── Stage 1: diagnostic gate, profile, curriculum ──────── */
+
+  async function syncPlacementResults() {
+    const local = readStorage(PLACEMENT_KEY, []);
+    if (!Array.isArray(local) || !local.length) return;
+    const synced = new Set(readStorage(SYNCED_KEY, []));
+    const pending = local.filter(r => r && typeof r === 'object' && typeof r.id === 'string' && !synced.has(r.id)).slice(-20);
+    for (const record of pending) {
+      try { await postJson('/api/placement/results', record); synced.add(record.id); }
+      catch (e) { if (!(e instanceof TypeError)) synced.add(record.id); /* invalid record: do not retry; network error: retry later */ }
+    }
+    writeStorage(SYNCED_KEY, [...synced]);
+  }
+
+  function renderStageBar() {
+    const stage = state.locked || !state.unit ? 1 : (state.step === 5 ? 3 : 2);
+    document.querySelectorAll('.srl-stage').forEach(el => {
+      const n = Number(el.dataset.stage);
+      el.classList.toggle('current', n === stage);
+      el.classList.toggle('done', n < stage);
+    });
+  }
+
+  function applyGate() {
+    const d = state.diag;
+    state.locked = !!d && !d.unlocked;
+    $('diagnostic-gate').hidden = !state.locked;
+    const notice = $('diagnostic-notice');
+    notice.hidden = !!d;
+    if (!d) notice.textContent = 'Không kết nối được máy chủ chẩn đoán nên giáo trình tạm mở ở chế độ ngoại tuyến. Hãy tải lại trang khi có mạng.';
+    $('forethought-panel').hidden = !(d && d.unlocked);
+    $('library-section').hidden = state.locked;
+    $('source-section').hidden = state.locked;
+    if (state.locked) { $('lesson-section').hidden = true; $('tutor-feedback-panel').hidden = true; }
+    renderStageBar();
+  }
+
+  const fmtBand = v => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(1));
+
+  function renderProfile() {
+    const p = state.diag?.profile;
+    const host = $('profile-body');
+    if (!p) { host.textContent = 'Chưa có hồ sơ.'; return; }
+    const counts = state.diag.counts || {};
+    const skills = [['reading', 'Reading'], ['listening', 'Listening'], ['writing', 'Writing'], ['speaking', 'Speaking']];
+    const ci = Number(p.calibrationIndex) || 0;
+    let calibration = 'Chưa có lượng giá nào để hiệu chuẩn.';
+    if (state.checkpoints.length) {
+      calibration = Math.abs(ci) < 0.25 ? 'Bạn tự đánh giá khá chính xác.'
+        : ci < 0 ? 'Bạn có xu hướng tự đánh giá cao hơn kết quả thực tế.' : 'Bạn có xu hướng tự đánh giá thấp hơn kết quả thực tế.';
+    }
+    host.innerHTML = `
+      <div class="profile-grid">
+        <div class="profile-stat main"><span>Input Band</span><strong>${fmtBand(p.inputBand)}</strong><em>Mục tiêu gợi ý ${fmtBand(p.recommendedTargetBand)}</em></div>
+        ${skills.map(([k, label]) => `<div class="profile-stat"><span>${label}</span><strong>${fmtBand(p.skills?.[k])}</strong></div>`).join('')}
+      </div>
+      <div class="profile-row"><strong>Điểm yếu:</strong> ${p.weakAreas?.length ? p.weakAreas.map(w => `<span class="gap-chip">${esc(w)}</span>`).join('') : '<span class="muted">Chưa xác định</span>'}</div>
+      <div class="profile-row"><strong>Chỉ số hiệu chuẩn (calibrationIndex):</strong> ${ci > 0 ? '+' : ''}${ci.toFixed(1)} <span class="muted">${esc(calibration)}</span></div>
+      <p class="muted">Dữ liệu: ${esc(counts.placement || 0)} Placement · ${esc(counts.writing || 0)} Writing · ${esc(counts.speaking || 0)} Speaking</p>`;
+  }
+
+  function applyDefaultTarget() {
+    const rec = state.diag?.profile?.recommendedTargetBand;
+    if (rec == null || readStorage(GOAL_KEY, {}).targetBand) return;
+    const select = $('target-band');
+    const value = Number(rec).toFixed(1);
+    if ([...select.options].some(o => o.value === value)) { select.value = value; renderCountdown(); }
+  }
+
+  function renderRecommended() {
+    const host = $('recommended-list');
+    const list = state.diag?.recommendedCurriculum || [];
+    if (!list.length) { host.innerHTML = '<p class="muted">Chưa có Unit khớp vùng i+1. Hãy làm thêm Writing hoặc Speaking để hồ sơ chính xác hơn.</p>'; return; }
+    host.innerHTML = list.map((u, i) => `
+      <div class="unit-row recommended ${i === 0 ? 'suggested' : ''}">
+        <div class="rec-info">
+          <div class="rec-title">${i === 0 ? '⭐ ' : ''}${esc(u.title)}</div>
+          <div class="rec-meta"><span class="level-chip">${esc(u.levelTag || 'Unit')}</span>
+            ${(u.targetWeakness || []).map(w => `<span class="gap-chip">${esc(w)}</span>`).join('')}
+            <span class="muted">${esc(u.textbookTitle || '')} · Band ${esc(u.bandRange || '')}</span></div>
+          <div class="muted">${esc(u.matchReasonVi || '')}</div>
+        </div>
+        ${savedMastery(u.id) ? `<span class="unit-badge">${savedMastery(u.id)}% Mastery</span>` : ''}
+        <span class="unit-actions"><button type="button" class="btn-small" data-action="open-sample" data-book="${esc(u.textbookId)}" data-unit="${esc(u.id)}">Học ngay</button></span>
+      </div>`).join('');
+  }
+
+  async function loadDiagnostic() {
+    await syncPlacementResults();
+    state.diag = await getJson('/api/study/diagnostic-status', null);
+    applyGate();
+    if (state.diag?.unlocked) {
+      renderProfile();
+      renderRecommended();
+      applyDefaultTarget();
+      await refreshSrs();
+    }
+  }
+
+  /* ── Spaced repetition queue ────────────────────────────── */
+
+  const SRS_RATINGS = [
+    { quality: 'again', label: 'Quên / again', hint: 'Ôn lại ngay' },
+    { quality: 'hard', label: 'Khó / hard', hint: '1 ngày' },
+    { quality: 'good', label: 'Nhớ tốt / good', hint: '3 ngày' },
+    { quality: 'easy', label: 'Rất dễ / easy', hint: '7 ngày' }
+  ];
+
+  async function refreshSrs() {
+    state.srs = await getJson('/api/study/srs', null);
+    renderSrsDue();
+  }
+
+  function renderSrsDue() {
+    const host = $('srs-due-list');
+    const due = state.srs?.dueToday;
+    $('srs-due-count').textContent = String(due?.length || 0);
+    if (!due) { host.innerHTML = '<p class="muted">Không tải được hàng đợi ôn tập.</p>'; return; }
+    if (!due.length) { host.innerHTML = '<p class="muted">🎉 Không có thẻ nào đến hạn hôm nay.</p>'; return; }
+    host.innerHTML = due.map(item => `
+      <div class="srs-item" data-item="${esc(item.itemId)}">
+        <div class="srs-word">${esc(item.word)}</div>
+        ${item.meaning ? `<div class="muted">${esc(item.meaning)}</div>` : ''}
+        ${item.example ? `<div class="muted srs-example">${esc(item.example)}</div>` : ''}
+        <div class="srs-rate">${SRS_RATINGS.map(r => `<button type="button" class="btn-small srs-${r.quality}" data-srs-rate="${r.quality}" data-item-id="${esc(item.itemId)}" title="${r.hint}">${r.label}</button>`).join('')}</div>
+      </div>`).join('');
+  }
+
+  async function onSrsRate(event) {
+    const button = event.target.closest('[data-srs-rate]');
+    if (!button || !state.srs) return;
+    const quality = button.dataset.srsRate;
+    const itemId = button.dataset.itemId;
+    button.disabled = true;
+    try {
+      await postJson('/api/study/srs/review', { itemId, quality });
+      markStreak();
+      const due = state.srs.dueToday;
+      const index = due.findIndex(x => x.itemId === itemId);
+      if (index >= 0) {
+        const [item] = due.splice(index, 1);
+        if (quality === 'again') due.push(item);
+      }
+      renderSrsDue();
+    } catch (e) {
+      button.disabled = false;
+      $('srs-due-list').insertAdjacentHTML('afterbegin', `<p class="step-error">${esc(e.message)}</p>`);
+    }
+  }
+
+  /* ── Stage 3 history ────────────────────────────────────── */
+
+  async function loadCheckpoints() {
+    const list = await getJson('/api/study/checkpoints', []);
+    state.checkpoints = Array.isArray(list) ? list : [];
+    renderCheckpointHistory();
+  }
+
+  function renderCheckpointHistory() {
+    const host = $('checkpoint-history');
+    $('checkpoint-count').textContent = String(state.checkpoints.length);
+    if (!state.checkpoints.length) { host.innerHTML = '<p class="muted">Chưa có lượng giá nào.</p>'; return; }
+    host.innerHTML = state.checkpoints.slice().sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp))).slice(0, 8).map(c => `
+      <div class="progress-item checkpoint-item">
+        <div class="p-title">${esc(c.unitTitle || c.unitId || 'Checkpoint')}</div>
+        <div class="p-meta"><span class="status-badge small ${c.passed ? 'passed' : 'review'}">${c.passed ? 'PASSED ✓' : 'NEEDS REVIEW ↻'}</span>
+          Band ${bandText(c.inputBand)} ➔ ${bandText(c.metacognition?.selfPredictedBand)} ➔ <strong>${bandText(c.outputBand)}</strong> · ${esc(c.score)}/100</div>
+        <div class="p-meta">${esc(String(c.timestamp || '').slice(0, 10))}</div>
+      </div>`).join('');
+  }
+
+  async function refreshAfterCheckpoint() {
+    await loadCheckpoints();
+    mergeProgress(await getJson('/api/study/progress', []));
+    renderProgress();
+    renderLibrary();
+    if (!state.locked && state.diag?.unlocked) {
+      state.diag = await getJson('/api/study/diagnostic-status', state.diag);
+      renderProfile();
+      renderRecommended();
+      await refreshSrs();
+    }
+  }
+
   /* ── Init ───────────────────────────────────────────────── */
 
   async function init() {
     loadGoal();
+    loadCommitment();
+    renderStreak();
+    renderStageBar();
     state.config = await getJson('/api/study/config', null);
     if (state.config?.masterySteps?.length === 5) {
       state.steps = state.config.masterySteps;
@@ -571,8 +1125,18 @@ const StudyApp = (() => {
     renderLibrary();
     renderGaps();
     loadWeaknesses().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); });
+    loadCheckpoints();
+    loadDiagnostic().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); renderProfile(); });
 
     $('btn-save-goal').addEventListener('click', saveGoal);
+    $('btn-save-commitment').addEventListener('click', saveCommitment);
+    $('btn-gate-refresh').addEventListener('click', () => loadDiagnostic().then(() => { computeSuggestion(); renderLibrary(); renderGaps(); }));
+    $('btn-tutor-ask').addEventListener('click', askTutorFromPanel);
+    $('srs-due-list').addEventListener('click', onSrsRate);
+    $('recommended-list').addEventListener('click', event => {
+      const btn = event.target.closest('[data-action="open-sample"]');
+      if (btn) openSample(btn.dataset.book, btn.dataset.unit);
+    });
     $('exam-date').addEventListener('change', renderCountdown);
     $('target-band').addEventListener('change', renderCountdown);
     $('btn-open-suggested').addEventListener('click', () => state.suggested && openSample(state.suggested.textbookId, state.suggested.unitId));
@@ -586,6 +1150,8 @@ const StudyApp = (() => {
     $('source-file').addEventListener('change', onFileChosen);
     $('btn-source-generate').addEventListener('click', generateFromSource);
     $('step-body').addEventListener('click', onStepBodyClick);
+    $('step-body').addEventListener('input', onStepBodyInput);
+    $('step-body').addEventListener('change', onStepBodyInput);
     $('step-dots').addEventListener('click', event => {
       const li = event.target.closest('[data-step]');
       if (li) goStep(Number(li.dataset.step));

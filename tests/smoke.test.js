@@ -577,3 +577,45 @@ test('Phase 8A AI results preserve unit fields and send corrections to SRS and m
     } finally { global.fetch=originalFetch; }
   });
 });
+
+/* ── Phase 8B: SRL-SLA 3-stage Study Hub UI ─────────────────── */
+
+test('Phase 8B study.html contains the 3-stage cycle bar, diagnostic gate and Forethought panels', async () => {
+  const html = await (await fetch(`${BASE}/study.html`)).text();
+  for (const id of ['srl-stage-bar', 'diagnostic-gate', 'forethought-panel', 'profile-body', 'kbcp-commitment-box', 'commit-time', 'commit-minutes',
+    'streak-bar', 'srs-due-panel', 'srs-due-list', 'recommended-curriculum', 'tutor-feedback-panel', 'checkpoint-history',
+    // Phase 7 ids that must survive
+    'exam-date', 'target-band', 'countdown-number', 'gap-list', 'textbook-list', 'source-text', 'source-file', 'source-url', 'mastery-fill', 'step-body']) {
+    assert.ok(html.includes(`id="${id}"`), `study.html should include #${id}`);
+  }
+  for (const text of ['①', '②', '③', 'Forethought', 'Performance', 'Self-Reflection',
+    'Test Chẩn đoán &amp; Kế hoạch KBCP', 'Giáo trình Cá nhân hóa &amp; 4 Kỹ thuật Nhận thức', 'Lượng giá Đầu ra &amp; Phản tư Siêu nhận thức',
+    'Cổng Chẩn Đoán Đầu Vào Bắt Buộc', 'index.html', 'writing.html', 'speaking.html']) {
+    assert.ok(html.includes(text), `study.html should mention ${text}`);
+  }
+});
+
+test('Phase 8B js/study.js is valid and wires every SRL-SLA API and learning technique', async () => {
+  const src = await (await fetch(`${BASE}/js/study.js`)).text();
+  const vm = await import('node:vm');
+  assert.doesNotThrow(() => new vm.Script(src), 'study.js should compile');
+  for (const token of [
+    '/api/placement/results', 'ielts_placement_results', '/api/study/diagnostic-status', '/api/study/tutor-feedback', '/api/study/srs/review',
+    '/api/study/srs', '/api/study/checkpoint-evaluate', '/api/study/checkpoints',
+    "mode: 'feynman'", "mode: 'socratic'", 'bandUpgradeExamples', 'feynmanPromptVi', 'ipa', 'clozeSentence', 'speechSynthesis', 'skillTag',
+    'socraticHintVi', 'SpeechRecognition', 'webkitSpeechRecognition', 'selfPredictedBand', 'selfDifficultyReason', 'writtenOutput', 'spokenTranscript',
+    'calibrationFeedbackVi', 'criteriaBreakdown', 'usedTargetWords', 'missedTargetWords', 'inlineCorrections', 'explanationVi',
+    'PASSED ✓', 'NEEDS REVIEW ↻', 'recommendedCurriculum', 'matchReasonVi', 'levelTag', 'targetWeakness', 'calibrationIndex',
+    'Quên / again', 'Khó / hard', 'Nhớ tốt / good', 'Rất dễ / easy', 'ielts_study_commitment', 'ielts_study_streak', 'T2', 'CN'
+  ]) {
+    assert.ok(src.includes(token), `study.js should include ${token}`);
+  }
+});
+
+test('Phase 8B css/study.css styles the SRL-SLA components', async () => {
+  const css = await (await fetch(`${BASE}/css/study.css`)).text();
+  for (const selector of ['.srl-stage-bar', '.diagnostic-gate', '.streak-bar', '.srs-item', '.band-upgrade', '.feynman-box', '.skill-tag',
+    '.calibration-box', '.band-compare', '.crit-row', '.status-badge', '.correction-row']) {
+    assert.ok(css.includes(selector), `study.css should style ${selector}`);
+  }
+});

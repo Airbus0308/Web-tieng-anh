@@ -43,13 +43,50 @@
       <p class="writing-page-desc">Đặt ngày thi và band mục tiêu, chọn giáo trình chuẩn hoặc tài liệu của bạn, rồi học qua chuỗi 5 bước tương tác để đạt 100% Mastery.</p>
     </section>
 
+    <!-- Zimmerman 3-stage self-regulated learning cycle -->
+    <nav class="srl-stage-bar" id="srl-stage-bar" aria-label="Chu trình tự điều chỉnh 3 giai đoạn">
+      <div class="srl-stage current" data-stage="1"><span class="srl-num">①</span><span class="srl-text"><strong>Forethought</strong>: Test Chẩn đoán &amp; Kế hoạch KBCP</span></div>
+      <div class="srl-stage" data-stage="2"><span class="srl-num">②</span><span class="srl-text"><strong>Performance</strong>: Giáo trình Cá nhân hóa &amp; 4 Kỹ thuật Nhận thức</span></div>
+      <div class="srl-stage" data-stage="3"><span class="srl-num">③</span><span class="srl-text"><strong>Self-Reflection</strong>: Lượng giá Đầu ra &amp; Phản tư Siêu nhận thức</span></div>
+    </nav>
+
+    <!-- Stage 1 gate: shown when no Placement Test exists -->
+    <section class="study-card diagnostic-gate" id="diagnostic-gate" hidden>
+      <h2 class="study-h2">🔒 Cổng Chẩn Đoán Đầu Vào Bắt Buộc (Mandatory Diagnostic Gate)</h2>
+      <p class="lesson-block">Để mở khóa lộ trình cá nhân hóa theo vùng phát triển gần (i+1), bạn cần hoàn thành <strong>ít nhất một bài Placement Test</strong>. Kết quả giúp hệ thống xác định Band đầu vào, điểm yếu và gợi ý Unit phù hợp.</p>
+      <div class="gate-actions">
+        <a class="btn-primary gate-link" href="index.html">Làm Placement Test</a>
+        <a class="btn-secondary gate-link" href="writing.html">Luyện Writing</a>
+        <a class="btn-secondary gate-link" href="speaking.html">Luyện Speaking</a>
+        <button type="button" class="btn-small" id="btn-gate-refresh">Đã làm xong? Kiểm tra lại</button>
+      </div>
+      <p class="muted">Writing và Speaking không bắt buộc nhưng giúp hồ sơ năng lực chính xác hơn.</p>
+    </section>
+    <p class="muted step-error" id="diagnostic-notice" role="status" hidden></p>
+
     <!-- Exam countdown & knowledge gap banner -->
     <section class="study-banner" id="study-banner" aria-label="Exam countdown and knowledge gaps">
       <div class="countdown-box">
         <div class="countdown-number" id="countdown-number">—</div>
         <div class="countdown-label" id="countdown-label">Chưa đặt ngày thi</div>
       </div>
-      <div class="goal-form">
+      <div class="gap-box">
+        <div class="gap-title">🎯 Lỗ hổng kiến thức &amp; gợi ý</div>
+        <div id="gap-list" class="gap-list">Đang đọc lịch sử luyện tập...</div>
+        <button type="button" class="btn-secondary" id="btn-open-suggested" hidden>Học Unit được gợi ý</button>
+      </div>
+    </section>
+
+    <!-- Stage 1 (unlocked): profile, KBCP commitment, SRS queue, personalised curriculum -->
+    <section class="forethought-panel" id="forethought-panel" hidden>
+      <div class="study-card" id="profile-card">
+        <h2 class="study-h2">🧭 Hồ Sơ Năng Lực Đầu Vào</h2>
+        <div id="profile-body" class="profile-body">Đang tải hồ sơ...</div>
+      </div>
+
+      <div class="study-card" id="kbcp-commitment-box">
+        <h2 class="study-h2">📅 Cam Kết Thực Thi KBCP (If-Then)</h2>
+        <div class="goal-form">
         <label class="goal-field">Target Exam Date
           <input type="date" id="exam-date" class="study-input">
         </label>
@@ -61,10 +98,25 @@
         </label>
         <button type="button" class="btn-primary" id="btn-save-goal">Lưu mục tiêu</button>
       </div>
-      <div class="gap-box">
-        <div class="gap-title">🎯 Lỗ hổng kiến thức &amp; gợi ý</div>
-        <div id="gap-list" class="gap-list">Đang đọc lịch sử luyện tập...</div>
-        <button type="button" class="btn-secondary" id="btn-open-suggested" hidden>Học Unit được gợi ý</button>
+        <p class="if-then-line">Nếu đến
+          <input type="time" id="commit-time" class="study-input" value="20:00" aria-label="Giờ học cam kết">
+          mỗi ngày, tôi sẽ học ít nhất
+          <input type="number" id="commit-minutes" class="study-input commit-minutes" min="5" max="240" value="25" aria-label="Số phút học tối thiểu">
+          phút tại bàn học.
+          <button type="button" class="btn-small" id="btn-save-commitment">Lưu cam kết</button></p>
+        <p class="muted" id="commit-status" role="status"></p>
+        <div class="streak-wrap"><div class="streak-title">🔥 Streak 7 ngày <strong id="streak-count">0</strong></div>
+          <ol class="streak-bar" id="streak-bar" aria-label="Chuỗi học trong tuần"></ol></div>
+      </div>
+
+      <div class="study-card" id="srs-due-panel">
+        <h2 class="study-h2">🔁 Ôn Tập Ngắt Quãng Hôm Nay <span class="history-count-pill" id="srs-due-count">0</span></h2>
+        <div id="srs-due-list" class="srs-due-list"><p class="muted">Đang tải hàng đợi...</p></div>
+      </div>
+
+      <div class="study-card" id="recommended-curriculum">
+        <h2 class="study-h2">⭐ Lộ Trình Giáo Trình Cá Nhân Hóa (i+1)</h2>
+        <div id="recommended-list" class="recommended-list"><p class="muted">Đang tải gợi ý...</p></div>
       </div>
     </section>
 
@@ -121,6 +173,18 @@
       </div>
 
       <aside class="writing-sidebar">
+        <section class="sidebar-card tutor-panel" id="tutor-feedback-panel" hidden>
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">🤖 Gia sư AI Siêu Nhận Thức</h2></div></div>
+          <p class="muted">Hỏi bài hoặc dán câu của bạn để xin gợi ý. Gia sư sẽ gợi mở từng bước, không chép hộ đáp án.</p>
+          <textarea id="tutor-input" class="study-input study-textarea" rows="3" placeholder="Ví dụ: Vì sao câu này là NOT GIVEN chứ không phải FALSE?"></textarea>
+          <div class="tutor-actions"><button type="button" class="btn-primary" id="btn-tutor-ask">Hỏi Gia sư</button><span class="muted" id="tutor-status" role="status"></span></div>
+          <div id="tutor-reply" class="tutor-reply" aria-live="polite"></div>
+        </section>
+        <section class="sidebar-card">
+          <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Lịch sử Lượng giá Định kỳ</h2></div>
+            <span class="history-count-pill" id="checkpoint-count">0</span></div>
+          <div class="history-list" id="checkpoint-history"><p class="muted">Chưa có lượng giá nào.</p></div>
+        </section>
         <section class="sidebar-card">
           <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Tiến độ Mastery</h2></div>
             <span class="history-count-pill" id="progress-count">0</span></div>
@@ -128,11 +192,11 @@
         </section>
         <section class="sidebar-card">
           <div class="sidebar-card-header"><div class="sidebar-title-group"><h2 class="sidebar-title">Chuỗi 5 bước</h2></div></div>
-          <div class="tips-item"><div class="tips-icon">📖</div><div><strong style="color: var(--text-primary);">20% — Smart Lesson</strong><p>Bài giảng song ngữ Anh – Việt.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🗂️</div><div><strong style="color: var(--text-primary);">40% — Flashcards</strong><p>Lật thẻ, đánh dấu "Đã thuộc".</p></div></div>
-          <div class="tips-item"><div class="tips-icon">⚡</div><div><strong style="color: var(--text-primary);">60% — Quick Quiz</strong><p>Đúng/Sai và trắc nghiệm.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🧩</div><div><strong style="color: var(--text-primary);">80% — Gap Drill</strong><p>Sửa lỗi, điền từ học thuật.</p></div></div>
-          <div class="tips-item"><div class="tips-icon">🏆</div><div><strong style="color: var(--text-primary);">100% — Mini Output</strong><p>Viết ngắn, AI chấm điểm.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">📖</div><div><strong style="color: var(--text-primary);">20% — Deep Lesson + Feynman</strong><p>Bảng nâng cấp câu theo Band và tự giải thích.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🗂️</div><div><strong style="color: var(--text-primary);">40% — Active Recall + SRS</strong><p>Nhớ lại từ trước khi lật thẻ.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">⚡</div><div><strong style="color: var(--text-primary);">60% — Quick Quiz</strong><p>Câu hỏi đan xen kỹ năng.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🧩</div><div><strong style="color: var(--text-primary);">80% — Interleaved Drill</strong><p>Trộn Reading, GRA, LR.</p></div></div>
+          <div class="tips-item"><div class="tips-icon">🏆</div><div><strong style="color: var(--text-primary);">100% — Output Checkpoint</strong><p>Viết/nói, tự dự đoán Band, AI lượng giá.</p></div></div>
         </section>
       </aside>
     </div>
