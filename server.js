@@ -30,8 +30,10 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
-// Results storage paths
-const resultsDir = process.env.IELTS_RESULTS_DIR || path.join(__dirname, 'results');
+// Results storage paths (use /tmp on serverless platforms like Vercel where __dirname is read-only)
+const resultsDir = process.env.IELTS_RESULTS_DIR || (
+  process.env.VERCEL ? '/tmp/ielts-results' : path.join(__dirname, 'results')
+);
 const resultsFile = path.join(resultsDir, 'writing_results.json');
 const placementResultsFile = path.join(resultsDir, 'placement_results.json');
 const speakingResultsFile = path.join(resultsDir, 'speaking_results.json');
