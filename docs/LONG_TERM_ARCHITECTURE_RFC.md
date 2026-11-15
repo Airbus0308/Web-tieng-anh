@@ -13,7 +13,7 @@ Sau 8 Phase, dự án đã có đầy đủ tính năng cốt lõi (Placement Te
 1. **Giao diện `study.html` đang hiển thị quá nhiều khối cùng lúc (Information Overload & Duplication):**
    - Hiện tại khi mở `study.html`, người dùng phải cuộn qua **hơn 8 khối thẻ xếp chồng dọc**:
      * Khối `#study-banner` (Đếm ngược + Lỗ hổng kiến thức của Phase 7) **bị trùng lặp chức năng** với `#profile-card` (Hồ sơ năng lực) và `#kbcp-commitment-box` (Form ngày thi + Target Band của Phase 8B).
-     * Khi người dùng đang học trong `#player-section` (Bước 1 → Bước 5), toàn bộ các khối phía trên (`#forethought-panel`, `#library-section`, `#source-section`) vẫn chiếm diện tích khổng lồ khiến người học phải cuộn chuột rất xa.
+     * Khi người dùng đang học trong `#lesson-section` (Bước 1 → Bước 5), toàn bộ các khối phía trên (`#forethought-panel`, `#library-section`, `#source-section`) vẫn chiếm diện tích khổng lồ khiến người học phải cuộn chuột rất xa.
 2. **Chưa có Tài khoản & Hồ sơ Học viên Bền vững (Auth & Multi-Device Profile):**
    - Dữ liệu hiện lưu trong các file JSON chung (`results/*.json`) và `localStorage`.
    - Khi triển khai lên **Vercel** (môi trường Serverless `/tmp` tạm thời) hoặc khi nhiều học viên cùng truy cập 1 link public, dữ liệu giữa các học viên sẽ bị trộn lẫn hoặc mất đi khi Serverless cold-start.
@@ -85,10 +85,10 @@ Chọn lọc tinh hoa từ 3 nền tảng LMS mã nguồn mở hiện đại nh�
 | Phase | Tên Phase | Trọng tâm Kỹ thuật & Giao diện | Phân công |
 | :--- | :--- | :--- | :---: |
 | **Phase 9A** | **UI Decluttering & Progressive Disclosure (`study.html`, `css/study.css`, `js/study.js`)** | Gộp các khối trùng lặp trên `study.html`, thiết kế Bảng điều khiển 3 cột tinh gọn, chế độ Focus Mode khi đang học Unit, biên soạn câu hỏi Drill/Quiz riêng cho từng Unit. | Claude Code |
-| **Phase 9B** | **Learner Auth, Multi-User Profile & "Learn From My Mistakes" Pipeline (`server.js`, `js/auth-profile.js`)** | Đăng nhập/Đăng ký + Mã đồng bộ (`Sync Code`), tách dữ liệu theo `userId` (hỗ trợ Guest auto-merge), tải file `.pdf`/`.docx`, và nút tạo bài học trực tiếp từ lỗi sai Writing/Speaking. | OpenAI Codex & Claude Code |
-| **Phase 10** | **Writing Task 1 (Academic Charts/Graphs & General Letter) + Overall Writing Band** | Bổ sung luyện viết Task 1 với biểu đồ trực quan (Bar, Line, Pie, Table, Process, Map bằng SVG), chấm 4 tiêu chí Task 1 (`TA`, `CC`, `LR`, `GRA`) và tính điểm Overall Writing ($\frac{1}{3}\text{Task 1} + \frac{2}{3}\text{Task 2}$). | OpenAI Codex & Claude Code |
-| **Phase 11** | **Interactive Speaking Mock Interview (Part 1 → Part 2 → Part 3 Live Examiner)** | Phòng thi vấn đáp trực tiếp: Giám khảo AI đọc câu hỏi bằng giọng nói (TTS), bấm giờ chuẩn từng Part và tự động hỏi xoáy (follow-up questions) ở Part 3 dựa trên câu trả lời của học viên. | Claude Code & OpenAI Codex |
-| **Phase 12** | **Full-Length 4-Skill Mock Exam & Certificate Export** | Thi thử 4 kỹ năng liên hoàn dưới áp lực thời gian + Giám sát chống gian lận (`ExamSecurity`), xuất bảng điểm chuẩn IELTS Test Report Form (TRF) kèm lộ trình khắc phục. | Antigravity, Codex & Claude Code |
+| **Phase 9B** | **Learner Auth, Session Guard & "Learn From My Mistakes" Pipeline (`server.js`, `db/store.js`, `js/auth-profile.js`)** | Cookie `im_uid` + Mã đồng bộ (`Sync Passcode` chống chia sẻ quá số thiết bị theo triết lý `Better Auth`), phân quyền (`guest`/`student`/`instructor`), tách dữ liệu theo `userId`, nạp `.pdf`/`.docx` (trích xuất client-side), và nút tạo bài học trực tiếp từ lỗi sai Writing/Speaking. | OpenAI Codex & Claude Code |
+| **Phase 10** | **Writing Task 1 (SVG Charts/Maps) & Novel-style Academic Writing Studio** | Bổ sung luyện viết Task 1 với biểu đồ trực quan (Bar, Line, Pie, Table, Process, Map bằng SVG), bộ công cụ phân tích đoạn văn & từ nối trực tiếp trong trình viết, chấm 4 tiêu chí Task 1 (`TA`, `CC`, `LR`, `GRA`) và tính điểm Overall Writing ($\frac{1}{3}\text{Task 1} + \frac{2}{3}\text{Task 2}$). | OpenAI Codex & Claude Code |
+| **Phase 11** | **Interactive Speaking Mock Interview & In-Audio/Video Timestamped Checkpoints** | Phòng thi vấn đáp trực tiếp Part 1–2–3 (Giám khảo AI hỏi xoáy bằng TTS) + Trình phát Audio/Video thông minh (`Vidstack` / `Interactive-Player-Enhanced` style: tự động bật câu hỏi mini-quiz tại các mốc thời gian quan trọng khi nghe/xem bài giảng). | Claude Code & OpenAI Codex |
+| **Phase 12** | **Computer-Delivered 4-Skill Mock Exam (`SurveyJS` Navigator) & Verified PDF Certificate / TRF** | Phòng thi giả lập chuẩn IELTS trên máy tính (bảng câu hỏi `1..N` có nút `🚩 Flag for Review`, khóa màn hình `ExamSecurity`), xuất **Phiếu Điểm IELTS Test Report Form (TRF) & Chứng Chỉ Hoàn Thành** ra PDF sắc nét kèm mã QR xác thực. | Antigravity, Codex & Claude Code |
 
 ---
 
