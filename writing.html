@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="IELTS Writing Task 2 Practice — Write timed essays, get live word count feedback, and receive comprehensive AI scoring across official IELTS assessment criteria.">
-  <title>IELTS Master — Writing Task 2 Practice</title>
+  <meta name="description" content="IELTS Writing Practice (Task 1 Academic, Task 1 General & Task 2) — Write timed responses, get live word count feedback, and receive comprehensive AI scoring across official IELTS assessment criteria.">
+  <title>IELTS Master — Writing Practice (Task 1 & Task 2)</title>
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,13 +53,13 @@
     <!-- Page Header Intro -->
     <section class="writing-intro">
       <div class="writing-badge-row">
-        <span class="writing-badge">Writing Task 2</span>
+        <span class="writing-badge" id="writing-mode-badge">Writing Task 2</span>
         <span class="writing-meta-chip">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          40 Minutes
+          <span id="writing-time-chip">40 Minutes</span>
         </span>
         <span class="writing-meta-chip">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -69,14 +69,36 @@
             <line x1="16" y1="17" x2="8" y2="17"/>
             <polyline points="10 9 9 9 8 9"/>
           </svg>
-          Min 250 Words
+          <span id="writing-words-chip">Min 250 Words</span>
         </span>
       </div>
-      <h1 class="writing-page-title">Task 2 Essay Practice & Scoring</h1>
-      <p class="writing-page-desc">
+      <h1 class="writing-page-title" id="writing-page-title">Task 2 Essay Practice & Scoring</h1>
+      <p class="writing-page-desc" id="writing-page-desc">
         Practice IELTS Writing Task 2 prompts under realistic exam conditions. Get real-time word counting and detailed AI scoring across all 4 official assessment criteria.
       </p>
     </section>
+
+    <!-- Phase 10B: Overall Writing Band = roundToHalf((Task 1 + 2 × Task 2) / 3) -->
+    <section class="writing-overall-banner" id="writing-overall-banner" aria-live="polite" aria-label="Overall Writing Band">
+      <div class="wob-stat"><span class="wob-label">Task 1 mới nhất</span><strong class="wob-value" id="wob-task1">—</strong></div>
+      <div class="wob-stat"><span class="wob-label">Task 2 mới nhất</span><strong class="wob-value" id="wob-task2">—</strong></div>
+      <div class="wob-stat wob-overall"><span class="wob-label">🎯 Overall Writing Band <small>(Task 1 + 2 × Task 2) / 3</small></span><strong class="wob-value" id="wob-overall">—</strong></div>
+      <p class="wob-hint" id="wob-hint">Hoàn thành 1 bài Task 1 và 1 bài Task 2 để có điểm Overall Writing.</p>
+      <button type="button" class="wob-cta" id="wob-cta" hidden></button>
+    </section>
+
+    <!-- Phase 10B: practice mode switcher -->
+    <div class="writing-task-tabs" id="writing-task-tabs" role="tablist" aria-label="Writing task type">
+      <button type="button" class="writing-task-tab active" id="tab-task2" role="tab" data-task-mode="task2" aria-selected="true" aria-controls="topic-section">
+        <span class="wtt-title">📝 Task 2: Essay</span><span class="wtt-meta">40 phút · ≥ 250 từ</span>
+      </button>
+      <button type="button" class="writing-task-tab" id="tab-task1-academic" role="tab" data-task-mode="task1-academic" aria-selected="false" aria-controls="topic-section" tabindex="-1">
+        <span class="wtt-title">📊 Task 1 Academic: Charts, Tables &amp; Process</span><span class="wtt-meta">20 phút · ≥ 150 từ</span>
+      </button>
+      <button type="button" class="writing-task-tab" id="tab-task1-general" role="tab" data-task-mode="task1-general" aria-selected="false" aria-controls="topic-section" tabindex="-1">
+        <span class="wtt-title">✉️ Task 1 General: Letter</span><span class="wtt-meta">20 phút · ≥ 150 từ</span>
+      </button>
+    </div>
 
     <!-- Two-column Workspace Layout -->
     <div class="writing-layout">
@@ -85,7 +107,7 @@
       <div class="writing-main">
 
         <!-- 1. Topic Section -->
-        <section class="topic-card" id="topic-section">
+        <section class="topic-card" id="topic-section" role="tabpanel" aria-labelledby="tab-task2">
           <div class="topic-header">
             <div class="topic-tags">
               <span class="topic-category-tag" id="topic-category">Education & Technology</span>
@@ -114,13 +136,17 @@
             </svg>
             <span id="topic-instructions-text">Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.</span>
           </div>
+
+          <!-- Phase 10B: Task 1 topic picker + SVG chart / table / process / letter brief -->
+          <div class="task1-visual-filter" id="task1-visual-filter" role="group" aria-label="Chọn dạng đề Task 1" hidden></div>
+          <div class="task1-visual-container" id="task1-visual-container" hidden></div>
         </section>
 
         <!-- 2. Large Textarea Editor -->
         <section class="editor-card" id="editor-section">
           <div class="editor-header">
             <div class="editor-title-group">
-              <span class="editor-title">Your Essay Response</span>
+              <span class="editor-title" id="editor-title">Your Essay Response</span>
             </div>
             <div class="editor-actions">
               <button type="button" class="btn-text-action" id="btn-clear-essay" onclick="WritingApp.clearDraft()" title="Clear current essay draft">
@@ -152,14 +178,14 @@
                 <line x1="12" y1="16" x2="12" y2="12"/>
                 <line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
-              <span><strong id="char-count-number">0</strong> characters · Minimum 250 words</span>
+              <span><strong id="char-count-number">0</strong> characters · <span id="char-limit-text">Minimum 250 words</span></span>
             </div>
 
             <!-- Live word counter badge: warning (amber) when < 250, success (green) when >= 250 -->
             <div class="word-count-badge warning" id="word-count-badge" aria-live="polite">
               <span class="word-count-dot"></span>
               <span class="word-count-display">
-                <strong id="word-count-number">0</strong> / 250 words
+                <strong id="word-count-number">0</strong> / <span id="word-count-min">250</span> words
               </span>
             </div>
           </div>
@@ -190,7 +216,7 @@
         <section class="scoring-loader" id="scoring-loader" style="display: none;" aria-live="assertive">
           <div class="spinner-ring"></div>
           <h2 class="loader-title">Evaluating Your Essay</h2>
-          <p class="loader-subtitle">
+          <p class="loader-subtitle" id="loader-subtitle">
             Analyzing your essay against official IELTS Task 2 criteria: Task Response, Coherence & Cohesion, Lexical Resource, and Grammatical Range & Accuracy...
           </p>
           <div class="loader-steps">
@@ -221,6 +247,8 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <span id="result-timestamp">Today</span>
                 </span>
+                <span class="result-meta-chip task-badge" id="result-task-chip">Task 2 · Essay</span>
+                <span class="result-meta-chip overview-chip" id="result-overview-chip" hidden></span>
               </div>
             </div>
           </div>
@@ -327,8 +355,8 @@
           <div class="tips-item">
             <div class="tips-icon">🎯</div>
             <div>
-              <strong style="color: var(--text-primary); display: block;">TR — Task Response (25%)</strong>
-              Address all prompt parts, develop supported arguments, and state a clear position throughout.
+              <strong style="color: var(--text-primary); display: block;" id="guide-first-title">TR — Task Response (25%)</strong>
+              <span id="guide-first-desc">Address all prompt parts, develop supported arguments, and state a clear position throughout.</span>
             </div>
           </div>
 
@@ -365,31 +393,31 @@
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
-              <h2 class="sidebar-title">40-Minute Strategy</h2>
+              <h2 class="sidebar-title" id="strategy-title">40-Minute Strategy</h2>
             </div>
           </div>
 
           <div class="tips-item">
             <div class="tips-icon">⏱️</div>
             <div>
-              <strong style="color: var(--text-primary);">00–05 min: Planning</strong>
-              <p>Analyze the prompt, identify keywords, and outline 2 main arguments.</p>
+              <strong style="color: var(--text-primary);" id="strategy-1-title">00–05 min: Planning</strong>
+              <p id="strategy-1-desc">Analyze the prompt, identify keywords, and outline 2 main arguments.</p>
             </div>
           </div>
 
           <div class="tips-item">
             <div class="tips-icon">✍️</div>
             <div>
-              <strong style="color: var(--text-primary);">05–35 min: Writing</strong>
-              <p>Write intro, 2 body paragraphs, and conclusion (approx. 270 words).</p>
+              <strong style="color: var(--text-primary);" id="strategy-2-title">05–35 min: Writing</strong>
+              <p id="strategy-2-desc">Write intro, 2 body paragraphs, and conclusion (approx. 270 words).</p>
             </div>
           </div>
 
           <div class="tips-item">
             <div class="tips-icon">🔍</div>
             <div>
-              <strong style="color: var(--text-primary);">35–40 min: Proofreading</strong>
-              <p>Review spelling, subject-verb agreement, and cohesive transition words.</p>
+              <strong style="color: var(--text-primary);" id="strategy-3-title">35–40 min: Proofreading</strong>
+              <p id="strategy-3-desc">Review spelling, subject-verb agreement, and cohesive transition words.</p>
             </div>
           </div>
         </section>

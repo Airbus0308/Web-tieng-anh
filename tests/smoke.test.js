@@ -964,15 +964,19 @@ test('Phase 9B PATCH /api/me stores commitment and merges streak days', async ()
 });
 
 /* ── Phase 10A: Task 1 grading and overall Writing band ── */
-test('Phase 10A Writing config includes six complete Task 1 topics and keeps Task 2 config', async () => {
+test('Phase 10A Writing config includes the six required Task 1 topics and keeps Task 2 config', async () => {
   const d=await (await fetch(BASE+'/api/writing/config')).json();
   assert.deepEqual(d.task1WordCountRequirements,{min:150,recommended:180,timeMinutes:20});
   assert.deepEqual(d.task1Criteria.map(c=>c.abbreviation),['TA','CC','LR','GRA']);
   assert.ok(d.task1Criteria.every(c=>c.weight===0.25));
-  assert.deepEqual(d.sampleTask1Topics.map(t=>t.id),['wt1-ac-bar-01','wt1-ac-line-01','wt1-ac-pie-01','wt1-ac-table-01','wt1-ac-process-01','wt1-gt-letter-01']);
+  // The six spec topics must stay; Gemini CLI's extra content (map, semi-formal letter) is allowed.
+  const ids=d.sampleTask1Topics.map(t=>t.id);
+  for (const id of ['wt1-ac-bar-01','wt1-ac-line-01','wt1-ac-pie-01','wt1-ac-table-01','wt1-ac-process-01','wt1-gt-letter-01']) assert.ok(ids.includes(id), id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(d.sampleTask1Topics.find(t=>t.id==='wt1-gt-letter-01').tone,'Formal');
   for (const t of d.sampleTask1Topics) {
     assert.equal(t.taskNumber,1); assert.ok(t.prompt && t.instructions && t.keyFacts.length);
-    if(t.visualType==='letter') { assert.equal(t.subType,'general'); assert.equal(t.tone,'Formal'); assert.equal(t.bulletPoints.length,3); }
+    if(t.visualType==='letter') { assert.equal(t.subType,'general'); assert.ok(['Formal','Semi-formal','Informal'].includes(t.tone)); assert.equal(t.bulletPoints.length,3); }
     else { assert.equal(t.subType,'academic'); assert.ok(t.visualData); }
   }
   for(const type of ['bar','line','pie']) {
@@ -1043,3 +1047,109 @@ test('Phase 10A supports TA mistake contexts in object and shorthand form', asyn
     }
   });
 });
+
+/* ── Phase 10B: Writing Task 1 frontend ── */
+test('Phase 10B writing.html has task tabs, Task 1 visual slot, overall banner and Task 1 result flags', async () => {
+  const html = await (await fetch(`${BASE}/writing.html`)).text();
+  for (const id of ['writing-task-tabs', 'tab-task2', 'tab-task1-academic', 'tab-task1-general', 'task1-visual-container',
+    'task1-visual-filter', 'writing-overall-banner', 'wob-task1', 'wob-task2', 'wob-overall', 'wob-cta',
+    'result-task-chip', 'result-overview-chip', 'word-count-min', 'char-limit-text',
+    // Phase 2–9B IDs must survive the redesign
+    'writing-timer-display', 'word-count-badge', 'char-limit-indicator', 'essay-input', 'btn-submit-essay', 'topic-prompt',
+    'results-area', 'criteria-grid', 'history-list', 'btn-create-mistake-unit', 'inline-corrections-list']) {
+    assert.ok(html.includes(`id="${id}"`), `writing.html should include #${id}`);
+  }
+  for (const mode of ['task2', 'task1-academic', 'task1-general']) assert.ok(html.includes(`data-task-mode="${mode}"`), mode);
+  assert.match(html, /id="tab-task2"[^>]*aria-selected="true"/, 'Task 2 is the default tab');
+  const visual = html.indexOf('id="task1-visual-container"');
+  assert.ok(visual > html.indexOf('id="topic-section"') && visual < html.indexOf('id="editor-section"'), 'visual lives inside #topic-section');
+  assert.ok(html.indexOf('id="writing-task-tabs"') < html.indexOf('class="writing-layout"'));
+
+  const js = await (await fetch(`${BASE}/js/writing.js`)).text();
+  for (const token of ['renderTask1Visual', 'setTaskMode', 'taskNumber: 1', 'subType', 'topicId', 'visualSummary',
+    '/api/writing/summary', 'has_clear_overview', 'Task Achievement', 'task1-data-table', 'task1-process',
+    "type === 'bar'", "type === 'line'", "type === 'pie'", "type === 'table'", "type === 'process'", "type === 'letter'", "type === 'map'",
+    'bulletPoints', 'usefulPhrases', 'overviewSample', 'Task 2 · Essay', 'Task 1 · ', '_escapeHtml']) {
+    assert.ok(js.includes(token), `writing.js should include ${token}`);
+  }
+  // Each mode keeps its own minimum, timer and draft
+  assert.match(js, /minWords: 250, minutes: 40/);
+  assert.match(js, /minWords: 150, minutes: 20/);
+  assert.ok(js.includes('_modeState[_mode].draft = textarea.value'));
+  // Task 1 colours come from a fixed palette, never from config strings
+  assert.ok(!js.includes('s?.color'), 'series colours must not be read from config data');
+
+  const css = await (await fetch(`${BASE}/css/writing.css`)).text();
+  for (const sel of ['.writing-task-tabs', '.writing-overall-banner', '.task1-visual-container', '.task1-data-table', '.task1-process', '.t1-letter', '.t1-map-zones']) {
+    assert.ok(css.includes(sel), `writing.css should style ${sel}`);
+  }
+});
+
+test('Phase 10B renderTask1Visual draws every Task 1 type and escapes untrusted labels', async () => {
+  const vm = await import('node:vm');
+  const src = await (await fetch(`${BASE}/js/writing.js`)).text();
+  const cfg = await (await fetch(`${BASE}/config.json`)).json();
+  // Minimal DOM: one container element captures innerHTML.
+  const box = { innerHTML: '', hidden: true, replaceChildren() { this.innerHTML = ''; } };
+  const ctx = { document: { getElementById: id => id === 'task1-visual-container' ? box : null, addEventListener() {}, querySelectorAll: () => [] },
+    console, setTimeout, clearInterval, setInterval, localStorage: { getItem: () => null, setItem() {} } };
+  vm.createContext(ctx);
+  vm.runInContext(`${src}\nthis.WritingApp = WritingApp;`, ctx);
+  const draw = topic => { ctx.WritingApp.renderTask1Visual(topic); return box.innerHTML; };
+
+  const byType = Object.fromEntries(cfg.sampleTask1Topics.map(t => [t.visualType, t]));
+  assert.match(draw(byType.bar), /<svg class="t1-svg" viewBox="0 0 680 300"[\s\S]*<path fill="#3987e5"/);
+  assert.match(draw(byType.line), /<polyline class="t1-line"[\s\S]*<circle class="t1-dot"/);
+  const pie = draw(byType.pie);
+  assert.equal((pie.match(/class="t1-pie-title"/g) || []).length, 2, 'two pies');
+  assert.match(pie, /<table class="task1-data-table">/);
+  const table = draw(byType.table);
+  assert.match(table, /<table class="task1-data-table">/);
+  assert.ok(table.includes('class="is-max"') && table.includes('class="is-min"'));
+  assert.equal((draw(byType.process).match(/class="t1-step"/g) || []).length, byType.process.visualData.steps.length);
+  const letter = draw(byType.letter);
+  assert.ok((letter.match(/<li>/g) || []).length >= byType.letter.bulletPoints.length);
+  assert.ok(letter.includes(`Tone: ${byType.letter.tone}`));
+  if (byType.map) assert.equal((draw(byType.map).match(/class="t1-zone"/g) || []).length, byType.map.visualData.zones.length);
+
+  const evil = '<img src=x onerror=alert(1)>"\'';
+  const attacks = [
+    { visualType: 'bar', taskType: evil, visualData: { title: evil, unit: evil, categories: [evil], series: [{ label: evil, color: 'red" onload="x', values: [5] }] } },
+    { visualType: 'line', visualData: { categories: [evil, 'b'], series: [{ label: evil, values: [1, 2] }] } },
+    { visualType: 'pie', visualData: { categories: [evil], series: [{ label: evil, values: [100] }] } },
+    { visualType: 'table', visualData: { title: evil, columns: [evil, 'n'], rows: [[evil, 1], ['b', 2]] } },
+    { visualType: 'process', visualData: { steps: [{ step: evil, title: evil, detail: evil }] } },
+    { visualType: 'map', visualData: { beforeLabel: evil, zones: [{ area: evil, before: evil, after: evil, changeType: evil }] } },
+    { visualType: 'letter', taskType: evil, tone: evil, bulletPoints: [evil], usefulPhrases: [evil], overviewSample: evil }
+  ];
+  for (const topic of attacks) {
+    const html = draw(topic);
+    assert.ok(!html.includes('<img') && !html.includes('onload="x'), `${topic.visualType} must escape labels`);
+    assert.ok(html.includes('&lt;img'), `${topic.visualType} renders the escaped text`);
+  }
+});
+
+test('Phase 10B client Overall Writing summary matches the server formula', async () => {
+  const vm = await import('node:vm');
+  const ctx = { document: { getElementById: () => null, addEventListener() {}, querySelectorAll: () => [] }, console, localStorage: { getItem: () => null } };
+  vm.createContext(ctx);
+  vm.runInContext(`${await (await fetch(`${BASE}/js/writing.js`)).text()}\nthis.WritingApp = WritingApp;`, ctx);
+  const history = [
+    { taskNumber: 1, timestamp: '2026-11-10T00:00:00Z', result: { overall_band: 5 } },
+    { taskNumber: 1, timestamp: '2026-11-12T00:00:00Z', overallBand: 6 },          // latest Task 1 (local record shape)
+    { timestamp: '2026-11-11T00:00:00Z', result: { overall_band: 7 } }             // legacy record → Task 2
+  ];
+  const s = JSON.parse(JSON.stringify(ctx.WritingApp.computeWritingSummary(history)));
+  assert.equal(s.latestTask1Band, 6);
+  assert.equal(s.latestTask2Band, 7);
+  assert.equal(s.combinedOverallBand, 6.5);                                      // (6 + 14) / 3 = 6.67 → 6.5
+  assert.equal(ctx.WritingApp.computeWritingSummary([history[2]]).combinedOverallBand, null);
+
+  const analytics = await (await fetch(`${BASE}/js/analytics.js`)).text();
+  for (const token of ["key: 'TA'", 'computeWritingSummary', 'combinedOverallBand', 'writing-score-meta', 'TA: []']) {
+    assert.ok(analytics.includes(token), `analytics.js should include ${token}`);
+  }
+  const page = await (await fetch(`${BASE}/analytics.html`)).text();
+  assert.ok(page.includes('id="writing-score-meta"') && page.includes('TA · TR, CC, LR, GRA'));
+});
+

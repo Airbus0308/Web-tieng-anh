@@ -1,5 +1,10 @@
 /**
- * IELTS Master — Writing Task 2 Practice Module
+ * IELTS Master — Writing Practice Module (Task 2 Essay + Phase 10B Task 1 Academic / General)
+ *
+ * Phase 10B: 3 practice modes (#writing-task-tabs) with their own timer, word minimum, topic and
+ * draft; renderTask1Visual() draws bar / line / pie charts as SVG, data tables, process diagrams and
+ * letter briefs from config.sampleTask1Topics; #writing-overall-banner shows
+ * roundToHalf((Task 1 + 2 × Task 2) / 3) from GET /api/writing/summary (local fallback).
  * 
  * Manages the Writing Task 2 frontend workflow:
  * - Dynamic topic loading from config.json
@@ -21,6 +26,56 @@ const WritingApp = (() => {
   let _timerSeconds = 40 * 60; // 40 minutes for Task 2
   let _timerInterval = null;
   let _timerRunning = false;
+
+  /* Phase 10B: practice modes. Each keeps its own topic, draft and remaining time. */
+  const MODES = {
+    'task2': {
+      taskNumber: 2, subType: 'essay', minWords: 250, minutes: 40,
+      badge: 'Writing Task 2', title: 'Task 2 Essay Practice & Scoring',
+      desc: 'Practice IELTS Writing Task 2 prompts under realistic exam conditions. Get real-time word counting and detailed AI scoring across all 4 official assessment criteria.',
+      editor: 'Your Essay Response',
+      placeholder: 'Write your essay here...\n\nRecommended Essay Structure:\n• Introduction: Paraphrase the prompt & state your clear thesis statement\n• Body Paragraph 1: First main idea, supported by detailed explanation and relevant examples\n• Body Paragraph 2: Second main idea or counter-perspective with supporting evidence\n• Conclusion: Summarize the main points and restate your final position\n\nAim for 250 - 320 words. Remember to check your spelling, punctuation, and paragraph transitions.',
+      loader: 'Analyzing your essay against official IELTS Task 2 criteria: Task Response, Coherence & Cohesion, Lexical Resource, and Grammatical Range & Accuracy...',
+      guide: ['TR — Task Response (25%)', 'Address all prompt parts, develop supported arguments, and state a clear position throughout.'],
+      strategy: ['40-Minute Strategy',
+        ['00–05 min: Planning', 'Analyze the prompt, identify keywords, and outline 2 main arguments.'],
+        ['05–35 min: Writing', 'Write intro, 2 body paragraphs, and conclusion (approx. 270 words).'],
+        ['35–40 min: Proofreading', 'Review spelling, subject-verb agreement, and cohesive transition words.']]
+    },
+    'task1-academic': {
+      taskNumber: 1, subType: 'academic', minWords: 150, minutes: 20,
+      badge: 'Writing Task 1 · Academic', title: 'Task 1 Academic Report Practice & Scoring',
+      desc: 'Describe a chart, table or process diagram in at least 150 words. Select the main features, write a clear overview, and support comparisons with accurate figures.',
+      editor: 'Your Report',
+      placeholder: 'Write your report here...\n\nRecommended Structure:\n• Introduction: Paraphrase what the visual shows (what, where, when)\n• Overview: 1–2 sentences on the main trends or biggest differences — no numbers needed\n• Body Paragraph 1: Key features with accurate figures and comparisons\n• Body Paragraph 2: Remaining key features with figures\n\nAim for 160 - 190 words. Do not give personal opinions.',
+      loader: 'Analyzing your report against official IELTS Task 1 criteria: Task Achievement (overview & accurate data), Coherence & Cohesion, Lexical Resource, and Grammatical Range & Accuracy...',
+      guide: ['TA — Task Achievement (25%)', 'Give a clear overview of the main trends, select key features, and report figures accurately with comparisons. No personal opinion.'],
+      strategy: ['20-Minute Strategy',
+        ['00–03 min: Analyse', 'Read the visual: units, time period, highest/lowest values and the overall trend.'],
+        ['03–17 min: Writing', 'Introduction, overview, then 2 body paragraphs grouping the key features (approx. 170 words).'],
+        ['17–20 min: Checking', 'Check figures against the visual, tenses, and comparison language (respectively, whereas).']]
+    },
+    'task1-general': {
+      taskNumber: 1, subType: 'general', minWords: 150, minutes: 20,
+      badge: 'Writing Task 1 · General Training', title: 'Task 1 Letter Practice & Scoring',
+      desc: 'Write a letter of at least 150 words for an everyday situation. Cover all three bullet points and keep the tone consistent with the reader.',
+      editor: 'Your Letter',
+      placeholder: 'Write your letter here...\n\nRecommended Structure:\n• Greeting: Dear Sir or Madam, / Dear Mr Smith, / Dear Anna,\n• Opening: State why you are writing\n• Paragraphs 2–4: One paragraph for each bullet point\n• Closing line + sign-off (Yours faithfully / Yours sincerely / Best wishes)\n\nAim for 160 - 190 words with a consistent tone.',
+      loader: 'Analyzing your letter against official IELTS Task 1 criteria: Task Achievement (purpose, bullet points & tone), Coherence & Cohesion, Lexical Resource, and Grammatical Range & Accuracy...',
+      guide: ['TA — Task Achievement (25%)', 'Make the purpose clear, fully cover all three bullet points, and keep the tone (formal / semi-formal / informal) consistent.'],
+      strategy: ['20-Minute Strategy',
+        ['00–03 min: Planning', 'Identify the reader, the tone and one idea for each bullet point.'],
+        ['03–17 min: Writing', 'Greeting, purpose, one paragraph per bullet point, closing (approx. 170 words).'],
+        ['17–20 min: Checking', 'Check the tone, the sign-off, spelling and punctuation.']]
+    }
+  };
+  const MODE_KEYS = Object.keys(MODES);
+  let _mode = 'task2';
+  let _task1Topics = [];
+  const _modeState = Object.fromEntries(MODE_KEYS.map(k => [k, { topic: null, draft: '', seconds: null }]));
+  const _modeCfg = () => MODES[_mode];
+  const _minWords = () => _modeCfg().minWords;
+  const _isTask1 = () => _modeCfg().taskNumber === 1;
 
   /* Default fallback topics in case config.json cannot be fetched */
   const _DEFAULT_TOPICS = [
@@ -155,6 +210,12 @@ const WritingApp = (() => {
     // Setup 40-minute timer display
     _initTimer();
 
+    // Phase 10B: mode tabs (deep link: writing.html#task1-academic) + Overall Writing banner
+    _setupTaskTabs();
+    const hashMode = location.hash.slice(1);
+    if (hashMode !== 'task2' && MODES[hashMode]) setTaskMode(hashMode);
+    loadWritingSummary();
+
     console.log('[WritingApp] Initialization complete.');
   }
 
@@ -179,6 +240,11 @@ const WritingApp = (() => {
       } else {
         _topics = _DEFAULT_TOPICS;
       }
+      _task1Topics = Array.isArray(data.sampleTask1Topics) ? data.sampleTask1Topics.filter(t => t && t.id && t.prompt) : [];
+      const t1Min = Number(data.task1WordCountRequirements?.min);
+      if (t1Min > 0) { MODES['task1-academic'].minWords = t1Min; MODES['task1-general'].minWords = t1Min; }
+      const t1Minutes = Number(data.task1WordCountRequirements?.timeMinutes);
+      if (t1Minutes > 0) { MODES['task1-academic'].minutes = t1Minutes; MODES['task1-general'].minutes = t1Minutes; }
       console.log(`[WritingApp] Loaded ${_topics.length} topics from config.json`);
     } catch (err) {
       console.warn('[WritingApp] config.json fetch failed, using built-in topic bank:', err.message);
@@ -187,36 +253,61 @@ const WritingApp = (() => {
   }
 
   /* ── Topic Selection ─────────────────────────────────── */
-  function changeTopic() {
-    if (!_topics || _topics.length === 0) {
-      _topics = _DEFAULT_TOPICS;
+  /** Topics for the active mode: Task 2 essays, Task 1 Academic visuals or Task 1 General letters. */
+  function _topicPool() {
+    if (!_isTask1()) {
+      if (!_topics || _topics.length === 0) _topics = _DEFAULT_TOPICS;
+      return _topics;
     }
+    return _task1Topics.filter(t => (t.subType === 'general') === (_mode === 'task1-general'));
+  }
+
+  function changeTopic() {
+    const pool = _topicPool();
+    if (!pool.length) { _currentTopic = null; _renderTopic(null); return; }
 
     // Pick a topic different from current if possible
-    let newTopic = _topics[Math.floor(Math.random() * _topics.length)];
-    if (_topics.length > 1 && _currentTopic && newTopic.id === _currentTopic.id) {
-      const filtered = _topics.filter(t => t.id !== _currentTopic.id);
+    let newTopic = pool[Math.floor(Math.random() * pool.length)];
+    if (pool.length > 1 && _currentTopic && newTopic.id === _currentTopic.id) {
+      const filtered = pool.filter(t => t.id !== _currentTopic.id);
       newTopic = filtered[Math.floor(Math.random() * filtered.length)];
     }
 
-    _currentTopic = newTopic;
-    _renderTopic(_currentTopic);
+    _selectTopic(newTopic);
+  }
+
+  function _selectTopic(topic) {
+    _currentTopic = topic;
+    _modeState[_mode].topic = topic;
+    _renderTopic(topic);
   }
 
   function _renderTopic(topic) {
-    if (!topic) return;
+    _renderTask1Filter();
+    const visual = _el('task1-visual-container');
+    if (!topic) {
+      if (_el('topic-prompt')) _el('topic-prompt').textContent = 'Task 1 topics could not be loaded. Please refresh the page or try Task 2.';
+      if (_el('topic-instructions-text')) _el('topic-instructions-text').textContent = '';
+      if (visual) { visual.hidden = true; visual.replaceChildren(); }
+      return;
+    }
+    if (visual) {
+      visual.hidden = !_isTask1();
+      if (_isTask1()) renderTask1Visual(topic); else visual.replaceChildren();
+    }
 
     const catEl = _el('topic-category');
     const typeEl = _el('topic-type');
     const promptEl = _el('topic-prompt');
     const instEl = _el('topic-instructions-text');
 
-    if (catEl) catEl.textContent = topic.category || 'Writing Task 2';
-    if (typeEl) typeEl.textContent = topic.taskType || 'Academic Essay';
+    if (catEl) catEl.textContent = topic.category || (_isTask1() ? 'Writing Task 1' : 'Writing Task 2');
+    if (typeEl) typeEl.textContent = topic.taskType || (_isTask1() ? 'Task 1' : 'Academic Essay');
     if (promptEl) promptEl.textContent = topic.prompt || 'Prompt unavailable.';
     if (instEl) {
-      instEl.textContent = topic.instructions ||
-        'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.';
+      instEl.textContent = topic.instructions || (_isTask1()
+        ? `Write at least ${_minWords()} words.`
+        : 'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.');
     }
   }
 
@@ -261,16 +352,17 @@ const WritingApp = (() => {
     if (wordNumEl) wordNumEl.textContent = words;
     if (charNumEl) charNumEl.textContent = chars.toLocaleString();
 
-    // Check minimum 250 words requirement
-    const isRequirementMet = words >= 250;
+    // Check the minimum for the active mode (Task 2: 250 words, Task 1: 150 words)
+    const minWords = _minWords();
+    const isRequirementMet = words >= minWords && Boolean(_currentTopic);
 
     if (badge) {
       if (isRequirementMet) {
-        // Success: 250+ words (Green)
+        // Success: minimum reached (Green)
         badge.classList.remove('warning');
         badge.classList.add('success');
       } else {
-        // Warning: Under 250 words (Amber)
+        // Warning: under the minimum (Amber)
         badge.classList.remove('success');
         badge.classList.add('warning');
       }
@@ -284,9 +376,12 @@ const WritingApp = (() => {
       if (isRequirementMet) {
         hintText.textContent = `Word count requirement met (${words} words). Ready for scoring.`;
         hintText.style.color = 'var(--accent-green)';
+      } else if (words >= minWords) {
+        hintText.textContent = 'No topic is loaded for this task type yet.';
+        hintText.style.color = 'var(--text-muted)';
       } else {
-        const needed = 250 - words;
-        hintText.textContent = `Write ${needed} more word${needed === 1 ? '' : 's'} to meet the 250-word minimum requirement.`;
+        const needed = minWords - words;
+        hintText.textContent = `Write ${needed} more word${needed === 1 ? '' : 's'} to meet the ${minWords}-word minimum requirement.`;
         hintText.style.color = 'var(--text-muted)';
       }
     }
@@ -300,9 +395,10 @@ const WritingApp = (() => {
     const essay = textarea ? textarea.value.trim() : '';
     const wordCount = countWords(essay);
 
-    // 1. Validate word count (minimum 250 words)
-    if (wordCount < 250) {
-      showToast(`Your essay has ${wordCount} words. You need at least 250 words to submit.`, 'warning');
+    // 1. Validate word count (Task 2: 250 words, Task 1: 150 words)
+    const minWords = _minWords();
+    if (wordCount < minWords) {
+      showToast(`Your response has ${wordCount} words. You need at least ${minWords} words to submit.`, 'warning');
 
       // Highlight word count badge
       const badge = _el('word-count-badge');
@@ -316,6 +412,8 @@ const WritingApp = (() => {
 
     // Confirm submission if needed
     const topicText = _currentTopic ? _currentTopic.prompt : 'IELTS Writing Task 2';
+    const mode = _modeCfg();
+    const submittedTopic = _currentTopic;
 
     // 2. Show loading spinner and state
     _setLoading(true);
@@ -331,25 +429,43 @@ const WritingApp = (() => {
         body: JSON.stringify({
           essay: essay,
           topic: topicText,
+          ...(mode.taskNumber === 1 ? {
+            taskNumber: 1,
+            subType: mode.subType,
+            topicId: submittedTopic?.id || null,
+            visualSummary: _visualSummary(submittedTopic)
+          } : {}),
           integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status} (${response.statusText || 'Scoring Error'})`);
+        let detail = '';
+        try { detail = (await response.json()).error || ''; } catch {}
+        throw new Error(detail || `Server returned ${response.status} (${response.statusText || 'Scoring Error'})`);
       }
 
       const resultData = await response.json();
       console.log('[WritingApp] Score received from server:', resultData);
+      const scored = {
+        ...resultData,
+        topic: resultData.topic || topicText,
+        taskNumber: resultData.taskNumber || mode.taskNumber,
+        subType: resultData.subType || mode.subType,
+        topicId: resultData.topicId || submittedTopic?.id || null,
+        taskType: submittedTopic?.taskType || ''
+      };
 
       // Render results
-      renderResults(resultData);
+      renderResults(scored);
 
       // Save to local storage for persistent history display
-      _saveLocalAttempt(resultData, essay, topicText);
+      _saveLocalAttempt(scored, essay, topicText);
 
-      // Refresh history sidebar
+      // Refresh history sidebar + Overall Writing banner
       await loadHistory();
+      if (resultData.writingBandSummary) renderWritingSummary(resultData.writingBandSummary);
+      else loadWritingSummary();
 
       showToast('Essay evaluated successfully!', 'success');
 
@@ -435,6 +551,18 @@ const WritingApp = (() => {
       timestampEl.textContent = now.toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric'
       });
+    }
+
+    // 1b. Phase 10B: task badge + Task 1 Academic overview flag
+    const taskChip = _el('result-task-chip');
+    if (taskChip) taskChip.textContent = _taskLabel(data);
+    const overviewChip = _el('result-overview-chip');
+    if (overviewChip) {
+      const hasFlag = typeof data.has_clear_overview === 'boolean';
+      overviewChip.hidden = !hasFlag;
+      overviewChip.classList.toggle('is-ok', data.has_clear_overview === true);
+      overviewChip.classList.toggle('is-missing', data.has_clear_overview === false);
+      overviewChip.textContent = data.has_clear_overview ? '✓ Có Overview rõ ràng' : '⚠️ Cần bổ sung đoạn Overview';
     }
 
     // 2. Overall Feedback Paragraph
@@ -529,6 +657,10 @@ const WritingApp = (() => {
   /* ── Normalize Criteria Data ─────────────────────────── */
   function _normalizeCriteria(data) {
     const defaultMeta = {
+      TA: {
+        name: 'Task Achievement',
+        descriptor: 'Overview & accurate key data, or all bullet points & tone.'
+      },
       TR: {
         name: 'Task Response',
         descriptor: 'Addresses all prompt requirements and develops relevant arguments.'
@@ -697,6 +829,9 @@ const WritingApp = (() => {
 
     listEl.innerHTML = '';
 
+    // Newest first (the API appends records in submission order).
+    items = [...items].sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
+
     items.forEach((item, index) => {
       const savedResult = item.result || item;
       const bandNum = parseFloat(savedResult.overall_band ?? savedResult.overallBand ?? 6.5);
@@ -716,7 +851,7 @@ const WritingApp = (() => {
       card.title = 'Click to review this essay result';
 
       // Safe topic display
-      const promptSnippet = _escapeHtml(item.topic || 'IELTS Writing Task 2 Essay');
+      const promptSnippet = _escapeHtml(item.topic || 'IELTS Writing Essay');
       const words = item.wordCount || 250;
 
       // Extract criterion mini scores if available
@@ -727,9 +862,10 @@ const WritingApp = (() => {
         `).join('');
       }
 
+      const taskLabel = _taskLabel(item);
       card.innerHTML = `
         <div class="history-item-header">
-          <span class="history-date">${formattedDate}</span>
+          <span class="history-date">${formattedDate}<span class="history-task-badge ${Number(item.taskNumber) === 1 ? 'is-task1' : 'is-task2'}">[${_escapeHtml(taskLabel)}]</span></span>
           <span class="history-band-pill ${colorClass}">Band ${bandNum.toFixed(1)}</span>
         </div>
         <div class="history-prompt-preview">${promptSnippet}</div>
@@ -740,7 +876,8 @@ const WritingApp = (() => {
       `;
 
       card.addEventListener('click', () => {
-        renderResults({ ...savedResult, id: savedResult.id || item.id, topic: item.topic, timestamp: item.timestamp, wordCount: item.wordCount });
+        renderResults({ ...savedResult, id: savedResult.id || item.id, topic: item.topic, timestamp: item.timestamp, wordCount: item.wordCount,
+          taskNumber: item.taskNumber, subType: item.subType, topicId: item.topicId, taskType: item.taskType });
         showToast(`Loaded review for attempt from ${formattedDate}.`, 'info');
       });
 
@@ -772,7 +909,12 @@ const WritingApp = (() => {
         overallFeedback: resultData.overall_feedback || resultData.overallFeedback || '',
         suggestions: resultData.suggestions || [],
         inline_corrections: Array.isArray(resultData.inline_corrections) ? resultData.inline_corrections : [],
-        wordCount: countWords(essayText)
+        wordCount: countWords(essayText),
+        taskNumber: Number(resultData.taskNumber) === 1 ? 1 : 2,
+        subType: resultData.subType || 'essay',
+        topicId: resultData.topicId || null,
+        taskType: resultData.taskType || '',
+        ...(typeof resultData.has_clear_overview === 'boolean' ? { has_clear_overview: resultData.has_clear_overview } : {})
       };
 
       // Keep up to 20 past attempts
@@ -804,7 +946,8 @@ const WritingApp = (() => {
       loader.style.display = 'none';
     }
 
-    // Pick a new random topic
+    // Pick a new random topic (within the active task mode)
+    _modeState[_mode].draft = '';
     changeTopic();
 
     // Reset word count & buttons
@@ -833,13 +976,14 @@ const WritingApp = (() => {
     }
 
     textarea.value = '';
+    _modeState[_mode].draft = '';
     updateWordCount();
-    showToast('Essay draft cleared.', 'info');
+    showToast('Draft cleared.', 'info');
   }
 
   /* ── Timer Management (40:00 Recommended) ────────────── */
   function _initTimer() {
-    _timerSeconds = 40 * 60;
+    _timerSeconds = _modeCfg().minutes * 60;
     _updateTimerDisplay();
   }
 
@@ -863,7 +1007,7 @@ const WritingApp = (() => {
       } else {
         clearInterval(_timerInterval);
         _timerRunning = false;
-        showToast('40 minutes have passed! Wrap up your final conclusion.', 'warning');
+        showToast(`${_modeCfg().minutes} minutes have passed! Wrap up your final paragraph.`, 'warning');
       }
     }, 1000);
   }
@@ -871,7 +1015,7 @@ const WritingApp = (() => {
   function _resetTimer() {
     if (_timerInterval) clearInterval(_timerInterval);
     _timerRunning = false;
-    _timerSeconds = 40 * 60;
+    _timerSeconds = _modeCfg().minutes * 60;
     _updateTimerDisplay();
   }
 
@@ -884,6 +1028,450 @@ const WritingApp = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  /* ══ Phase 10B: Task modes, Task 1 visuals & Overall Writing Band ═══════ */
+
+  function _setText(id, text) { const el = _el(id); if (el) el.textContent = text; }
+  const _modeOf = rec => Number(rec?.taskNumber) === 1
+    ? (rec?.subType === 'general' ? 'task1-general' : 'task1-academic')
+    : 'task2';
+
+  /** "Task 1 · Bar Chart" / "Task 2 · Essay" for results and history (old records count as Task 2). */
+  function _taskLabel(rec) {
+    if (Number(rec?.taskNumber) !== 1) return 'Task 2 · Essay';
+    const topic = _task1Topics.find(t => t.id === rec.topicId);
+    return `Task 1 · ${rec.taskType || topic?.taskType || (rec.subType === 'general' ? 'Letter' : 'Academic')}`;
+  }
+
+  function _setupTaskTabs() {
+    const tabs = [...document.querySelectorAll('#writing-task-tabs [data-task-mode]')];
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => setTaskMode(tab.dataset.taskMode));
+      tab.addEventListener('keydown', e => {
+        const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (next === undefined) return;
+        e.preventDefault();
+        const target = tabs[(next + tabs.length) % tabs.length];
+        setTaskMode(target.dataset.taskMode);
+        target.focus();
+      });
+    });
+    _el('task1-visual-filter')?.addEventListener('click', e => {
+      const chip = e.target.closest('[data-topic-id]');
+      const topic = chip && _topicPool().find(t => t.id === chip.dataset.topicId);
+      if (topic && topic !== _currentTopic) { _selectTopic(topic); updateWordCount(); }
+    });
+    _el('wob-cta')?.addEventListener('click', e => {
+      const mode = e.currentTarget.dataset.targetMode;
+      if (!MODES[mode]) return;
+      setTaskMode(mode);
+      _el('writing-task-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      _el(mode === 'task2' ? 'tab-task2' : `tab-${mode}`)?.focus({ preventScroll: true });
+    });
+  }
+
+  /**
+   * Switch between Task 2 / Task 1 Academic / Task 1 General. The draft, topic and remaining time
+   * of the mode being left are kept in memory so learners can compare tasks without losing text.
+   */
+  function setTaskMode(mode) {
+    if (!MODES[mode]) return;
+    const textarea = _el('essay-input');
+    if (mode !== _mode) {
+      if (textarea) _modeState[_mode].draft = textarea.value;
+      if (_timerInterval) clearInterval(_timerInterval);
+      _timerRunning = false;
+      _modeState[_mode].seconds = _timerSeconds;
+      _mode = mode;
+    }
+    const cfg = _modeCfg();
+
+    document.querySelectorAll('#writing-task-tabs [data-task-mode]').forEach(tab => {
+      const on = tab.dataset.taskMode === mode;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;
+      if (on) _el('topic-section')?.setAttribute('aria-labelledby', tab.id);
+    });
+
+    _setText('writing-mode-badge', cfg.badge);
+    _setText('writing-time-chip', `${cfg.minutes} Minutes`);
+    _setText('writing-words-chip', `Min ${cfg.minWords} Words`);
+    _setText('writing-page-title', cfg.title);
+    _setText('writing-page-desc', cfg.desc);
+    _setText('editor-title', cfg.editor);
+    _setText('char-limit-text', `Minimum ${cfg.minWords} words`);
+    _setText('word-count-min', String(cfg.minWords));
+    _setText('loader-subtitle', cfg.loader);
+    _setText('guide-first-title', cfg.guide[0]);
+    _setText('guide-first-desc', cfg.guide[1]);
+    _setText('strategy-title', cfg.strategy[0]);
+    for (let i = 1; i <= 3; i++) {
+      _setText(`strategy-${i}-title`, cfg.strategy[i][0]);
+      _setText(`strategy-${i}-desc`, cfg.strategy[i][1]);
+    }
+    _el('writing-timer')?.setAttribute('title', `Recommended time for Writing ${cfg.taskNumber === 1 ? 'Task 1' : 'Task 2'} is ${cfg.minutes} minutes`);
+    if (textarea) {
+      textarea.placeholder = cfg.placeholder;
+      textarea.setAttribute('aria-label', `IELTS ${cfg.badge} draft`);
+    }
+
+    const state = _modeState[mode];
+    if (state.topic && _topicPool().some(t => t.id === state.topic.id)) {
+      _currentTopic = state.topic;
+      _renderTopic(state.topic);
+    } else {
+      changeTopic();
+    }
+    if (textarea) textarea.value = state.draft;
+    _timerSeconds = state.seconds ?? cfg.minutes * 60;
+    _updateTimerDisplay();
+
+    // A result from another task type no longer matches the editor; it stays available in History.
+    const results = _el('results-area');
+    if (results && _lastResult && _modeOf(_lastResult) !== mode) results.style.display = 'none';
+
+    updateWordCount();
+    try {
+      const url = location.pathname + location.search + (mode === 'task2' ? '' : `#${mode}`);
+      history.replaceState(null, '', url);
+    } catch {}
+  }
+
+  const VISUAL_ICONS = { bar: '📊', line: '📈', pie: '🥧', table: '🧮', process: '🔄', map: '🗺️', letter: '✉️' };
+
+  function _renderTask1Filter() {
+    const filter = _el('task1-visual-filter');
+    if (!filter) return;
+    const pool = _isTask1() ? _topicPool() : [];
+    filter.hidden = pool.length === 0;
+    filter.innerHTML = pool.map(t => {
+      const on = _currentTopic && t.id === _currentTopic.id;
+      const tone = t.visualType === 'letter' && t.tone && !String(t.taskType || '').includes(t.tone) ? ` · ${t.tone}` : '';
+      return `<button type="button" class="t1-filter-chip${on ? ' active' : ''}" data-topic-id="${_esc(t.id)}" aria-pressed="${on ? 'true' : 'false'}">` +
+        `<span aria-hidden="true">${VISUAL_ICONS[t.visualType] || '📝'}</span> ${_esc(t.taskType || t.visualType || 'Task 1')}${_esc(tone)}</button>`;
+    }).join('');
+  }
+
+  /* ── Task 1 visual renderer (pure SVG / HTML, every label escaped) ── */
+
+  /* Categorical palette, fixed order, validated for CVD/contrast on the dark card surface (#1a2035). */
+  const VIZ_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9'];
+  const VB_W = 680, VB_H = 300, M = { l: 48, r: 14, t: 22, b: 38 };
+  const PLOT_W = VB_W - M.l - M.r, PLOT_H = VB_H - M.t - M.b;
+
+  const _esc = v => _escapeHtml(String(v ?? ''));
+  const _num = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const _fmt = n => n == null ? '—' : (Number.isInteger(n) ? n.toLocaleString('en-US') : String(Math.round(n * 100) / 100));
+  const _r = n => Math.round(n * 10) / 10;
+
+  function _niceMax(max) {
+    if (!(max > 0)) return 10;
+    const pow = 10 ** Math.floor(Math.log10(max));
+    for (const step of [1, 2, 2.5, 5, 10]) if (step * pow >= max) return step * pow;
+    return 10 * pow;
+  }
+
+  /** Normalised chart data: categories (x / slices) and up to 6 numeric series. */
+  function _chartData(vd) {
+    const categories = (Array.isArray(vd?.categories) ? vd.categories : []).slice(0, 12).map(String);
+    const series = (Array.isArray(vd?.series) ? vd.series : []).slice(0, VIZ_COLORS.length).map((s, i) => ({
+      label: String(s?.label ?? `Series ${i + 1}`),
+      color: VIZ_COLORS[i],
+      values: categories.map((_, j) => _num(Array.isArray(s?.values) ? s.values[j] : null))
+    }));
+    return { categories, series, unit: typeof vd?.unit === 'string' ? vd.unit : '' };
+  }
+
+  function _yAxis(max, unit) {
+    let out = '';
+    for (let i = 0; i <= 5; i++) {
+      const v = (max / 5) * i;
+      const y = _r(M.t + PLOT_H - (v / max) * PLOT_H);
+      out += `<line class="t1-grid" x1="${M.l}" x2="${VB_W - M.r}" y1="${y}" y2="${y}"/>` +
+        `<text class="t1-axis" x="${M.l - 8}" y="${y + 4}" text-anchor="end">${_esc(_fmt(v))}${_esc(unit)}</text>`;
+    }
+    return out;
+  }
+
+  function _legend(items) {
+    return `<ul class="t1-legend">${items.map(it =>
+      `<li><span class="t1-swatch" style="background:${it.color}"></span>${_esc(it.label)}</li>`).join('')}</ul>`;
+  }
+
+  /** Category × series value table (also the accessible view of every chart). */
+  function _seriesTable(cd, open) {
+    const head = `<tr><th scope="col"></th>${cd.series.map(s => `<th scope="col">${_esc(s.label)}</th>`).join('')}</tr>`;
+    const rows = cd.categories.map((c, i) => `<tr><th scope="row">${_esc(c)}</th>${cd.series.map(s =>
+      `<td>${s.values[i] == null ? '—' : `${_esc(_fmt(s.values[i]))}${_esc(cd.unit)}`}</td>`).join('')}</tr>`).join('');
+    return `<details class="t1-table-details"${open ? ' open' : ''}><summary>Bảng số liệu</summary>` +
+      `<div class="t1-table-scroll"><table class="task1-data-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div></details>`;
+  }
+
+  function _barSvg(cd, title) {
+    const max = _niceMax(Math.max(0, ...cd.series.flatMap(s => s.values.filter(v => v != null))));
+    const n = cd.series.length, groupW = PLOT_W / Math.max(1, cd.categories.length), gap = 2;
+    const barW = Math.max(4, Math.min(24, (groupW * 0.72 - gap * (n - 1)) / Math.max(1, n)));
+    const clusterW = n * barW + gap * (n - 1), base = M.t + PLOT_H;
+    let marks = '';
+    cd.categories.forEach((cat, i) => {
+      const x0 = M.l + i * groupW + (groupW - clusterW) / 2;
+      cd.series.forEach((s, j) => {
+        const v = s.values[i];
+        if (v == null) return;
+        const h = Math.max(0, (v / max) * PLOT_H), x = x0 + j * (barW + gap), y = base - h, r = Math.min(4, barW / 2, h);
+        marks += `<g class="t1-mark"><title>${_esc(s.label)} · ${_esc(cat)}: ${_esc(_fmt(v))}${_esc(cd.unit)}</title>` +
+          `<path fill="${s.color}" d="M${_r(x)},${_r(base)} V${_r(y + r)} Q${_r(x)},${_r(y)} ${_r(x + r)},${_r(y)} H${_r(x + barW - r)} Q${_r(x + barW)},${_r(y)} ${_r(x + barW)},${_r(y + r)} V${_r(base)} Z"/>` +
+          `<text class="t1-val" x="${_r(x + barW / 2)}" y="${_r(y - 5)}" text-anchor="middle">${_esc(_fmt(v))}</text></g>`;
+      });
+      marks += `<text class="t1-axis" x="${_r(M.l + i * groupW + groupW / 2)}" y="${base + 22}" text-anchor="middle">${_esc(cat)}</text>`;
+    });
+    return `<svg class="t1-svg" viewBox="0 0 ${VB_W} ${VB_H}" role="img" aria-label="${_esc(title)}">${_yAxis(max, cd.unit)}` +
+      `<line class="t1-baseline" x1="${M.l}" x2="${VB_W - M.r}" y1="${base}" y2="${base}"/>${marks}</svg>`;
+  }
+
+  function _lineSvg(cd, title) {
+    const max = _niceMax(Math.max(0, ...cd.series.flatMap(s => s.values.filter(v => v != null))));
+    const pad = 40, count = cd.categories.length, base = M.t + PLOT_H;
+    const xAt = i => M.l + pad + (count > 1 ? i * (PLOT_W - 2 * pad) / (count - 1) : (PLOT_W - 2 * pad) / 2);
+    const yAt = v => base - (v / max) * PLOT_H;
+    let lines = '', dots = '';
+    cd.series.forEach(s => {
+      const pts = s.values.map((v, i) => v == null ? null : [_r(xAt(i)), _r(yAt(v))]).filter(Boolean);
+      if (pts.length > 1) lines += `<polyline class="t1-line" stroke="${s.color}" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+      s.values.forEach((v, i) => {
+        if (v == null) return;
+        const x = _r(xAt(i)), y = _r(yAt(v));
+        // Label only the start and end values beside the dot (middle values: tooltip + data table),
+        // so close series never stack their labels on top of each other.
+        const edge = i === 0 ? 'end' : i === count - 1 ? 'start' : '';
+        const label = edge ? `<text class="t1-val" x="${_r(edge === 'end' ? x - 10 : x + 10)}" y="${_r(y + 4)}" text-anchor="${edge}">${_esc(_fmt(v))}</text>` : '';
+        dots += `<g class="t1-mark"><title>${_esc(s.label)} · ${_esc(cd.categories[i])}: ${_esc(_fmt(v))}${_esc(cd.unit)}</title>` +
+          `<circle class="t1-dot" cx="${x}" cy="${y}" r="5" fill="${s.color}"/>${label}</g>`;
+      });
+    });
+    const xLabels = cd.categories.map((c, i) => `<text class="t1-axis" x="${_r(xAt(i))}" y="${base + 22}" text-anchor="middle">${_esc(c)}</text>`).join('');
+    return `<svg class="t1-svg" viewBox="0 0 ${VB_W} ${VB_H}" role="img" aria-label="${_esc(title)}">${_yAxis(max, cd.unit)}` +
+      `<line class="t1-baseline" x1="${M.l}" x2="${VB_W - M.r}" y1="${base}" y2="${base}"/>${lines}${dots}${xLabels}</svg>`;
+  }
+
+  /** One pie per series (e.g. 2005 vs 2025); slices are the categories. */
+  function _pieSvg(cd, title) {
+    const pies = cd.series.slice(0, 2), R = 108, cy = 168;
+    const centers = pies.length === 1 ? [VB_W / 2] : [VB_W * 0.27, VB_W * 0.73];
+    let out = '';
+    pies.forEach((s, p) => {
+      const cx = centers[p], total = s.values.reduce((a, v) => a + (v > 0 ? v : 0), 0);
+      out += `<text class="t1-pie-title" x="${_r(cx)}" y="34" text-anchor="middle">${_esc(s.label)}</text>`;
+      if (!(total > 0)) return;
+      let angle = -Math.PI / 2;
+      cd.categories.forEach((cat, i) => {
+        const v = s.values[i];
+        if (!(v > 0)) return;
+        const share = v / total, sweep = share * Math.PI * 2, end = angle + sweep, mid = angle + sweep / 2;
+        const color = VIZ_COLORS[i % VIZ_COLORS.length];
+        const tip = `<title>${_esc(s.label)} · ${_esc(cat)}: ${_esc(_fmt(v))}${_esc(cd.unit)}</title>`;
+        const shape = share >= 0.9999
+          ? `<circle class="t1-slice" cx="${_r(cx)}" cy="${cy}" r="${R}" fill="${color}"/>`
+          : `<path class="t1-slice" fill="${color}" d="M${_r(cx)},${cy} L${_r(cx + R * Math.cos(angle))},${_r(cy + R * Math.sin(angle))} ` +
+            `A${R},${R} 0 ${sweep > Math.PI ? 1 : 0} 1 ${_r(cx + R * Math.cos(end))},${_r(cy + R * Math.sin(end))} Z"/>`;
+        const label = share >= 0.06
+          ? `<text class="t1-slice-label" x="${_r(cx + R * 0.64 * Math.cos(mid))}" y="${_r(cy + R * 0.64 * Math.sin(mid) + 4)}" text-anchor="middle">${_esc(_fmt(v))}${_esc(cd.unit)}</text>`
+          : '';
+        out += `<g class="t1-mark">${tip}${shape}${label}</g>`;
+        angle = end;
+      });
+    });
+    return `<svg class="t1-svg" viewBox="0 0 ${VB_W} ${VB_H}" role="img" aria-label="${_esc(title)}">${out}</svg>`;
+  }
+
+  /** <table class="task1-data-table"> with the highest / lowest value of each numeric column marked. */
+  function _dataTable(vd) {
+    const columns = (Array.isArray(vd?.columns) ? vd.columns : []).slice(0, 10).map(String);
+    const rows = (Array.isArray(vd?.rows) ? vd.rows : []).slice(0, 30).filter(Array.isArray);
+    const extremes = columns.map((_, c) => {
+      const nums = rows.map(r => _num(r[c]));
+      if (c === 0 || nums.some(v => v == null) || nums.length < 2) return null;
+      return { max: Math.max(...nums), min: Math.min(...nums) };
+    });
+    const body = rows.map(r => `<tr>${columns.map((_, c) => {
+      const raw = r[c], v = _num(raw), ex = extremes[c];
+      if (c === 0) return `<th scope="row">${_esc(raw)}</th>`;
+      const cls = ex && v === ex.max ? 'is-max' : ex && v === ex.min ? 'is-min' : '';
+      const mark = cls === 'is-max' ? '<span class="t1-ext" aria-label="highest" title="Highest">▲</span>'
+        : cls === 'is-min' ? '<span class="t1-ext" aria-label="lowest" title="Lowest">▼</span>' : '';
+      const text = v == null || /^(year|opened)\b/i.test(columns[c]) ? _esc(raw) : _esc(_fmt(v));
+      return `<td class="${cls}">${text}${mark}</td>`;
+    }).join('')}</tr>`).join('');
+    return `<div class="t1-table-scroll"><table class="task1-data-table"><thead><tr>${columns.map(c => `<th scope="col">${_esc(c)}</th>`).join('')}</tr></thead>` +
+      `<tbody>${body}</tbody></table></div><p class="t1-legend-note"><span class="t1-ext">▲</span> cao nhất · <span class="t1-ext">▼</span> thấp nhất trong cột</p>`;
+  }
+
+  function _processHtml(vd) {
+    const steps = (Array.isArray(vd?.steps) ? vd.steps : []).slice(0, 12);
+    return `<ol class="task1-process">${steps.map((s, i) => `<li class="t1-step">` +
+      `<span class="t1-step-no">Step ${_esc(_num(s?.step) ?? i + 1)}</span>` +
+      `<strong class="t1-step-title">${_esc(s?.title)}</strong>` +
+      `<span class="t1-step-detail">${_esc(s?.detail)}</span></li>`).join('')}</ol>`;
+  }
+
+  /** Map comparison: each zone's before → after state with its type of change. */
+  function _mapHtml(vd) {
+    const zones = (Array.isArray(vd?.zones) ? vd.zones : []).slice(0, 12);
+    const before = vd?.beforeLabel || 'Before', after = vd?.afterLabel || 'After';
+    return `<ol class="t1-map-zones">${zones.map(z => `<li class="t1-zone">` +
+      `<div class="t1-zone-head"><strong>${_esc(z?.area)}</strong>${z?.changeType ? `<span class="t1-change">${_esc(z.changeType)}</span>` : ''}</div>` +
+      `<div class="t1-zone-states">` +
+      `<div class="t1-zone-state"><span class="t1-zone-year">${_esc(before)}</span>${_esc(z?.before)}</div>` +
+      `<span class="t1-zone-arrow" aria-hidden="true">➔</span>` +
+      `<div class="t1-zone-state is-after"><span class="t1-zone-year">${_esc(after)}</span>${_esc(z?.after)}</div>` +
+      `</div></li>`).join('')}</ol>`;
+  }
+
+  /** Gemini content: useful phrases as chips; the model overview stays folded so learners try first. */
+  function _hintsHtml(topic) {
+    const phrases = (Array.isArray(topic.usefulPhrases) ? topic.usefulPhrases : []).filter(p => typeof p === 'string' && p.trim()).slice(0, 8);
+    const sample = typeof topic.overviewSample === 'string' ? topic.overviewSample.trim() : '';
+    if (!phrases.length && !sample) return '';
+    const sampleLabel = topic.visualType === 'letter' ? 'Xem câu mở đầu mẫu (Band 8+)' : 'Xem đoạn Overview mẫu (Band 8+)';
+    return `<div class="t1-hints">` +
+      (phrases.length ? `<p class="t1-hints-label">💡 Cụm từ hữu ích</p><ul class="t1-phrases">${phrases.map(p => `<li>${_esc(p)}</li>`).join('')}</ul>` : '') +
+      (sample ? `<details class="t1-sample"><summary>${sampleLabel} — nên tự viết trước rồi mới mở</summary><p>${_esc(sample)}</p></details>` : '') +
+      `</div>`;
+  }
+
+  function _letterHtml(topic) {
+    const bullets = (Array.isArray(topic.bulletPoints) ? topic.bulletPoints : []).slice(0, 5);
+    return `<div class="t1-letter">` +
+      `<div class="t1-letter-head"><span class="t1-letter-icon" aria-hidden="true">✉️</span>` +
+      `<strong>${_esc(topic.taskType || 'Letter')}</strong>` +
+      `<span class="t1-tone">Tone: ${_esc(topic.tone || 'Formal')}</span></div>` +
+      `<p class="t1-letter-lead">In your letter, you should:</p>` +
+      `<ul class="t1-letter-bullets">${bullets.map(b => `<li>${_esc(b)}</li>`).join('')}</ul></div>`;
+  }
+
+  /**
+   * Draw the Task 1 visual for a topic into #task1-visual-container.
+   * bar / line / pie → SVG + legend + data table; table → <table class="task1-data-table">;
+   * process → numbered steps joined by arrows; letter → situation brief with bullet points and tone.
+   */
+  function renderTask1Visual(topic) {
+    const box = _el('task1-visual-container');
+    if (!box) return null;
+    if (!topic) { box.replaceChildren(); return box; }
+    const vd = topic.visualData || {};
+    const type = topic.visualType;
+    const title = vd.title || topic.taskType || 'Task 1 visual';
+    let body = '';
+    if (type === 'bar' || type === 'line' || type === 'pie') {
+      const cd = _chartData(vd);
+      const svg = type === 'bar' ? _barSvg(cd, title) : type === 'line' ? _lineSvg(cd, title) : _pieSvg(cd, title);
+      const legendItems = type === 'pie'
+        ? cd.categories.map((c, i) => ({ label: c, color: VIZ_COLORS[i % VIZ_COLORS.length] }))
+        : cd.series.map(s => ({ label: s.label, color: s.color }));
+      body = `<div class="t1-svg-scroll">${svg}</div>${_legend(legendItems)}${_seriesTable(cd, type === 'pie')}`;
+    } else if (type === 'table') {
+      body = _dataTable(vd);
+    } else if (type === 'process') {
+      body = _processHtml(vd);
+    } else if (type === 'map') {
+      body = _mapHtml(vd);
+    } else if (type === 'letter') {
+      body = _letterHtml(topic);
+    } else {
+      body = '<p class="t1-note">This visual type is not supported yet.</p>';
+    }
+    const caption = type === 'letter' ? '' : `<figcaption class="t1-title">${_esc(title)}</figcaption>`;
+    const note = vd.note ? `<p class="t1-note">${_esc(vd.note)}</p>` : '';
+    box.innerHTML = `<figure class="t1-figure t1-${_esc(type || 'unknown')}">${caption}${body}${note}</figure>${_hintsHtml(topic)}`;
+    return box;
+  }
+
+  /** Plain-text version of the visual (sent as visualSummary for the examiner prompt). */
+  function _visualSummary(topic) {
+    if (!topic) return '';
+    const vd = topic.visualData || {}, lines = [];
+    if (vd.title) lines.push(String(vd.title));
+    if (Array.isArray(vd.series)) vd.series.forEach(s => lines.push(`${s?.label}: ${(vd.categories || []).map((c, i) =>
+      `${c} ${Array.isArray(s?.values) ? s.values[i] : ''}${vd.unit || ''}`).join(', ')}`));
+    if (Array.isArray(vd.rows)) { lines.push((vd.columns || []).join(' | ')); vd.rows.forEach(r => Array.isArray(r) && lines.push(r.join(' | '))); }
+    if (Array.isArray(vd.zones)) vd.zones.forEach(z => lines.push(`${z?.area}: ${vd.beforeLabel || 'Before'} ${z?.before} -> ${vd.afterLabel || 'After'} ${z?.after} (${z?.changeType || 'changed'})`));
+    if (Array.isArray(vd.steps)) vd.steps.forEach((s, i) => lines.push(`Step ${s?.step ?? i + 1}: ${s?.title} - ${s?.detail}`));
+    if (Array.isArray(topic.bulletPoints)) {
+      lines.push(`Tone: ${topic.tone || ''}`);
+      topic.bulletPoints.forEach(b => lines.push(`- ${b}`));
+    }
+    return lines.join('\n').slice(0, 6000);
+  }
+
+  /* ── Overall Writing Band banner ──────────────────────────────────── */
+
+  /** Same rules as the server's computeWritingBandSummary (used when the API is unreachable). */
+  function computeWritingSummary(history) {
+    const groups = { 1: [], 2: [] };
+    (Array.isArray(history) ? history : []).forEach((rec, index) => {
+      const n = Number(rec?.taskNumber);
+      const task = n === 1 ? 1 : (rec?.taskNumber == null || n === 2 ? 2 : null);
+      if (!task) return;
+      const raw = rec?.result?.overall_band ?? rec?.overall_band ?? rec?.overallBand;
+      const band = raw === null || raw === undefined || raw === '' ? NaN : Number(raw);
+      groups[task].push({ band: Number.isFinite(band) && band >= 0 && band <= 9 ? band : null, time: Date.parse(rec?.timestamp), index });
+    });
+    const latest = rows => {
+      const valid = rows.filter(r => r.band !== null);
+      if (!valid.length) return null;
+      const dated = valid.filter(r => Number.isFinite(r.time));
+      return (dated.length ? dated.reduce((a, b) => b.time > a.time || (b.time === a.time && b.index > a.index) ? b : a) : valid[valid.length - 1]).band;
+    };
+    const avg = rows => { const b = rows.map(r => r.band).filter(v => v !== null); return b.length ? Number((b.reduce((x, y) => x + y, 0) / b.length).toFixed(2)) : null; };
+    const t1 = latest(groups[1]), t2 = latest(groups[2]);
+    const combined = t1 !== null && t2 !== null ? Math.round(((t1 + 2 * t2) / 3) * 2) / 2 : null;
+    return { task1Count: groups[1].length, task2Count: groups[2].length, latestTask1Band: t1, latestTask2Band: t2,
+      avgTask1Band: avg(groups[1]), avgTask2Band: avg(groups[2]), combinedOverallBand: combined,
+      estimatedSingleTaskBand: combined === null ? (t2 ?? t1) : null, formula: '(Task1 + 2 * Task2) / 3' };
+  }
+
+  async function loadWritingSummary() {
+    try {
+      const response = await fetch('/api/writing/summary');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      renderWritingSummary(await response.json());
+    } catch {
+      renderWritingSummary(computeWritingSummary(_getLocalHistory()));
+    }
+  }
+
+  function renderWritingSummary(summary) {
+    const banner = _el('writing-overall-banner');
+    if (!banner || !summary) return;
+    const n = v => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : Number(v);
+    const t1 = n(summary.latestTask1Band), t2 = n(summary.latestTask2Band), overall = n(summary.combinedOverallBand);
+    const band = v => v == null ? '—' : `Band ${v.toFixed(1)}`;
+    _setText('wob-task1', band(t1));
+    _setText('wob-task2', band(t2));
+    _setText('wob-overall', band(overall));
+    banner.classList.toggle('is-complete', overall != null);
+
+    const cta = _el('wob-cta');
+    let hint, target = null, ctaText = '';
+    if (overall != null) {
+      hint = `Tính từ bài mới nhất mỗi Task: (${t1.toFixed(1)} + 2 × ${t2.toFixed(1)}) / 3 = ${((t1 + 2 * t2) / 3).toFixed(2)} → làm tròn ${overall.toFixed(1)}.`;
+    } else if (t2 != null) {
+      hint = 'Hãy hoàn thành thêm 1 bài Writing Task 1 (150 từ) để mở khóa điểm Overall Writing chính thức theo công thức 1/3 Task 1 + 2/3 Task 2!';
+      target = 'task1-academic'; ctaText = '📊 Làm bài Task 1 ngay';
+    } else if (t1 != null) {
+      hint = 'Hãy hoàn thành thêm 1 bài Writing Task 2 (250 từ) để mở khóa điểm Overall Writing chính thức theo công thức 1/3 Task 1 + 2/3 Task 2!';
+      target = 'task2'; ctaText = '📝 Làm bài Task 2 ngay';
+    } else {
+      hint = 'Hoàn thành 1 bài Task 1 và 1 bài Task 2 để có điểm Overall Writing (Task 2 được tính gấp đôi Task 1).';
+    }
+    _setText('wob-hint', hint);
+    if (cta) {
+      cta.hidden = !target;
+      cta.dataset.targetMode = target || '';
+      cta.textContent = ctaText;
+    }
   }
 
   /* ── Phase 9B: Learn From My Mistakes ─────────────────── */
@@ -899,7 +1487,7 @@ const WritingApp = (() => {
     const mistakeContext = {
       source: 'writing',
       recordId: String(data.id || data.timestamp || `local_${Date.now()}`),
-      prompt: data.topic || _el('topic-prompt')?.textContent.trim() || '',
+      prompt: (Number(data.taskNumber) === 1 ? `[Writing ${_taskLabel(data)}] ` : '') + (data.topic || _el('topic-prompt')?.textContent.trim() || ''),
       overallBand: Number(data.overall_band ?? data.overallBand) || null,
       weakestCriterion: weakest || undefined,
       corrections,
@@ -913,6 +1501,11 @@ const WritingApp = (() => {
   return {
     createMistakeUnit,
     init,
+    setTaskMode,
+    renderTask1Visual,
+    computeWritingSummary,
+    renderWritingSummary,
+    getTaskMode: () => _mode,
     updateWordCount,
     handleSubmit,
     renderResults,

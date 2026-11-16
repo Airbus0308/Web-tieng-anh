@@ -9,7 +9,9 @@ const AnalyticsApp = (() => {
     { key: 'GRA', name: 'Grammatical Range & Accuracy' },
     { key: 'PR', name: 'Pronunciation' }
   ];
+  // TA = Writing Task 1 (Phase 10), TR = Task 2; CC / LR / GRA are shared by both tasks.
   const WRITING_CRITERIA_META = [
+    { key: 'TA', name: 'Task Achievement' },
     { key: 'TR', name: 'Task Response' },
     { key: 'CC', name: 'Coherence & Cohesion' },
     { key: 'LR', name: 'Lexical Resource' },
@@ -48,7 +50,7 @@ const AnalyticsApp = (() => {
   }
 
   function aggregateWritingCriteria(writingRecords) {
-    const buckets = { TR: [], CC: [], LR: [], GRA: [] };
+    const buckets = { TA: [], TR: [], CC: [], LR: [], GRA: [] };
     writingRecords.forEach(record => {
       extractCriteriaList(record).forEach(item => {
         const abbr = String(item?.abbreviation || '').toUpperCase().trim();
@@ -88,6 +90,31 @@ const AnalyticsApp = (() => {
     return { averages };
   }
 
+  /**
+   * Phase 10: Overall Writing = roundToHalf((latest Task 1 + 2 × latest Task 2) / 3).
+   * Mirrors the server's computeWritingBandSummary; records without taskNumber are Task 2.
+   */
+  function computeWritingSummary(writingRecords) {
+    const groups = { 1: [], 2: [] };
+    writingRecords.forEach((rec, index) => {
+      const n = Number(rec?.taskNumber);
+      const task = n === 1 ? 1 : (rec?.taskNumber == null || n === 2 ? 2 : null);
+      const band = writingBand(rec);
+      if (task && Number.isFinite(band) && band >= 0 && band <= 9) groups[task].push({ band, time: Date.parse(rec?.timestamp), index });
+    });
+    const latest = rows => {
+      if (!rows.length) return null;
+      const dated = rows.filter(r => Number.isFinite(r.time));
+      return (dated.length ? dated.reduce((a, b) => b.time > a.time || (b.time === a.time && b.index > a.index) ? b : a) : rows[rows.length - 1]).band;
+    };
+    const task1 = latest(groups[1]), task2 = latest(groups[2]);
+    return {
+      task1Count: groups[1].length, task2Count: groups[2].length,
+      latestTask1Band: task1, latestTask2Band: task2,
+      combinedOverallBand: task1 != null && task2 != null ? Math.round(((task1 + 2 * task2) / 3) * 2) / 2 : null
+    };
+  }
+
   function formatPracticeTime(totalSeconds) {
     if (!totalSeconds || totalSeconds <= 0) return '0m total practice';
     const minutes = Math.max(1, Math.round(totalSeconds / 60));
@@ -115,6 +142,7 @@ const AnalyticsApp = (() => {
     });
 
     const writingCriteria = aggregateWritingCriteria(writing);
+    const writingSummary = computeWritingSummary(writing);
     const speakingCriteria = aggregateSpeakingCriteria(speaking);
 
     // Calculate total practice time (actual placement timeSpentSeconds + ~20m per scored essay if not recorded)
@@ -131,6 +159,7 @@ const AnalyticsApp = (() => {
       attempts,
       weakCounts,
       writingCriteria,
+      writingSummary,
       totalPracticeSeconds,
       averageBand: average(attempts.map(a => a.band)),
       reading: average(reading),
@@ -144,7 +173,21 @@ const AnalyticsApp = (() => {
     document.getElementById('average-band').textContent = data.averageBand == null ? '—' : data.averageBand.toFixed(1);
     document.getElementById('reading-score').textContent = data.reading == null ? '—' : `${Math.round(data.reading)}%`;
     document.getElementById('listening-score').textContent = data.listening == null ? '—' : `${Math.round(data.listening)}%`;
-    document.getElementById('writing-score').textContent = data.writingBand == null ? '—' : data.writingBand.toFixed(1);
+    // Writing card: official Overall Writing once both tasks exist, otherwise the average band.
+    const ws = data.writingSummary || {};
+    const overallWriting = ws.combinedOverallBand;
+    document.getElementById('writing-score').textContent = overallWriting != null
+      ? overallWriting.toFixed(1)
+      : (data.writingBand == null ? '—' : data.writingBand.toFixed(1));
+    const writingMeta = document.getElementById('writing-score-meta');
+    if (writingMeta) {
+      const t = v => v == null ? '—' : v.toFixed(1);
+      writingMeta.textContent = overallWriting != null
+        ? `Overall (T1 + 2×T2)/3 · T1 ${t(ws.latestTask1Band)} · T2 ${t(ws.latestTask2Band)}`
+        : data.writing.length
+          ? `Average band · cần thêm 1 bài ${ws.latestTask1Band == null ? 'Task 1' : 'Task 2'} để có Overall`
+          : 'Average band';
+    }
     const speakingEl = document.getElementById('speaking-score');
     if (speakingEl) speakingEl.textContent = data.speakingBand == null ? '—' : data.speakingBand.toFixed(1);
     document.getElementById('attempt-count').textContent = data.attempts.length
@@ -197,8 +240,8 @@ const AnalyticsApp = (() => {
     const badge = document.getElementById('writing-attempt-badge');
     if (badge) {
       badge.textContent = data.writing.length
-        ? `Based on ${data.placement.length} Placement & ${data.writing.length} Writing attempt${data.writing.length === 1 ? '' : 's'}`
-        : 'Submit a Writing Task 2 essay to unlock TR, CC, LR, GRA breakdown';
+        ? `Based on ${data.placement.length} Placement & ${data.writing.length} Writing attempt${data.writing.length === 1 ? '' : 's'} (Task 1: ${data.writingSummary?.task1Count || 0} · Task 2: ${data.writingSummary?.task2Count || 0})`
+        : 'Submit a Writing Task 1 or Task 2 response to unlock the TA / TR, CC, LR, GRA breakdown';
     }
 
     const readingPct = data.reading == null ? 0 : Math.round(data.reading);
@@ -241,7 +284,7 @@ const AnalyticsApp = (() => {
         valueText: avgScore == null ? '—' : `Band ${avgScore.toFixed(1)} / 9.0`,
         percent: pct,
         fillClass: isWeakest ? 'fill-weakest' : 'fill-writing',
-        metaLeft: isWeakest ? 'Priority focus area (lowest criterion)' : 'Official IELTS Writing Criterion (25%)',
+        metaLeft: isWeakest ? 'Priority focus area (lowest criterion)' : key === 'TA' ? 'Writing Task 1 Criterion (25%)' : key === 'TR' ? 'Writing Task 2 Criterion (25%)' : 'Official IELTS Writing Criterion (25%)',
         metaRight: avgScore == null ? 'No data' : `${pct}% of Band 9`,
         isWeakest
       };
