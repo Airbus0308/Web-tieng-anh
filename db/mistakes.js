@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 const clean = (v, limit = 500) => typeof v === 'string' ? v.trim().slice(0, limit) : '';
 export function normalizeMistakeContext(raw) {
   if (!raw || typeof raw !== 'object' || !['writing','speaking'].includes(raw.source) || !clean(raw.recordId, 120)) return null;
-  const criterion = raw.weakestCriterion && typeof raw.weakestCriterion === 'object' ? raw.weakestCriterion : {};
+  const criterion = typeof raw.weakestCriterion === 'string' ? { code:raw.weakestCriterion } : raw.weakestCriterion && typeof raw.weakestCriterion === 'object' ? raw.weakestCriterion : {};
   return {
     source:raw.source, recordId:clean(raw.recordId,120), prompt:clean(raw.prompt,1000),
     overallBand:Number.isFinite(Number(raw.overallBand)) ? Number(raw.overallBand) : null,
@@ -28,7 +28,7 @@ export function buildFallbackMistakeUnit(context) {
   const material = [...corrections, ...defaults].slice(0, Math.max(4, corrections.length));
   const examples = material.slice(0,4);
   const focus = context.weakestCriterion.code || (context.source === 'writing' ? 'GRA' : 'FC');
-  const notes = context.weakestCriterion.feedback || context.suggestions.join(' ') || 'So sánh cấu trúc gốc với cách diễn đạt chính xác, sau đó tự vận dụng vào câu mới.';
+  const notes = context.weakestCriterion.feedback || context.suggestions.join(' ') || (focus.toUpperCase() === 'TA' ? 'Xác định yêu cầu đề; với báo cáo Academic nêu tổng quan và so sánh đặc điểm chính, với thư General trình bày mục đích, đủ các ý và giọng văn phù hợp.' : 'So sánh cấu trúc gốc với cách diễn đạt chính xác, sau đó tự vận dụng vào câu mới.');
   const flashcards = examples.map(c => ({front:c.correction, back:c.explanation || 'So sánh với câu gốc và tự giải thích điểm khác biệt.', example:c.correction, ipa:'', clozeSentence:`Sửa câu: ${c.original} → ___`}));
   const quiz = examples.map((c,i) => ({type:'mcq', question:`Chọn cách diễn đạt chính xác (${i+1}).`, options:[c.original,c.correction], answer:1, explanation:c.explanation || 'Đối chiếu cấu trúc và cách dùng từ.', skillTag:i % 2 ? 'Grammar (GRA)' : 'Lexical (LR)'}));
   const tags = ['Reading Paraphrase','Grammar Error Fix (GRA)','Lexical Collocation (LR)'];

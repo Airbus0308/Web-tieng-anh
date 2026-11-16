@@ -481,7 +481,7 @@ test('POST /api/study/evaluate-mini validates and grades locally when no AI is a
 
 test('Phase 8A curriculum contains cognitive fields and fallback preserves them', async () => {
   const cfg = await (await fetch(BASE + '/api/study/config')).json();
-  const valid = ['Reading','Listening','TR','CC','LR','GRA','FC','PR'];
+  const valid = ['Reading','Listening','TA','TR','CC','LR','GRA','FC','PR'];
   for (const book of cfg.sampleTextbooks) for (const u of book.units) {
     assert.ok(['Foundation','Intermediate','Advanced'].includes(u.levelTag));
     assert.ok(u.targetWeakness.length && u.targetWeakness.every(x => valid.includes(x)));
@@ -961,4 +961,85 @@ test('Phase 9B PATCH /api/me stores commitment and merges streak days', async ()
   const me = await (await a.request('/api/me')).json();
   assert.deepEqual(me.commitment, { time: '20:30', minutes: 30 });
   assert.deepEqual(me.streak, ['2026-11-14', '2026-11-16']);
+});
+
+/* ── Phase 10A: Task 1 grading and overall Writing band ── */
+test('Phase 10A Writing config includes six complete Task 1 topics and keeps Task 2 config', async () => {
+  const d=await (await fetch(BASE+'/api/writing/config')).json();
+  assert.deepEqual(d.task1WordCountRequirements,{min:150,recommended:180,timeMinutes:20});
+  assert.deepEqual(d.task1Criteria.map(c=>c.abbreviation),['TA','CC','LR','GRA']);
+  assert.ok(d.task1Criteria.every(c=>c.weight===0.25));
+  assert.deepEqual(d.sampleTask1Topics.map(t=>t.id),['wt1-ac-bar-01','wt1-ac-line-01','wt1-ac-pie-01','wt1-ac-table-01','wt1-ac-process-01','wt1-gt-letter-01']);
+  for (const t of d.sampleTask1Topics) {
+    assert.equal(t.taskNumber,1); assert.ok(t.prompt && t.instructions && t.keyFacts.length);
+    if(t.visualType==='letter') { assert.equal(t.subType,'general'); assert.equal(t.tone,'Formal'); assert.equal(t.bulletPoints.length,3); }
+    else { assert.equal(t.subType,'academic'); assert.ok(t.visualData); }
+  }
+  for(const type of ['bar','line','pie']) {
+    const chart=d.sampleTask1Topics.find(t=>t.visualType===type).visualData;
+    assert.ok(chart.series.every(s=>s.values.length===chart.categories.length));
+    if(type==='pie') assert.ok(chart.series.every(s=>s.values.reduce((a,b)=>a+b,0)===100));
+  }
+  assert.equal(d.sampleTask1Topics.find(t=>t.visualType==='table').visualData.rows.length,5);
+  assert.equal(d.sampleTask1Topics.find(t=>t.visualType==='process').visualData.steps.length,6);
+  assert.equal(d.wordCountRequirements.min,250); assert.ok(d.sampleTopics.length); assert.ok(d.criteria.some(c=>c.abbreviation==='TR'));
+});
+
+test('Phase 10A Task 1 grades 160 words with source facts and calculates weighted Writing band', async () => {
+  await withoutAiProviders(async () => {
+    process.env.DISABLE_FREE_FALLBACK='false';
+    const originalFetch=globalThis.fetch; const prompts=[]; let band=6;
+    globalThis.fetch=(url,options) => {
+      if(String(url)!=='https://text.pollinations.ai/openai') return originalFetch(url,options);
+      prompts.push(JSON.parse(options.body).messages.at(-1).content);
+      const result={overall_band:band,criteria:[{name:'Task Response',abbreviation:'TR',score:5},{abbreviation:'CC',score:7},{abbreviation:'LR',score:7},{abbreviation:'GRA',score:7}],overall_feedback:'Feedback',suggestions:[],inline_corrections:[],has_clear_overview:true};
+      return Promise.resolve(new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(result)}}]}),{status:200,headers:{'Content-Type':'application/json'}}));
+    };
+    try {
+      const a=browser(), b=browser(), headers={'X-Forwarded-For':'198.51.100.10'};
+      let res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(149),taskNumber:1}});
+      let data=await res.json(); assert.equal(res.status,400); assert.equal(data.minRequired,150); assert.equal(data.wordCount,149); assert.equal(data.taskNumber,1);
+      res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(160)}}); data=await res.json(); assert.equal(res.status,400); assert.equal(data.minRequired,250); assert.equal(data.taskNumber,2);
+      res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(160),taskNumber:1,topicId:'wt1-ac-bar-01'}});
+      data=await res.json(); assert.equal(res.status,200); assert.equal(data.criteria[0].abbreviation,'TA'); assert.equal(data.criteria[0].name,'Task Achievement'); assert.equal(data.has_clear_overview,true);
+      assert.equal(data.writingBandSummary.latestTask1Band,6); assert.equal(data.writingBandSummary.combinedOverallBand,null); assert.equal(data.writingBandSummary.estimatedSingleTaskBand,6);
+      assert.ok(prompts[0].includes('Norway') && prompts[0].includes('Germany') && prompts[0].includes('Task Achievement'));
+      band=7;
+      res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(250),topic:'Discuss education'}}); data=await res.json();
+      assert.equal(res.status,200); assert.equal(data.criteria[0].abbreviation,'TR'); assert.equal(data.taskNumber,2); assert.equal(data.writingBandSummary.combinedOverallBand,6.5);
+      const summary=await (await a.request('/api/writing/summary')).json();
+      assert.equal(summary.task1Count,1); assert.equal(summary.task2Count,1); assert.equal(summary.latestTask1Band,6); assert.equal(summary.latestTask2Band,7); assert.equal(summary.combinedOverallBand,6.5);
+      assert.equal((await (await b.request('/api/writing/summary')).json()).task1Count,0);
+      const history=await (await a.request('/api/writing/history')).json(); assert.equal(history[0].taskNumber,1); assert.equal(history[0].topicId,'wt1-ac-bar-01'); assert.equal(history[1].subType,'essay');
+      await a.request('/api/placement/results',{method:'POST',body:{id:'task10-placement',score:{correct:4,total:8},estimatedBand:6,sectionBreakdown:{reading:{percentage:80},listening:{percentage:80}}}});
+      const diagnostic=await (await a.request('/api/study/diagnostic-status')).json();
+      assert.equal(diagnostic.profile.skills.writing,6.5); assert.ok(diagnostic.profile.weakAreas.includes('TA')); assert.ok(diagnostic.recommendedCurriculum.some(u=>u.targetWeakness.includes('TA')));
+      res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(160),taskNumber:1,topicId:'wt1-gt-letter-01'}}); data=await res.json();
+      assert.equal(res.status,200); assert.equal(data.subType,'general'); assert.equal('has_clear_overview' in data,false); assert.ok(prompts.at(-1).includes('Formal') && prompts.at(-1).includes('weekend'));
+      res=await a.request('/api/writing/score',{method:'POST',headers,body:{essay:sampleEssay(160),taskNumber:1,visualSummary:'Sales increased from 10 to 20.'}}); assert.equal(res.status,200); assert.ok(prompts.at(-1).includes('Sales increased from 10 to 20.'));
+    } finally {globalThis.fetch=originalFetch;}
+  });
+});
+
+test('Phase 10A summary supports old records, missing scores and chronological latest', async () => {
+  const b=browser(), me=await (await b.request('/api/me')).json();
+  const file=path.join(testResultsDir,'users',me.userId,'writing_results.json');
+  fs.writeFileSync(file,JSON.stringify([
+    {id:'task2-new',timestamp:'2026-10-01T00:00:00Z',result:{overall_band:7}},
+    {id:'task1-new',timestamp:'2026-10-02T00:00:00Z',taskNumber:1,result:{overall_band:6}},
+    {id:'task2-old',timestamp:'2026-01-01T00:00:00Z',taskNumber:2,result:{overall_band:5}},
+    {id:'bad-score',timestamp:'2026-10-03T00:00:00Z',taskNumber:1,result:{overall_band:null}}
+  ]));
+  const summary=await (await b.request('/api/writing/summary')).json();
+  assert.equal(summary.task1Count,2); assert.equal(summary.task2Count,2); assert.equal(summary.latestTask1Band,6); assert.equal(summary.latestTask2Band,7); assert.equal(summary.avgTask2Band,6); assert.equal(summary.combinedOverallBand,6.5);
+});
+
+test('Phase 10A supports TA mistake contexts in object and shorthand form', async () => {
+  await withoutAiProviders(async()=>{
+    const b=browser();
+    for(const weakestCriterion of [{code:'TA',score:5,feedback:'The overview is missing.'},'TA']) {
+      const res=await b.request('/api/study/generate-unit',{method:'POST',headers:{'X-Forwarded-For':'198.51.100.11'},body:{mistakeContext:{source:'writing',recordId:'task1-ta',weakestCriterion}}});
+      const data=await res.json(); assert.equal(res.status,200); assert.ok(data.unit.targetWeakness.includes('TA')); assert.ok(data.unit.title.includes('TA'));
+    }
+  });
 });

@@ -744,7 +744,8 @@
           "levelTag": "Intermediate",
           "targetWeakness": [
             "TR",
-            "CC"
+            "CC",
+            "TA"
           ]
         },
         {
@@ -923,7 +924,8 @@
           "levelTag": "Intermediate",
           "targetWeakness": [
             "CC",
-            "TR"
+            "TR",
+            "TA"
           ]
         }
       ]
@@ -1731,5 +1733,357 @@
   "studyEvaluatePrompt": "You are a strict but encouraging IELTS examiner. Score the learner's short output (50–80 words) on a 0.0–9.0 band scale in 0.5 steps, and check whether the target vocabulary was used correctly. Respond ONLY with a raw JSON object: { \"band\": number, \"score\": integer 0-100, \"usedWords\": [\"string\"], \"missingWords\": [\"string\"], \"feedbackEn\": \"string\", \"feedbackVi\": \"Vietnamese feedback with full diacritics\", \"improved\": \"a corrected or improved version of the learner's text\" }",
   "tutorFeedbackPrompt": "You are a Socratic IELTS tutor. Use graduated hints and Feynman self-explanation, ask one question to reveal understanding, never write the learner’s full answer for them. Return JSON with replyVi, replyEn, correction (short targeted correction or empty), explanationVi, socraticHintVi, followUpQuestion, understood (boolean). Vietnamese must use diacritics.",
   "checkpointEvaluationPrompt": "Evaluate the learner output against its prompt and target vocabulary. Return JSON with score (0-100), outputBand (0-9 in half bands), criteriaBreakdown {taskAchievement, lexicalResource, grammarAccuracy} (0-100), inlineCorrections [{original, correction, explanationVi}] grounded in the output, feedbackVi, feedbackEn, nextActionVi. Give formative feedback; do not fabricate mistakes.",
-  "mistakeUnitPrompt": "Create a 5-step IELTS unit from the supplied learner mistakes. Use only supplied corrections as learner errors; distinguish generic teaching examples from actual errors. Return the studyUnitPrompt JSON schema including lesson, flashcards, quiz and drill with skillTag, challenge, levelTag and targetWeakness. Include Feynman prompts, cloze and IPA; never invent learner errors."
+  "mistakeUnitPrompt": "Create a 5-step IELTS unit from the supplied learner mistakes. Use only supplied corrections as learner errors; distinguish generic teaching examples from actual errors. Return the studyUnitPrompt JSON schema including lesson, flashcards, quiz and drill with skillTag, challenge, levelTag and targetWeakness. Include Feynman prompts, cloze and IPA; never invent learner errors.",
+  "task1SystemInstruction": "You are an IELTS Writing Task 1 examiner assessing Academic reports and General Training letters. Assess only evidence in the response against the supplied task data. For Academic, assess a clear overview, accurate main features and comparisons; do not demand an overview for a General Training letter. For General, assess the purpose, all bullet points and appropriate tone. Give specific, constructive feedback grounded in the response and do not invent errors or source facts.",
+  "task1ScoringCriteria": {
+    "taskAchievement": {
+      "name": "Task Achievement",
+      "abbreviation": "TA",
+      "weight": 0.25,
+      "prompt": "Assess accurate selection and comparison of key features and a clear overview for Academic; assess purpose, coverage of all bullet points, and consistent tone for General. Penalise missing overview only for Academic; consider whether the response meets the 150-word requirement."
+    },
+    "coherenceAndCohesion": {
+      "name": "Coherence and Cohesion",
+      "abbreviation": "CC",
+      "weight": 0.25,
+      "prompt": "Assess logical organisation, paragraphing, progression and appropriate cohesive devices for the task."
+    },
+    "lexicalResource": {
+      "name": "Lexical Resource",
+      "abbreviation": "LR",
+      "weight": 0.25,
+      "prompt": "Assess precise vocabulary and collocations for trends, comparisons or the register of the letter, including range and accuracy."
+    },
+    "grammaticalRangeAndAccuracy": {
+      "name": "Grammatical Range and Accuracy",
+      "abbreviation": "GRA",
+      "weight": 0.25,
+      "prompt": "Assess grammatical range, tense, sentence structure, punctuation and accuracy, using evidence in the response."
+    }
+  },
+  "task1ResponseFormat": "Return only JSON: {\"criteria\":[{\"name\":\"Task Achievement\",\"abbreviation\":\"TA\",\"score\":0,\"band_descriptor\":\"string\",\"feedback\":\"string\"},{\"name\":\"Coherence and Cohesion\",\"abbreviation\":\"CC\",\"score\":0,\"band_descriptor\":\"string\",\"feedback\":\"string\"},{\"name\":\"Lexical Resource\",\"abbreviation\":\"LR\",\"score\":0,\"band_descriptor\":\"string\",\"feedback\":\"string\"},{\"name\":\"Grammatical Range and Accuracy\",\"abbreviation\":\"GRA\",\"score\":0,\"band_descriptor\":\"string\",\"feedback\":\"string\"}],\"overall_band\":0,\"overall_feedback\":\"string\",\"suggestions\":[\"string\"],\"inline_corrections\":[{\"original\":\"verbatim phrase from response\",\"correction\":\"string\",\"explanation\":\"string\"}],\"has_clear_overview\":true}. Scores are 0–9 in 0.5 increments; overall_band is the mean of the four criteria rounded to the nearest half band. Set has_clear_overview only for Academic, and do not invent errors.",
+  "task1WordCountRequirements": {
+    "min": 150,
+    "recommended": 180,
+    "timeMinutes": 20
+  },
+  "sampleTask1Topics": [
+    {
+      "id": "wt1-ac-bar-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "bar",
+      "category": "Energy & Environment",
+      "taskType": "Bar Chart",
+      "prompt": "The bar chart shows the percentage of total electricity generated from renewable sources in four countries between 2010 and 2025.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "Share of Electricity from Renewable Sources (%)",
+        "unit": "%",
+        "categories": [
+          "2010",
+          "2015",
+          "2020",
+          "2025"
+        ],
+        "series": [
+          {
+            "label": "Norway",
+            "color": "#34d399",
+            "values": [
+              65,
+              71,
+              78,
+              86
+            ]
+          },
+          {
+            "label": "Germany",
+            "color": "#6366f1",
+            "values": [
+              17,
+              30,
+              44,
+              58
+            ]
+          },
+          {
+            "label": "Vietnam",
+            "color": "#fbbf24",
+            "values": [
+              28,
+              33,
+              41,
+              52
+            ]
+          },
+          {
+            "label": "Australia",
+            "color": "#f87171",
+            "values": [
+              10,
+              14,
+              24,
+              39
+            ]
+          }
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "Norway was highest throughout, rising from 65% to 86%.",
+        "Germany increased by 41 percentage points, from 17% to 58%.",
+        "Vietnam rose from 28% to 52%, remaining above Australia.",
+        "Australia rose from 10% to 39%."
+      ]
+    },
+    {
+      "id": "wt1-ac-line-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "line",
+      "category": "Education & Technology",
+      "taskType": "Line Graph",
+      "prompt": "The line graph shows the proportions of university students studying on campus, in hybrid programmes and fully online between 2012 and 2024.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "University Students by Mode of Study (%)",
+        "unit": "%",
+        "categories": [
+          "2012",
+          "2016",
+          "2020",
+          "2024"
+        ],
+        "series": [
+          {
+            "label": "On-campus",
+            "color": "#34d399",
+            "values": [
+              80,
+              70,
+              55,
+              45
+            ]
+          },
+          {
+            "label": "Hybrid",
+            "color": "#6366f1",
+            "values": [
+              15,
+              22,
+              30,
+              35
+            ]
+          },
+          {
+            "label": "Fully Online",
+            "color": "#fbbf24",
+            "values": [
+              5,
+              8,
+              15,
+              20
+            ]
+          }
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "On-campus study declined from 80% to 45% but remained the largest category.",
+        "Hybrid study rose from 15% to 35%.",
+        "Fully online study quadrupled from 5% to 20%.",
+        "The three proportions sum to 100% in each year."
+      ]
+    },
+    {
+      "id": "wt1-ac-pie-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "pie",
+      "category": "Household Spending",
+      "taskType": "Pie Charts",
+      "prompt": "The pie charts compare household spending in an Asian city in 2005 and 2025.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "Household Spending by Category (%)",
+        "unit": "%",
+        "categories": [
+          "Housing",
+          "Food",
+          "Education",
+          "Transport",
+          "Healthcare"
+        ],
+        "series": [
+          {
+            "label": "2005",
+            "color": "#34d399",
+            "values": [
+              30,
+              35,
+              10,
+              15,
+              10
+            ]
+          },
+          {
+            "label": "2025",
+            "color": "#6366f1",
+            "values": [
+              40,
+              20,
+              15,
+              15,
+              10
+            ]
+          }
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "Housing increased from 30% to 40% and became the largest expense.",
+        "Food fell from 35% to 20%.",
+        "Education rose from 10% to 15%.",
+        "Transport and healthcare remained at 15% and 10% respectively."
+      ]
+    },
+    {
+      "id": "wt1-ac-table-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "table",
+      "category": "Urban Transport",
+      "taskType": "Data Table",
+      "prompt": "The table compares five metropolitan rail systems by opening year, route length, annual ridership and average fare.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "Metropolitan Rail Systems",
+        "columns": [
+          "City",
+          "Opened",
+          "Route length (km)",
+          "Passengers (million/year)",
+          "Average fare (USD)"
+        ],
+        "rows": [
+          [
+            "London",
+            1863,
+            402,
+            1200,
+            3.5
+          ],
+          [
+            "Paris",
+            1900,
+            225,
+            1500,
+            2.2
+          ],
+          [
+            "Tokyo",
+            1927,
+            195,
+            2500,
+            1.8
+          ],
+          [
+            "New York",
+            1904,
+            399,
+            1700,
+            2.9
+          ],
+          [
+            "Seoul",
+            1974,
+            340,
+            2600,
+            1.1
+          ]
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "London opened earliest in 1863 and has the longest route at 402 km.",
+        "Seoul opened most recently in 1974 and carries the most passengers, 2,600 million per year.",
+        "Tokyo has the shortest route at 195 km.",
+        "London has the highest average fare at $3.50; Seoul the lowest at $1.10."
+      ]
+    },
+    {
+      "id": "wt1-ac-process-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "process",
+      "category": "Recycling & Manufacturing",
+      "taskType": "Process Diagram",
+      "prompt": "The diagram shows how PET plastic bottles are recycled into textile fibres.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "PET Bottle to Textile Fibre",
+        "steps": [
+          {
+            "step": 1,
+            "title": "Collection & Sorting",
+            "detail": "Used PET bottles are collected and separated from other waste."
+          },
+          {
+            "step": 2,
+            "title": "Washing",
+            "detail": "The bottles are washed to remove labels and contamination."
+          },
+          {
+            "step": 3,
+            "title": "Shredding",
+            "detail": "Clean bottles are shredded into small flakes."
+          },
+          {
+            "step": 4,
+            "title": "Melting & Extrusion",
+            "detail": "Flakes are melted and extruded into plastic strands."
+          },
+          {
+            "step": 5,
+            "title": "Pelletising",
+            "detail": "Strands are cut into pellets for textile production."
+          },
+          {
+            "step": 6,
+            "title": "Fibre Spinning",
+            "detail": "Pellets are melted and spun into fibres for fabric."
+          }
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "The process has six stages, starting with collection and sorting.",
+        "Bottles are washed before being shredded into flakes.",
+        "Flakes are melted and extruded into strands, which are cut into pellets.",
+        "The final stage melts and spins pellets into textile fibres."
+      ]
+    },
+    {
+      "id": "wt1-gt-letter-01",
+      "taskNumber": 1,
+      "subType": "general",
+      "visualType": "letter",
+      "category": "Community Services",
+      "taskType": "Formal Letter",
+      "prompt": "You use your city library regularly and would like the management to improve its study area and extend weekend opening hours. Write a letter to the library manager.",
+      "instructions": "Write at least 150 words. You do not need to write any addresses. Begin your letter Dear Sir or Madam,",
+      "tone": "Formal",
+      "bulletPoints": [
+        "Explain how you use the library and why the study area matters to you.",
+        "Describe improvements you would like to see in the study area.",
+        "Explain why longer weekend opening hours would benefit library users."
+      ],
+      "keyFacts": [
+        "The letter is addressed to the city library manager.",
+        "Cover all three bullet points: current use, study-area improvements, and benefits of longer weekend hours.",
+        "Maintain a consistently formal tone."
+      ]
+    }
+  ]
 }
