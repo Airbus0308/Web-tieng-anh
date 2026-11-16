@@ -52,6 +52,43 @@
     <div class="writing-layout">
       <div class="writing-main">
 
+        <div class="speaking-mode-tabs" id="speaking-mode-tabs" role="tablist" aria-label="Chế độ luyện nói">
+          <button type="button" class="speaking-mode-tab active" id="tab-speaking-cuecard" role="tab" aria-selected="true" data-speaking-mode="cuecard" onclick="SpeakingApp.setMode('cuecard')">🎯 Luyện Nhanh Part 2 &amp; 3 (Cue Card)</button>
+          <button type="button" class="speaking-mode-tab" id="tab-speaking-interview" role="tab" aria-selected="false" data-speaking-mode="interview" onclick="SpeakingApp.setMode('interview')">🎙️ Phòng Thi Giả Lập 3 Part (Part 1 → Part 2 → Part 3 Live Examiner)</button>
+        </div>
+
+        <section class="interview-room" id="interview-room-panel" hidden aria-label="Phòng thi giả lập 3 Part">
+          <ol class="interview-stepper" id="interview-stepper">
+            <li class="interview-step active" data-step="1">① Part 1: Interview (3 câu)</li>
+            <li class="interview-step" data-step="2">② Part 2: Cue Card (1m prep + 2m talk)</li>
+            <li class="interview-step" data-step="3">③ Part 3: Two-Way Discussion &amp; AI Follow-up</li>
+          </ol>
+
+          <div class="interview-start-card" id="interview-start-card">
+            <p class="interview-topic-line">Chủ đề: <strong id="interview-topic-name">—</strong></p>
+            <p class="interview-hint">Giám khảo AI sẽ hỏi lần lượt Part 1 → Part 2 → Part 3 (khoảng 11–14 phút). Bạn có thể ghi âm hoặc gõ câu trả lời cho từng câu hỏi.</p>
+            <div class="interview-start-actions">
+              <button type="button" class="btn-start" id="btn-start-interview" onclick="SpeakingApp.startInterview()">▶ Bắt đầu phỏng vấn</button>
+              <button type="button" class="btn-text-action" id="btn-interview-change-topic" onclick="SpeakingApp.changeTopic()">Đổi đề</button>
+            </div>
+          </div>
+
+          <div class="examiner-card" id="examiner-prompt-card" hidden>
+            <div class="examiner-head">
+              <span class="examiner-avatar" aria-hidden="true">🧑‍🏫</span>
+              <div><strong>Giám khảo AI</strong><span class="examiner-part-label" id="examiner-part-label"></span></div>
+              <div class="examiner-tools">
+                <button type="button" class="btn-text-action" id="btn-speak-question" onclick="SpeakingApp.speakQuestion()">🔊 Nghe Giám khảo hỏi</button>
+                <button type="button" class="btn-text-action" id="btn-toggle-tts" aria-pressed="true" onclick="SpeakingApp.toggleTts()">🔈 Tự đọc: Bật</button>
+              </div>
+            </div>
+            <p class="examiner-question" id="examiner-question-text" aria-live="polite"></p>
+            <ul class="cue-points" id="examiner-cue-points" hidden></ul>
+          </div>
+
+          <div class="examiner-feedback" id="examiner-feedback-bubble" hidden aria-live="polite"></div>
+        </section>
+
         <section class="topic-card" id="topic-section">
           <div class="topic-header">
             <div class="topic-tags">
@@ -109,6 +146,19 @@
           </div>
         </section>
 
+        <section class="interview-room-footer" id="interview-room-footer" hidden>
+          <div class="interview-turn-controls" id="interview-turn-controls">
+            <button type="button" class="btn-start" id="btn-next-turn" onclick="SpeakingApp.nextTurn()" disabled>
+              <span class="btn-spinner" id="turn-spinner" style="display: none;"></span>
+              <span id="btn-next-turn-text">Ghi nhận câu trả lời &amp; Tiếp tục →</span>
+            </button>
+            <button type="button" class="btn-text-action" id="btn-finish-interview" onclick="SpeakingApp.finishInterview()" disabled>Chấm điểm toàn bộ buổi phỏng vấn</button>
+          </div>
+          <p class="submit-hint-text" id="interview-hint" aria-live="polite"></p>
+          <h3 class="interview-log-title">Nhật ký hội thoại</h3>
+          <div class="interview-transcript-log" id="interview-transcript-log" aria-live="polite"></div>
+        </section>
+
         <section class="submit-section" id="submit-section">
           <button type="button" class="btn-start btn-submit-essay" id="btn-submit" onclick="SpeakingApp.handleSubmit()" disabled>
             <span class="btn-spinner" id="btn-spinner" style="display: none;"></span>
@@ -130,7 +180,7 @@
               <p class="result-label">Your Estimated Speaking Band</p>
               <div class="result-band-circle" id="result-band-circle"><span class="result-band-number" id="result-overall-band">0.0</span></div>
               <p class="result-band-label" id="result-band-label"></p>
-              <div class="result-meta-row"><span class="result-meta-chip" id="result-word-count"></span></div>
+              <div class="result-meta-row"><span class="result-meta-chip" id="speaking-result-mode-chip"></span><span class="result-meta-chip" id="result-word-count"></span></div>
             </div>
           </div>
           <div class="feedback-card">
@@ -140,6 +190,18 @@
           <div class="criteria-container">
             <h2 class="criteria-section-title">Assessment Criteria Breakdown (FC, LR, GRA, PR)</h2>
             <div class="criteria-grid" id="criteria-grid"></div>
+          </div>
+          <div class="feedback-card" id="speaking-part-breakdown" hidden>
+            <div class="feedback-card-header"><h2 class="feedback-card-title">Nhận xét từng Part</h2></div>
+            <div class="part-breakdown-list" id="speaking-part-breakdown-list"></div>
+          </div>
+          <div class="feedback-card" id="speaking-inline-corrections" hidden>
+            <div class="feedback-card-header"><h2 class="feedback-card-title">Sửa lỗi diễn đạt</h2></div>
+            <div class="inline-corrections-list" id="speaking-inline-corrections-list"></div>
+          </div>
+          <div class="feedback-card band8-box" id="speaking-band8-highlights" hidden>
+            <div class="feedback-card-header"><h2 class="feedback-card-title">Cụm từ Band 8.0+ cho chủ đề này</h2></div>
+            <ul class="band8-list" id="speaking-band8-list"></ul>
           </div>
           <div class="suggestions-card">
             <div class="suggestions-header"><h2 class="suggestions-title">Key Suggestions for Improvement</h2></div>

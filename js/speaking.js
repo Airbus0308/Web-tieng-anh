@@ -26,6 +26,19 @@ const SpeakingApp = (() => {
   let _minWords = MIN_WORDS_DEFAULT;
   let _isLoading = false;
 
+  // Phase 11B — Mock Interview state
+  const INTERVIEW_PART_LABEL = 'Full Interview (Part 1-2-3)';
+  const MAX_FOLLOW_UPS = 2;
+  let _mode = 'cuecard';
+  let _interviewActive = false;
+  let _interviewTurns = [];   // [{ part, question, answer, durationSec }]
+  let _queue = [];            // upcoming { part, question, isFollowUp?, cue? }
+  let _currentQ = null;
+  let _turnStartedAt = null;
+  let _followUpsUsed = 0;
+  let _turnBusy = false;
+  let _ttsEnabled = true;
+
   let _timerPhase = 'idle'; // idle | prep | speak | done
   let _timerSeconds = PREP_SECONDS;
   let _timerInterval = null;
@@ -78,6 +91,7 @@ const SpeakingApp = (() => {
     _el('speaking-input').addEventListener('input', updateWordCount);
     updateWordCount();
     _setupSpeechSupport();
+    _setupTts();
     _renderTimer();
     loadHistory();
   }
@@ -106,6 +120,8 @@ const SpeakingApp = (() => {
     _currentTopic = _topics[next];
     _renderTopic(_currentTopic);
     resetTimer();
+    const name = _el('interview-topic-name');
+    if (name) name.textContent = _currentTopic.part1Topic || _currentTopic.category || _currentTopic.part2?.prompt || '';
   }
 
   function _renderTopic(topic) {
@@ -133,6 +149,7 @@ const SpeakingApp = (() => {
     _el('submit-hint').textContent = ok
       ? 'Ready to submit for AI scoring.'
       : `Provide at least ${_minWords} words to enable submission (current: ${words}).`;
+    if (_mode === 'interview') _updateInterviewControls();
   }
 
   /* ── Timer ──────────────────────────────────────────── */
@@ -290,22 +307,27 @@ const SpeakingApp = (() => {
     _setLoading(true);
     try {
       const duration = _durationSeconds();
-      const res = await fetch('/api/speaking/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript, topic: _topicText(), part: 'Part 2 & Part 3', durationSeconds: duration,
-          integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Scoring failed.');
-      _saveLocalAttempt(data, transcript, duration);
-      renderResults({ ...data, transcript, topic: _topicText() });
-      loadHistory();
+      await _scoreAndRender({ transcript, topic: _topicText(), part: 'Part 2 & Part 3', durationSeconds: duration,
+        mode: 'cuecard', topicId: _currentTopic?.id || null }, duration);
     } catch (err) {
       showToast(err.message || 'Could not score your response.', 'error');
     } finally {
       _setLoading(false);
     }
+  }
+
+  async function _scoreAndRender(payload, duration) {
+    const res = await fetch('/api/speaking/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, integrity: typeof ExamSecurity !== 'undefined' ? ExamSecurity.snapshot() : null })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Scoring failed.');
+    _saveLocalAttempt(data, payload.transcript, duration);
+    renderResults({ ...data, transcript: payload.transcript, topic: payload.topic });
+    loadHistory();
+    return data;
   }
 
   function _setLoading(loading) {
@@ -337,6 +359,8 @@ const SpeakingApp = (() => {
     const circle = _el('result-band-circle');
     circle.style.borderColor = _colorHex(band);
     _el('result-band-label').textContent = _bandLabel(band);
+    const isInterview = data.mode === 'interview' || src.mode === 'interview';
+    _el('speaking-result-mode-chip').textContent = isInterview ? 'Full Mock Interview · Part 1–2–3' : 'Part 2 & 3 Cue Card';
     _el('result-word-count').textContent = `${data.wordCount || countWords(data.transcript || '')} words`;
     _el('result-overall-feedback').textContent = src.overall_feedback || src.overallFeedback || '';
 
@@ -353,12 +377,68 @@ const SpeakingApp = (() => {
         <p class="criterion-feedback">${_escapeHtml(item.feedback)}</p>
       </div>`).join('');
 
+    _renderPartBreakdown(src.part_breakdown || data.part_breakdown, isInterview);
+    _renderInlineCorrections(src.inline_corrections || data.inline_corrections);
+    _renderBand8(data);
+
     const suggestions = src.suggestions || [];
     _el('suggestions-list').innerHTML = suggestions.map(s => `<li>${_escapeHtml(s)}</li>`).join('');
     const area = _el('results-area');
     area.dataset.band = colorClass;
     area.style.display = 'block';
     area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function _renderPartBreakdown(breakdown, isInterview) {
+    const box = _el('speaking-part-breakdown');
+    const list = _el('speaking-part-breakdown-list');
+    list.replaceChildren();
+    if (isInterview && breakdown && typeof breakdown === 'object') {
+      [1, 2, 3].forEach(n => {
+        const text = breakdown[`part${n}`];
+        if (typeof text !== 'string' || !text.trim()) return;
+        const item = document.createElement('div');
+        item.className = 'part-breakdown-item';
+        const h = document.createElement('strong'); h.textContent = `Part ${n}`;
+        const p = document.createElement('p'); p.textContent = text;
+        item.append(h, p);
+        list.appendChild(item);
+      });
+    }
+    box.hidden = list.childElementCount === 0;
+  }
+
+  function _validCorrections(raw) {
+    return (Array.isArray(raw) ? raw : []).filter(c => c && typeof c.original === 'string' && c.original.trim()
+      && typeof c.correction === 'string' && c.correction.trim());
+  }
+
+  function _renderInlineCorrections(raw) {
+    const box = _el('speaking-inline-corrections');
+    const list = _el('speaking-inline-corrections-list');
+    list.replaceChildren();
+    _validCorrections(raw).forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'speaking-correction';
+      const del = document.createElement('del'); del.textContent = c.original;
+      const arrow = document.createElement('span'); arrow.textContent = ' → ';
+      const ins = document.createElement('ins'); ins.textContent = c.correction;
+      row.append(del, arrow, ins);
+      if (typeof c.explanation === 'string' && c.explanation.trim()) {
+        const p = document.createElement('p'); p.textContent = c.explanation; row.appendChild(p);
+      }
+      list.appendChild(row);
+    });
+    box.hidden = list.childElementCount === 0;
+  }
+
+  function _renderBand8(data) {
+    const box = _el('speaking-band8-highlights');
+    const topic = _topics.find(t => t.id && t.id === data.topicId)
+      || _topics.find(t => t.part2?.prompt && t.part2.prompt === data.topic);
+    const items = Array.isArray(topic?.modelBand8Highlight) ? topic.modelBand8Highlight : [];
+    _el('speaking-band8-list').innerHTML = items.map(x => `<li>${_escapeHtml(x)}</li>`).join('');
+    box.hidden = !items.length;
   }
 
   /* ── History ────────────────────────────────────────── */
@@ -379,11 +459,15 @@ const SpeakingApp = (() => {
         transcript,
         wordCount: data.wordCount || countWords(transcript),
         durationSeconds: duration,
+        mode: data.mode || 'cuecard',
+        topicId: data.topicId || null,
         result: {
           overall_band: data.overall_band,
           overall_feedback: data.overall_feedback,
           criteria: data.criteria,
-          suggestions: data.suggestions
+          suggestions: data.suggestions,
+          part_breakdown: data.part_breakdown,
+          inline_corrections: data.inline_corrections
         }
       });
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history.slice(0, 20)));
@@ -441,7 +525,7 @@ const SpeakingApp = (() => {
   }
 
   /* ── Phase 9B: Learn From My Mistakes ─────────────────── */
-  /** Speaking results have no inline corrections, so the unit is built from the weakest criterion, suggestions and transcript. */
+  /** Unit is built from the weakest criterion, suggestions, transcript and (when present) inline_corrections. */
   async function createMistakeUnit(button) {
     const data = _lastResult;
     if (!data || typeof AuthProfile === 'undefined') { showToast('Hãy chấm một bài nói trước.', 'error'); return; }
@@ -452,7 +536,8 @@ const SpeakingApp = (() => {
       prompt: data.topic || _topicText(),
       overallBand: Number(src.overall_band ?? src.overallBand) || null,
       weakestCriterion: AuthProfile.weakestCriterion(_normalizeCriteria(data)) || undefined,
-      corrections: [],
+      corrections: _validCorrections(src.inline_corrections || data.inline_corrections).slice(0, 10)
+        .map(c => ({ original: c.original, correction: c.correction, explanation: c.explanation || '' })),
       suggestions: (src.suggestions || []).slice(0, 6),
       transcriptExcerpt: String(data.transcript || _el('speaking-input')?.value || '').slice(0, 1500)
     };
@@ -460,14 +545,277 @@ const SpeakingApp = (() => {
     catch (e) { showToast(e.message, 'error'); }
   }
 
+  /* ── Phase 11B: Live Mock Interview ──────────────────── */
+  function _setupTts() {
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+      _ttsEnabled = false;
+      for (const id of ['btn-speak-question', 'btn-toggle-tts']) { const b = _el(id); if (b) b.disabled = true; }
+      _el('btn-toggle-tts').textContent = '🔇 Trình duyệt không hỗ trợ TTS';
+    }
+  }
+
+  function _speak(text) {
+    if (!('speechSynthesis' in window) || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-GB';
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    } catch { /* TTS is best-effort */ }
+  }
+
+  function speakQuestion() { if (_currentQ) _speak(_currentQ.spokenText || _currentQ.question); }
+
+  function toggleTts() {
+    if (!('speechSynthesis' in window)) return;
+    _ttsEnabled = !_ttsEnabled;
+    const b = _el('btn-toggle-tts');
+    b.setAttribute('aria-pressed', String(_ttsEnabled));
+    b.textContent = _ttsEnabled ? '🔈 Tự đọc: Bật' : '🔇 Tự đọc: Tắt';
+    if (!_ttsEnabled) window.speechSynthesis.cancel();
+  }
+
+  function setMode(mode) {
+    if (mode !== 'cuecard' && mode !== 'interview') return;
+    if (mode === _mode) return;
+    if (_interviewActive && _interviewTurns.length && !window.confirm('Rời phòng thi sẽ hủy buổi phỏng vấn đang làm dở. Tiếp tục?')) return;
+    _resetInterview();
+    _mode = mode;
+    const interview = mode === 'interview';
+    for (const t of document.querySelectorAll('[data-speaking-mode]')) {
+      const on = t.dataset.speakingMode === mode;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+    }
+    _el('interview-room-panel').hidden = !interview;
+    _el('interview-room-footer').hidden = !interview;
+    _el('topic-section').style.display = interview ? 'none' : '';
+    _el('submit-section').style.display = interview ? 'none' : '';
+    _el('timer-card').style.display = 'none';
+    _el('editor-section').style.display = interview ? 'none' : '';
+    _el('results-area').style.display = 'none';
+    resetTimer();
+    updateWordCount();
+  }
+
+  function _resetInterview() {
+    _interviewActive = false;
+    _interviewTurns = [];
+    _queue = [];
+    _currentQ = null;
+    _turnStartedAt = null;
+    _followUpsUsed = 0;
+    _turnBusy = false;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (_isRecording) toggleRecording();
+    _el('speaking-input').value = '';
+    _baseText = '';
+    _el('interview-transcript-log').replaceChildren();
+    _el('examiner-feedback-bubble').hidden = true;
+    _el('examiner-prompt-card').hidden = true;
+    _el('interview-start-card').hidden = false;
+    _el('interview-hint').textContent = '';
+    _setStepper(1, true);
+  }
+
+  function _setStepper(part, reset = false) {
+    for (const li of document.querySelectorAll('#interview-stepper .interview-step')) {
+      const n = Number(li.dataset.step);
+      li.classList.toggle('active', n === part);
+      li.classList.toggle('done', !reset && n < part);
+    }
+  }
+
+  function _buildQueue(topic) {
+    const q = [];
+    (topic.part1 || []).slice(0, 3).forEach(question => q.push({ part: 1, question }));
+    const p2 = topic.part2 || {};
+    q.push({ part: 2, question: p2.prompt || 'Describe a memorable experience.', spokenText: `${p2.prompt || ''} You have one minute to prepare, then speak for up to two minutes.`, cue: p2 });
+    (topic.part3 || []).slice(0, 3).forEach(question => q.push({ part: 3, question }));
+    return q;
+  }
+
+  function startInterview() {
+    if (!_currentTopic) return;
+    _resetInterview();
+    _interviewActive = true;
+    _queue = _buildQueue(_currentTopic);
+    _el('interview-start-card').hidden = true;
+    _el('editor-section').style.display = '';
+    _showNextQuestion();
+  }
+
+  function _showNextQuestion() {
+    _currentQ = _queue.shift() || null;
+    _el('speaking-input').value = '';
+    _baseText = '';
+    updateWordCount();
+    if (!_currentQ) { _finishedAllParts(); return; }
+    _turnStartedAt = Date.now();
+    _setStepper(_currentQ.part);
+    _el('examiner-prompt-card').hidden = false;
+    _el('examiner-part-label').textContent = _currentQ.isFollowUp ? ' · Part 3 — câu hỏi phản biện' : ` · Part ${_currentQ.part}`;
+    _el('examiner-question-text').textContent = _currentQ.question;
+    const cue = _el('examiner-cue-points');
+    cue.hidden = !_currentQ.cue;
+    cue.innerHTML = _currentQ.cue
+      ? (_currentQ.cue.points || []).map(x => `<li>${_escapeHtml(x)}</li>`).join('') + (_currentQ.cue.closing ? `<li>${_escapeHtml(_currentQ.cue.closing)}</li>` : '')
+      : '';
+    _appendLog('examiner', _currentQ.part, _currentQ.question);
+    const timerCard = _el('timer-card');
+    resetTimer();
+    timerCard.style.display = _currentQ.part === 2 ? '' : 'none';
+    _el('btn-next-turn-text').textContent = 'Ghi nhận câu trả lời & Tiếp tục →';
+    _el('interview-hint').textContent = _currentQ.part === 2
+      ? 'Bấm "Start 1-min Preparation" (hoặc "Skip to Speaking"), rồi nói/gõ câu trả lời.'
+      : 'Ghi âm hoặc gõ câu trả lời, sau đó bấm "Ghi nhận câu trả lời & Tiếp tục".';
+    if (_ttsEnabled) _speak(_currentQ.spokenText || _currentQ.question);
+  }
+
+  function _appendLog(role, part, text) {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    const meta = document.createElement('span');
+    meta.className = 'chat-meta';
+    meta.textContent = `${role === 'examiner' ? 'Examiner' : 'Candidate'} · Part ${part}`;
+    const body = document.createElement('span');
+    body.textContent = text;
+    bubble.append(meta, body);
+    _el('interview-transcript-log').appendChild(bubble);
+  }
+
+  function _interviewTotalWords() {
+    return _interviewTurns.reduce((n, t) => n + countWords(t.answer), 0) + countWords(_el('speaking-input').value);
+  }
+
+  function _updateInterviewControls() {
+    const hasAnswer = countWords(_el('speaking-input').value) > 0;
+    _el('btn-next-turn').disabled = !_interviewActive || !_currentQ || !hasAnswer || _turnBusy || _isLoading;
+    _el('btn-finish-interview').disabled = !_interviewActive || _interviewTotalWords() < _minWords || _turnBusy || _isLoading;
+  }
+
+  function _turnDuration() {
+    if (_currentQ?.part === 2 && _durationSeconds()) return _durationSeconds();
+    return _turnStartedAt ? Math.max(1, Math.round((Date.now() - _turnStartedAt) / 1000)) : null;
+  }
+
+  function _recordCurrentTurn() {
+    const answer = _el('speaking-input').value.trim();
+    if (!_currentQ || !answer) return null;
+    if (_isRecording) toggleRecording();
+    const turn = { part: _currentQ.part, question: _currentQ.question, answer, durationSec: _turnDuration() };
+    _interviewTurns.push(turn);
+    _appendLog('candidate', turn.part, answer);
+    return turn;
+  }
+
+  async function nextTurn() {
+    if (_turnBusy || !_currentQ) return;
+    const asked = _currentQ;
+    const turn = _recordCurrentTurn();
+    if (!turn) { showToast('Hãy trả lời câu hỏi trước khi tiếp tục.', 'error'); return; }
+    _el('speaking-input').value = '';
+    _baseText = '';
+    _el('examiner-feedback-bubble').hidden = true;
+    _turnBusy = true;
+    _updateInterviewControls();
+
+    let followUp = null;
+    if (asked.part !== 2) {
+      _el('turn-spinner').style.display = 'inline-block';
+      try {
+        const turnIndex = _interviewTurns.filter(t => t.part === asked.part).length - 1;
+        const res = await fetch('/api/speaking/examiner-turn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topicId: _currentTopic?.id, part: asked.part, turnIndex, questionAsked: asked.question, candidateTranscript: turn.answer })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Examiner unavailable.');
+        _renderExaminerFeedback(data);
+        if (asked.part === 3 && typeof data.followUpQuestionEn === 'string' && data.followUpQuestionEn.trim() && _followUpsUsed < MAX_FOLLOW_UPS) {
+          followUp = data.followUpQuestionEn.trim();
+        }
+      } catch (err) {
+        showToast(err.message || 'Giám khảo AI tạm thời không phản hồi — tiếp tục sang câu kế tiếp.', 'error');
+      } finally {
+        _el('turn-spinner').style.display = 'none';
+      }
+    }
+    if (followUp) {
+      _followUpsUsed += 1;
+      _queue.unshift({ part: 3, question: followUp, isFollowUp: true });
+    }
+    _turnBusy = false;
+    _showNextQuestion();
+  }
+
+  function _renderExaminerFeedback(data) {
+    const box = _el('examiner-feedback-bubble');
+    box.replaceChildren();
+    const add = (cls, text) => { const p = document.createElement('p'); if (cls) p.className = cls; p.textContent = text; box.appendChild(p); };
+    if (data.examinerReplyEn) { add('examiner-reply', `“${data.examinerReplyEn}”`); _appendLog('examiner', data.part || (_currentQ?.part ?? 1), data.examinerReplyEn); }
+    if (data.coachingTipVi) add('', `💡 ${data.coachingTipVi}`);
+    const words = (Array.isArray(data.pronunciationTargets) ? data.pronunciationTargets : []).filter(w => typeof w === 'string' && w.trim());
+    if (words.length) {
+      const row = document.createElement('div');
+      row.className = 'pron-targets';
+      const label = document.createElement('span'); label.textContent = 'Luyện phát âm:'; row.appendChild(label);
+      words.forEach(w => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'pron-word'; b.dataset.word = w; b.textContent = `🔊 ${w}`;
+        b.addEventListener('click', () => _speak(w));
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    }
+    box.hidden = box.childElementCount === 0;
+  }
+
+  function _finishedAllParts() {
+    _currentQ = null;
+    _setStepper(4);
+    _el('examiner-question-text').textContent = 'Thank you. That is the end of the speaking test.';
+    _el('examiner-part-label').textContent = '';
+    _el('examiner-cue-points').hidden = true;
+    _el('timer-card').style.display = 'none';
+    _el('editor-section').style.display = 'none';
+    _el('interview-hint').textContent = 'Bạn đã hoàn thành cả 3 Part — đang chấm điểm…';
+    _updateInterviewControls();
+    finishInterview();
+  }
+
+  async function finishInterview() {
+    if (_isLoading || _turnBusy) return;
+    if (_currentQ) _recordCurrentTurn(); // keep the draft answer of the question in progress
+    const transcript = _interviewTurns.map(t => t.answer).join('\n\n');
+    if (countWords(transcript) < _minWords) { showToast(`Cần tối thiểu ${_minWords} từ để chấm điểm.`, 'error'); return; }
+    _el('speaking-input').value = '';
+    _setLoading(true);
+    try {
+      const total = _interviewTurns.reduce((n, t) => n + (Number(t.durationSec) || 0), 0) || null;
+      await _scoreAndRender({ transcript, topic: _topicText(), part: INTERVIEW_PART_LABEL, mode: 'interview',
+        topicId: _currentTopic?.id || null, interviewTurns: _interviewTurns, durationSeconds: total }, total);
+      _el('interview-hint').textContent = 'Đã chấm xong — xem kết quả bên dưới.';
+    } catch (err) {
+      showToast(err.message || 'Could not score your interview.', 'error');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   function resetForm() {
+    if (_mode === 'interview') { _resetInterview(); _el('editor-section').style.display = 'none'; }
     clearDraft();
     _el('results-area').style.display = 'none';
     changeTopic();
+    if (_mode === 'interview') _el('timer-card').style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  return { init, changeTopic, startPrep, startSpeaking, resetTimer, toggleRecording, handleSubmit, clearDraft, resetForm, updateWordCount, createMistakeUnit };
+  return { init, changeTopic, startPrep, startSpeaking, resetTimer, toggleRecording, handleSubmit, clearDraft, resetForm, updateWordCount, createMistakeUnit,
+    renderResults, setMode, startInterview, nextTurn, finishInterview, speakQuestion, toggleTts };
 })();
 
 document.addEventListener('DOMContentLoaded', SpeakingApp.init);

@@ -1248,3 +1248,109 @@ test('Phase 10B client Overall Writing summary matches the server formula', asyn
   assert.ok(page.includes('id="writing-score-meta"') && page.includes('TA · TR, CC, LR, GRA'));
 });
 
+test('Phase 11B: speaking.html exposes mode tabs, interview room and upgraded results (legacy IDs intact)', async () => {
+  const html = await (await fetch(`${BASE}/speaking.html`)).text();
+  for (const id of ['topic-section', 'timer-card', 'editor-section', 'speaking-input', 'btn-record', 'btn-submit', 'results-area', 'btn-create-mistake-unit',
+    'speaking-mode-tabs', 'tab-speaking-cuecard', 'tab-speaking-interview', 'interview-room-panel', 'interview-stepper', 'examiner-prompt-card',
+    'examiner-question-text', 'btn-speak-question', 'btn-toggle-tts', 'btn-next-turn', 'btn-finish-interview', 'examiner-feedback-bubble',
+    'interview-transcript-log', 'speaking-result-mode-chip', 'speaking-part-breakdown', 'speaking-inline-corrections', 'speaking-band8-highlights']) {
+    assert.ok(html.includes(`id="${id}"`), `speaking.html should include #${id}`);
+  }
+  assert.ok(/id="tab-speaking-cuecard"[^>]*data-speaking-mode="cuecard"/.test(html));
+  assert.ok(/id="tab-speaking-interview"[^>]*data-speaking-mode="interview"/.test(html));
+  assert.ok(html.includes('Ghi nhận câu trả lời &amp; Tiếp tục →') && html.includes('Chấm điểm toàn bộ buổi phỏng vấn'));
+  assert.ok(/class="speaking-mode-tab active" id="tab-speaking-cuecard"/.test(html));
+  const js = await (await fetch(`${BASE}/js/speaking.js`)).text();
+  for (const token of ['speechSynthesis', '/api/speaking/examiner-turn', 'Full Interview (Part 1-2-3)', "mode: 'interview'", 'interviewTurns',
+    'followUpQuestionEn', 'pronunciationTargets', 'coachingTipVi', 'modelBand8Highlight', 'part_breakdown', 'inline_corrections']) {
+    assert.ok(js.includes(token), `speaking.js should include ${token}`);
+  }
+  assert.ok((await (await fetch(`${BASE}/css/speaking.css`)).text()).includes('.speaking-mode-tab'));
+});
+
+test('Phase 11B: interview flow runs Part 1 → 2 → 3, calls the examiner and scores with interviewTurns', async () => {
+  const vm = await import('node:vm');
+  const make = id => {
+    const el = { id, children: [], dataset: {}, style: {}, value: '', textContent: '', innerHTML: '', hidden: false, disabled: false, _attrs: {},
+      classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, toggle(c, on) { (on === undefined ? !this._s.has(c) : on) ? this._s.add(c) : this._s.delete(c); }, contains(c) { return this._s.has(c); } },
+      appendChild(c) { this.children.push(c); return c; }, append(...c) { this.children.push(...c); }, replaceChildren(...c) { this.children = [...c]; },
+      get childElementCount() { return this.children.length; },
+      setAttribute(k, v) { this._attrs[k] = v; }, addEventListener() {}, scrollIntoView() {}, remove() {} };
+    return el;
+  };
+  const els = {};
+  const document = { getElementById: id => (els[id] ??= make(id)), createElement: tag => make(tag), querySelectorAll: () => [], addEventListener() {}, body: make('body') };
+  const topic = { id: 'sp-01', category: 'People', part1Topic: 'Teachers', part1: ['P1 a?', 'P1 b?', 'P1 c?'],
+    part2: { prompt: 'Describe a teacher.', points: ['who'], closing: 'and why.' }, part3: ['P3 a?', 'P3 b?', 'P3 c?'],
+    modelBand8Highlight: ['fostered critical thinking — nuôi dưỡng tư duy phản biện'] };
+  const calls = [];
+  const spoken = [];
+  const words = n => Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
+  const fakeFetch = async (url, opts = {}) => {
+    const body = opts.body ? JSON.parse(opts.body) : null;
+    calls.push({ url, body });
+    const json = data => ({ ok: true, status: 200, json: async () => data });
+    if (url === '/api/speaking/config') return json({ sampleTopics: [topic], wordCountRequirements: { min: 40 } });
+    if (url === '/api/speaking/history') return json([]);
+    if (url === '/api/speaking/examiner-turn') return json({ part: body.part, examinerReplyEn: 'Thank you.', followUpQuestionEn: body.part === 3 ? 'Why is that so?' : 'x', coachingTipVi: 'Mở rộng thêm.', pronunciationTargets: ['pedagogical'] });
+    if (url === '/api/speaking/score') return json({ overall_band: 6.5, mode: body.mode, topicId: body.topicId, criteria: [], suggestions: ['s'],
+      part_breakdown: { part1: 'P1 ok', part2: 'P2 ok', part3: 'P3 ok' }, inline_corrections: [{ original: 'bad', correction: 'good', explanation: 'why' }, { original: '', correction: 'x' }] });
+    throw new Error(`unexpected ${url}`);
+  };
+  const ctx = { document, console, fetch: fakeFetch, setTimeout, clearTimeout, setInterval, clearInterval, localStorage: { getItem: () => null, setItem() {} },
+    location: {}, window: { speechSynthesis: { cancel() {}, speak(u) { spoken.push(u.text); } }, confirm: () => true, scrollTo() {} },
+    SpeechSynthesisUtterance: function (text) { this.text = text; }, navigator: {} };
+  ctx.window.document = document;
+  vm.createContext(ctx);
+  vm.runInContext(`${await (await fetch(`${BASE}/js/speaking.js`)).text()}\nthis.SpeakingApp = SpeakingApp;`, ctx);
+  const App = ctx.SpeakingApp;
+  await App.init();
+  App.setMode('interview');
+  assert.equal(els['interview-room-panel'].hidden, false);
+  App.startInterview();
+  assert.equal(els['examiner-question-text'].textContent, 'P1 a?');
+  assert.ok(spoken.includes('P1 a?'), 'question is read aloud via speechSynthesis');
+  const answer = async text => { els['speaking-input'].value = text; await App.nextTurn(); };
+  await answer(words(15)); await answer(words(15)); await answer(words(15));
+  assert.equal(els['examiner-question-text'].textContent, 'Describe a teacher.');
+  assert.equal(els['examiner-cue-points'].hidden, false);
+  await answer(words(30));
+  assert.equal(els['examiner-question-text'].textContent, 'P3 a?');
+  await answer(words(20));
+  assert.equal(els['examiner-question-text'].textContent, 'Why is that so?', 'Part 3 inserts the AI follow-up question');
+  assert.equal(els['examiner-feedback-bubble'].hidden, false);
+  assert.ok(els['examiner-feedback-bubble'].children.some(c => c.className === 'pron-targets'));
+  els['speaking-input'].value = words(20);
+  await App.finishInterview();
+  const score = calls.filter(c => c.url === '/api/speaking/score').at(-1).body;
+  assert.equal(score.mode, 'interview'); assert.equal(score.part, 'Full Interview (Part 1-2-3)'); assert.equal(score.topicId, 'sp-01');
+  assert.deepEqual(score.interviewTurns.map(t => t.part), [1, 1, 1, 2, 3, 3]);
+  assert.ok(score.interviewTurns.every(t => t.question && t.answer));
+  assert.ok(score.transcript.includes('word0'));
+  assert.equal(calls.filter(c => c.url === '/api/speaking/examiner-turn').length, 4, 'examiner is consulted on Part 1 and Part 3 turns, not Part 2');
+  assert.equal(els['speaking-result-mode-chip'].textContent, 'Full Mock Interview · Part 1–2–3');
+  assert.equal(els['speaking-part-breakdown'].hidden, false);
+  assert.equal(els['speaking-part-breakdown-list'].children.length, 3);
+  assert.equal(els['speaking-inline-corrections'].hidden, false);
+  assert.equal(els['speaking-inline-corrections-list'].children.length, 1, 'invalid corrections are skipped');
+  assert.equal(els['speaking-band8-highlights'].hidden, false);
+  assert.ok(els['speaking-band8-list'].innerHTML.includes('fostered critical thinking'));
+  assert.equal(els['interview-transcript-log'].children.length >= 12, true);
+});
+
+test('Phase 11B: createMistakeUnit forwards inline_corrections to AuthProfile', async () => {
+  const vm = await import('node:vm');
+  let received;
+  const el = { style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, addEventListener() {}, scrollIntoView() {}, value: '', children: [],
+    replaceChildren() {}, appendChild() {}, append() {}, get childElementCount() { return 0; } };
+  const ctx = { document: { getElementById: () => el, createElement: () => ({ ...el }), querySelectorAll: () => [], addEventListener() {} }, console, localStorage: { getItem: () => null }, window: {},
+    AuthProfile: { weakestCriterion: () => ({ code: 'FC' }), createMistakeUnit: async c => { received = c; } } };
+  vm.createContext(ctx);
+  vm.runInContext(`${await (await fetch(`${BASE}/js/speaking.js`)).text()}\nthis.SpeakingApp = SpeakingApp;`, ctx);
+  ctx.SpeakingApp.renderResults({ id: 'speak_1', topic: 'T', transcript: 'I am agree with this.', overall_band: 6, criteria: [{ abbreviation: 'FC', score: 6 }],
+    suggestions: ['a'], inline_corrections: [{ original: 'I am agree', correction: 'I agree', explanation: 'verb' }, { original: 'x' }] });
+  await ctx.SpeakingApp.createMistakeUnit({});
+  assert.equal(received.source, 'speaking');
+  assert.deepEqual(JSON.parse(JSON.stringify(received.corrections)), [{ original: 'I am agree', correction: 'I agree', explanation: 'verb' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(received.suggestions)), ['a']);
+});

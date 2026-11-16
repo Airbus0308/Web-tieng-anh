@@ -22,3 +22,48 @@
 @keyframes rec-pulse { 50% { opacity: 0.25; transform: scale(1.35); } }
 .speech-status { min-height: 1.2em; margin: 4px 0 8px; font-size: 0.85rem; color: var(--text-secondary); }
 .speech-status.error { color: var(--accent-red); }
+
+/* ── Phase 11B: Mock Interview ───────────────────────── */
+.speaking-mode-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.speaking-mode-tab { flex: 1 1 240px; padding: 10px 14px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 600; text-align: left; color: var(--text-secondary); background: var(--bg-card); border: 1px solid rgba(148, 163, 184, 0.2); }
+.speaking-mode-tab:hover { border-color: var(--accent-primary); }
+.speaking-mode-tab.active { color: var(--text-primary); border-color: var(--accent-primary); background: var(--bg-elevated); box-shadow: 0 0 0 1px var(--accent-primary) inset; }
+.speaking-mode-tab:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+
+.interview-room[hidden], .interview-room-footer[hidden], .examiner-card[hidden], .examiner-feedback[hidden], .interview-start-card[hidden], #speaking-part-breakdown[hidden], #speaking-inline-corrections[hidden], #speaking-band8-highlights[hidden], .cue-points[hidden] { display: none !important; }
+.interview-room { margin-bottom: 20px; }
+.interview-stepper { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 16px; padding: 0; }
+.interview-step { flex: 1 1 180px; padding: 8px 12px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); background: var(--bg-card); border: 1px solid rgba(148, 163, 184, 0.15); }
+.interview-step.active { color: var(--text-primary); border-color: var(--accent-primary); background: var(--bg-elevated); }
+.interview-step.done { color: var(--accent-green); border-color: rgba(52, 211, 153, 0.4); }
+.interview-start-card, .examiner-card { padding: 16px 18px; border-radius: 16px; background: var(--bg-card); border: 1px solid rgba(148, 163, 184, 0.15); backdrop-filter: blur(12px); }
+.interview-hint { color: var(--text-secondary); margin: 6px 0 12px; line-height: 1.6; }
+.interview-start-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.examiner-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.examiner-avatar { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; font-size: 1.3rem; background: var(--bg-elevated); }
+.examiner-part-label { display: block; font-size: 0.75rem; color: var(--accent-teal); }
+.examiner-tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+.examiner-question { margin: 0; font-size: 1.15rem; font-weight: 600; line-height: 1.5; color: var(--text-primary); }
+.examiner-feedback { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(45, 212, 191, 0.07); border: 1px dashed var(--accent-teal); color: var(--text-secondary); line-height: 1.6; }
+.examiner-feedback p { margin: 0 0 8px; }
+.examiner-feedback .examiner-reply { color: var(--text-primary); font-style: italic; }
+.pron-targets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pron-word { padding: 4px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid rgba(99, 102, 241, 0.5); }
+.pron-word:hover { border-color: var(--accent-primary); }
+.interview-room-footer { margin-bottom: 20px; }
+.interview-turn-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.interview-log-title { margin: 16px 0 8px; font-size: 0.95rem; color: var(--accent-teal); }
+.interview-transcript-log { display: flex; flex-direction: column; gap: 8px; }
+.chat-bubble { max-width: 88%; padding: 8px 12px; border-radius: 12px; font-size: 0.9rem; line-height: 1.55; background: var(--bg-card); border: 1px solid rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
+.chat-bubble .chat-meta { display: block; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); opacity: .8; }
+.chat-bubble.examiner { align-self: flex-start; }
+.chat-bubble.candidate { align-self: flex-end; background: var(--bg-elevated); color: var(--text-primary); border-color: rgba(99, 102, 241, 0.4); }
+.part-breakdown-list { display: grid; gap: 10px; }
+.part-breakdown-item strong { display: block; color: var(--accent-teal); margin-bottom: 2px; }
+.part-breakdown-item p { margin: 0; color: var(--text-secondary); line-height: 1.6; }
+.speaking-correction { padding: 10px 0; border-top: 1px solid rgba(148, 163, 184, 0.12); }
+.speaking-correction:first-child { border-top: 0; }
+.speaking-correction del { color: var(--accent-red); }
+.speaking-correction ins { color: var(--accent-green); text-decoration: none; font-weight: 600; }
+.speaking-correction p { margin: 4px 0 0; color: var(--text-secondary); font-size: 0.88rem; }
+.band8-list { margin: 0 0 0 20px; padding: 0; line-height: 1.8; color: var(--text-secondary); }
