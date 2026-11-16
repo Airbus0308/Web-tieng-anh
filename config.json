@@ -1835,6 +1835,14 @@
         "Germany increased by 41 percentage points, from 17% to 58%.",
         "Vietnam rose from 28% to 52%, remaining above Australia.",
         "Australia rose from 10% to 39%."
+      ],
+      "overviewSample": "Overall, renewable electricity generation grew across all four nations over the 15-year period, with Norway consistently leading by a substantial margin. Meanwhile, Germany recorded the sharpest overall expansion, whereas Australia remained the lowest contributor despite nearly quadrupling its share.",
+      "usefulPhrases": [
+        "consistently led by a substantial margin",
+        "witnessed a nearly fourfold surge",
+        "recorded the steepest percentage-point rise",
+        "outpaced the remaining countries",
+        "accounted for the smallest share"
       ]
     },
     {
@@ -1894,6 +1902,14 @@
         "Hybrid study rose from 15% to 35%.",
         "Fully online study quadrupled from 5% to 20%.",
         "The three proportions sum to 100% in each year."
+      ],
+      "overviewSample": "Overall, there was a pronounced shift away from traditional on-campus study toward flexible learning formats between 2012 and 2024. Although on-campus enrolment declined steadily, it remained the dominant mode throughout, while both hybrid and fully online programmes experienced sustained growth.",
+      "usefulPhrases": [
+        "a pronounced shift away from",
+        "remained the dominant mode of study",
+        "experienced sustained upward momentum",
+        "quadrupled over the twelve-year period",
+        "narrowed the gap with"
       ]
     },
     {
@@ -1946,6 +1962,14 @@
         "Food fell from 35% to 20%.",
         "Education rose from 10% to 15%.",
         "Transport and healthcare remained at 15% and 10% respectively."
+      ],
+      "overviewSample": "Overall, housing overtook food to become the single largest category of household expenditure by 2025, reflecting a marked shift in spending priorities. In contrast, the proportions allocated to transport and healthcare remained unchanged across both years.",
+      "usefulPhrases": [
+        "accounted for the largest share",
+        "overtook food as the primary expense",
+        "remained relatively static",
+        "witnessed a notable contraction",
+        "constituted a combined quarter of spending"
       ]
     },
     {
@@ -2010,6 +2034,14 @@
         "Seoul opened most recently in 1974 and carries the most passengers, 2,600 million per year.",
         "Tokyo has the shortest route at 195 km.",
         "London has the highest average fare at $3.50; Seoul the lowest at $1.10."
+      ],
+      "overviewSample": "Overall, the newest and Asian networks—most notably Seoul and Tokyo—handled significantly higher annual passenger volumes at substantially lower fares than their older Western counterparts. Conversely, London boasted the longest and earliest-established system alongside the highest average ticket price.",
+      "usefulPhrases": [
+        "handled the highest annual ridership",
+        "by a considerable margin",
+        "charged the steepest average fare",
+        "the oldest and most extensive network",
+        "in stark contrast to"
       ]
     },
     {
@@ -2062,6 +2094,14 @@
         "Bottles are washed before being shredded into flakes.",
         "Flakes are melted and extruded into strands, which are cut into pellets.",
         "The final stage melts and spins pellets into textile fibres."
+      ],
+      "overviewSample": "Overall, this linear manufacturing process comprises six sequential stages, transforming discarded PET bottles into raw textile fibres through mechanical cleaning and thermal reprocessing. Notably, the plastic undergoes two separate melting phases—first to form strands and later to spin finished fibres.",
+      "usefulPhrases": [
+        "comprises six sequential stages",
+        "are sorted and stripped of contaminants",
+        "subsequently shredded into fine flakes",
+        "melted and extruded into continuous strands",
+        "culminates in the spinning of textile fibres"
       ]
     },
     {
@@ -2083,6 +2123,99 @@
         "The letter is addressed to the city library manager.",
         "Cover all three bullet points: current use, study-area improvements, and benefits of longer weekend hours.",
         "Maintain a consistently formal tone."
+      ],
+      "overviewSample": "Dear Sir or Madam, I am writing as a regular patron of the Central City Library to propose several improvements to the quiet study area and to request an extension of weekend opening hours.",
+      "usefulPhrases": [
+        "I am writing as a regular patron of",
+        "would greatly enhance the study environment",
+        "accommodate working professionals and students",
+        "I would be grateful if you could consider",
+        "I look forward to your favourable response"
+      ]
+    },
+    {
+      "id": "wt1-ac-map-01",
+      "taskNumber": 1,
+      "subType": "academic",
+      "visualType": "map",
+      "category": "Urban Planning & Development",
+      "taskType": "Map Comparison",
+      "prompt": "The maps below show the changes that took place in the coastal town of Seaview between 1995 and the present day.",
+      "instructions": "Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.",
+      "visualData": {
+        "title": "Redevelopment of Seaview Town (1995 vs. Present)",
+        "beforeLabel": "1995",
+        "afterLabel": "Present",
+        "zones": [
+          {
+            "area": "North-West",
+            "before": "Farmland & Woods",
+            "after": "Solar Park & Eco-Housing",
+            "changeType": "redeveloped"
+          },
+          {
+            "area": "Town Centre",
+            "before": "Small Local Shops",
+            "after": "Pedestrian Shopping Mall & Library",
+            "changeType": "expanded"
+          },
+          {
+            "area": "South Coast",
+            "before": "Fishing Port & Fish Market",
+            "after": "Yacht Marina & Waterfront Cafés",
+            "changeType": "replaced"
+          },
+          {
+            "area": "East",
+            "before": "Low-Rise Residential Houses",
+            "after": "Apartments & Commuter Rail Station",
+            "changeType": "modernised"
+          }
+        ],
+        "note": "Illustrative practice data; not a report of actual statistics."
+      },
+      "keyFacts": [
+        "In the north-west, farmland and woods were redeveloped into a solar park and eco-housing.",
+        "The town centre expanded as small local shops were replaced by a pedestrian shopping mall and a library.",
+        "Along the south coast, the former fishing port and fish market gave way to a yacht marina and waterfront cafés.",
+        "In the east, low-rise residential houses were modernised into apartments served by a new commuter rail station."
+      ],
+      "overviewSample": "Overall, Seaview has undergone extensive modernisation and commercialisation since 1995, transitioning from a traditional fishing and agricultural community into a leisure-oriented, commuter-friendly coastal town. Every major zone experienced substantial redevelopment, with green space and maritime industry largely replaced by housing, retail, and sustainable infrastructure.",
+      "usefulPhrases": [
+        "was demolished to make way for",
+        "was converted into",
+        "gave way to",
+        "was pedestrianised and expanded",
+        "underwent extensive modernisation"
+      ]
+    },
+    {
+      "id": "wt1-gt-letter-02",
+      "taskNumber": 1,
+      "subType": "general",
+      "visualType": "letter",
+      "category": "Neighbourhood & Housing",
+      "taskType": "Semi-formal Letter",
+      "prompt": "Your neighbour has recently started playing loud music late at night, which is disturbing your sleep and study routine. Write a letter to your neighbour.",
+      "instructions": "Write at least 150 words. You do not need to write any addresses. Begin your letter Dear [Neighbour's Name],",
+      "tone": "Semi-formal",
+      "bulletPoints": [
+        "Explain why the noise is causing a problem for you.",
+        "Suggest a reasonable solution or compromise regarding volume and timing.",
+        "Express your hope to maintain a friendly neighbourly relationship."
+      ],
+      "keyFacts": [
+        "The letter is addressed to a neighbour in a polite, semi-formal tone.",
+        "Cover all three bullet points: the impact of the late-night noise, a practical compromise, and preserving goodwill.",
+        "Avoid overly rigid corporate phrasing or overly casual slang."
+      ],
+      "overviewSample": "Dear Alex, I hope you have been keeping well. I am dropping you a quick note regarding the music playing late in the evenings recently, as I wanted to find a friendly solution that works for both of us.",
+      "usefulPhrases": [
+        "I hope you have been keeping well",
+        "I wanted to bring a small matter to your attention",
+        "reach a mutually convenient compromise",
+        "keep the volume down after 10 p.m.",
+        "maintain our friendly neighbourly relationship"
       ]
     }
   ]
