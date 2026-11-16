@@ -241,14 +241,24 @@ test('config.json contains the 4 Speaking criteria and speaking settings', async
   const cfg = await (await fetch(`${BASE}/config.json`)).json();
   const abbrs = Object.values(cfg.speakingCriteria).map(c => c.abbreviation).sort();
   assert.deepEqual(abbrs, ['FC', 'GRA', 'LR', 'PR']);
-  assert.ok(cfg.speakingSystemInstruction && cfg.speakingResponseFormat);
-  assert.ok(cfg.sampleSpeakingTopics.length >= 3);
+  assert.ok(cfg.speakingSystemInstruction && cfg.speakingExaminerFollowUpPrompt && cfg.speakingResponseFormat);
+  assert.ok(cfg.speakingResponseFormat.includes('part_breakdown') && cfg.speakingResponseFormat.includes('inline_corrections'));
+  assert.equal(cfg.sampleSpeakingTopics.length, 8);
   assert.equal(cfg.speakingWordCountRequirements.min, 40);
 });
 
 test('GET /api/speaking/config returns topics, criteria and word requirements', async () => {
   const data = await (await fetch(`${BASE}/api/speaking/config`)).json();
-  assert.ok(data.sampleTopics.length >= 3);
+  assert.equal(data.sampleTopics.length, 8);
+  assert.deepEqual(data.sampleTopics.map(topic => topic.id), ['sp-01','sp-02','sp-03','sp-04','sp-05','sp-06','sp-07','sp-08']);
+  for (const topic of data.sampleTopics) {
+    assert.equal(typeof topic.part1Topic, 'string', `${topic.id} part1Topic`);
+    assert.equal(topic.part1.length, 3, `${topic.id} Part 1`);
+    assert.ok(topic.part2?.prompt && topic.part2?.closing && topic.part2?.points?.length, `${topic.id} Part 2`);
+    assert.equal(topic.part3.length, 3, `${topic.id} Part 3`);
+    assert.equal(topic.followUpBank.length, 2, `${topic.id} follow-up bank`);
+    assert.equal(topic.modelBand8Highlight.length, 4, `${topic.id} Band 8 highlights`);
+  }
   assert.equal(data.criteria.length, 4);
   assert.equal(data.wordCountRequirements.min, 40);
   assert.ok(data.model);
@@ -275,6 +285,91 @@ test('POST /api/speaking/score rejects transcripts under 40 words', async () => 
   const body = await res.json();
   assert.equal(body.wordCount, 20);
   assert.equal(body.minRequired, 40);
+});
+
+test('POST /api/speaking/examiner-turn validates input and falls back deterministically without AI keys', async () => {
+  const examinerPost = body => fetch(`${BASE}/api/speaking/examiner-turn`, { method:'POST',
+    headers:{'Content-Type':'application/json','X-Forwarded-For':'198.51.100.112'}, body:JSON.stringify(body) });
+  assert.equal((await examinerPost({ candidateTranscript: '   ' })).status, 400);
+  await withoutAiProviders(async () => {
+    const payload = { topicId: 'sp-01', part: 3, turnIndex: 0,
+      questionAsked: 'What qualities make a good teacher?',
+      candidateTranscript: 'A supportive teacher encouraged independent thinking and helped students become more confident.' };
+    const first = await examinerPost(payload);
+    const second = await examinerPost(payload);
+    assert.equal(first.status, 200); assert.equal(second.status, 200);
+    const a = await first.json(), b = await second.json();
+    assert.equal(a.provider, 'Local deterministic fallback');
+    assert.equal(a.followUpQuestionEn, b.followUpQuestionEn);
+    assert.equal(a.wordCount, 12); assert.ok(a.pronunciationTargets.length >= 2);
+  });
+});
+
+test('POST /api/speaking/examiner-turn accepts a schema-valid mocked AI response', async () => {
+  await withoutAiProviders(async () => {
+    process.env.OPENAI_API_KEY = 'sk-test-phase11a';
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (url, options) => String(url) === 'https://api.openai.com/v1/chat/completions'
+      ? Promise.resolve(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+        examinerReplyEn: 'Thank you. That is an interesting point.',
+        followUpQuestionEn: 'Why might younger learners respond differently?',
+        coachingTipVi: 'Hãy thêm một ví dụ cụ thể.',
+        pronunciationTargets: ['encouragement', 'independent']
+      }) } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      : originalFetch(url, options);
+    try {
+      const res = await fetch(`${BASE}/api/speaking/examiner-turn`, { method:'POST',
+        headers:{'Content-Type':'application/json','X-Forwarded-For':'198.51.100.113'},
+        body:JSON.stringify({ topicId: 'sp-01', part: 3, turnIndex: 1,
+          questionAsked: 'What qualities make a good teacher?',
+          candidateTranscript: 'Encouragement helps learners become independent and confident in difficult situations.' }) });
+      const data = await res.json();
+      assert.equal(res.status, 200); assert.match(data.provider, /OpenAI/);
+      assert.equal(data.followUpQuestionEn, 'Why might younger learners respond differently?');
+      assert.deepEqual(data.pronunciationTargets, ['encouragement', 'independent']);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('POST /api/speaking/score builds and stores an interview transcript with safe corrections and breakdown', async () => {
+  await withoutAiProviders(async () => {
+    process.env.OPENAI_API_KEY = 'sk-test-phase11a-score';
+    const originalFetch = globalThis.fetch;
+    let capturedPrompt = '';
+    globalThis.fetch = (url, options) => {
+      if (String(url) !== 'https://api.openai.com/v1/chat/completions') return originalFetch(url, options);
+      capturedPrompt = JSON.parse(options.body).messages.at(-1).content;
+      const result = { criteria: [{ abbreviation:'FC',score:6 },{ abbreviation:'LR',score:6 },
+        { abbreviation:'GRA',score:6 },{ abbreviation:'PR',score:6 }], overall_band:6,
+        overall_feedback:'A balanced interview.', suggestions:['Add examples.'],
+        inline_corrections: [
+          { original:'I am agree',correction:'I agree',explanation:'Agree is a verb.' },
+          { original:'invented phrase',correction:'better phrase',explanation:'Not present.' }
+        ] };
+      return Promise.resolve(new Response(JSON.stringify({ choices:[{ message:{ content:JSON.stringify(result) } }] }),
+        { status:200, headers:{'Content-Type':'application/json'} }));
+    };
+    try {
+      const interviewTurns = [
+        { part:1, question:'Do you enjoy reading?', answer:'Yes, I read every evening because books help me relax after a demanding day at work.', durationSec:18 },
+        { part:2, question:'Describe an influential film.', answer:'A documentary about climate change transformed my perspective. It provided practical examples and I am agree with its central message.', durationSec:76 },
+        { part:3, question:'How does media shape opinions?', answer:'Media outlets select which stories receive attention, so they can influence public priorities and encourage meaningful social discussion.', durationSec:31 }
+      ];
+      const res = await fetch(`${BASE}/api/speaking/score`, { method:'POST',
+        headers:{'Content-Type':'application/json','X-Forwarded-For':'198.51.100.111'},
+        body:JSON.stringify({ mode:'interview', topicId:'sp-08', topic:'Culture & Media', part:'Full Interview', interviewTurns }) });
+      const data = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(data));
+      assert.equal(data.mode, 'interview'); assert.equal(data.topicId, 'sp-08');
+      assert.deepEqual(Object.keys(data.part_breakdown), ['part1','part2','part3']);
+      assert.equal(data.inline_corrections.length, 1); assert.equal(data.inline_corrections[0].original, 'I am agree');
+      assert.ok(capturedPrompt.includes('Structured interview turns') && capturedPrompt.includes('Do you enjoy reading?'));
+      const history = await (await fetch(`${BASE}/api/speaking/history`)).json();
+      const saved = history.find(item => item.id === data.id);
+      assert.equal(saved.mode, 'interview'); assert.equal(saved.topicId, 'sp-08');
+      assert.equal(saved.interviewTurns.length, 3); assert.ok(saved.transcript.includes('I am agree'));
+    } finally { globalThis.fetch = originalFetch; }
+  });
 });
 
 test('POST /api/speaking/score scores a valid transcript with Gemini',
