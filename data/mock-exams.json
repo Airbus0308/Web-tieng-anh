@@ -1,0 +1,424 @@
+{
+  "mockExams": [
+    {
+      "id": "mock-ac-01",
+      "title": "IELTS Academic Mock Test 01 — Urban Ecology, Renewable Energy & Education",
+      "level": "IELTS Academic (Band 5.5–8.0)",
+      "durationMinutes": 45,
+      "descriptionVi": "Đề thi thử IELTS Academic 4 kỹ năng hoàn chỉnh xoay quanh chủ đề sinh thái đô thị, năng lượng tái tạo và giáo dục đại học. Bao gồm Listening (Section 3), Reading học thuật 4 đoạn, Writing Task 1 & 2, và Speaking 3 phần.",
+      "listening": {
+        "title": "Section 3: Seminar on Vertical Farming and Urban Microclimates",
+        "audioUrl": "assets/audio/placement-section1.mp3",
+        "transcript": "Dr. Patel: Come in, Maya and Liam. Have you finalised the methodology for your urban agriculture dissertation?\nMaya: Mostly, yes. We initially planned to compare twelve commercial rooftop greenhouses across the city, but four of them declined access because of insurance restrictions.\nLiam: So we narrowed our sample to eight sites: four hydroponic vertical farms inside converted warehouses and four open-air rooftop plots. We are measuring ambient air temperature and relative humidity at two-hour intervals.\nDr. Patel: That is a sensible adjustment. What about energy consumption? Vertical farms rely heavily on artificial lighting and climate control.\nMaya: Exactly. Our preliminary readings show that warehouse farms use nearly three times as much electricity per kilogram of lettuce as sunlit rooftop plots. However, their water usage is ninety-two percent lower because nutrient solutions are continuously recirculated.\nDr. Patel: Good contrast. Are you also interviewing local residents about food prices?\nLiam: Not residents directly, no. Instead, we are surveying sixteen independent grocers within a two-kilometre radius of each site to see whether locally grown greens reduce wholesale transport costs.\nDr. Patel: Make sure you separate seasonal price fluctuations from genuine logistics savings. Also, check the roof insulation data from the municipal council before Friday.\nMaya: Will do. Once we finish calibrating the humidity sensors tomorrow morning, we will run the full twelve-week monitoring cycle.",
+        "questions": [
+          {
+            "id": "m1-l-1",
+            "type": "mcq",
+            "question": "Why did Maya and Liam reduce their study sample from twelve sites to eight?",
+            "options": [
+              "Four sites did not have adequate humidity sensors.",
+              "Four sites refused entry due to insurance policies.",
+              "Dr. Patel advised them to focus only on warehouses.",
+              "Open-air rooftop plots were closed for renovation."
+            ],
+            "answer": 1,
+            "explanationVi": "Maya nói rằng ban đầu họ dự định so sánh 12 nhà kính trên mái nhưng 4 địa điểm đã từ chối cho tiếp cận vì hạn chế bảo hiểm ('four of them declined access because of insurance restrictions').",
+            "evidenceQuote": "We initially planned to compare twelve commercial rooftop greenhouses across the city, but four of them declined access because of insurance restrictions."
+          },
+          {
+            "id": "m1-l-2",
+            "type": "mcq",
+            "question": "What do the students' preliminary readings reveal about warehouse vertical farms compared with rooftop plots?",
+            "options": [
+              "They consume roughly three times more electricity per kilogram of produce.",
+              "They require slightly more water during summer months.",
+              "They produce three times more lettuce per square metre.",
+              "They operate without any artificial climate control."
+            ],
+            "answer": 0,
+            "explanationVi": "Maya cho biết các nông trại trong nhà kho tiêu thụ điện gần gấp ba lần mỗi kg rau xà lách so với các mảnh vườn trên mái đón nắng tự nhiên.",
+            "evidenceQuote": "Our preliminary readings show that warehouse farms use nearly three times as much electricity per kilogram of lettuce as sunlit rooftop plots."
+          },
+          {
+            "id": "m1-l-3",
+            "type": "tfng",
+            "question": "Warehouse vertical farms save water primarily by recycling nutrient-rich liquid.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 0,
+            "explanationVi": "Thông tin đúng (True): lượng nước sử dụng thấp hơn 92% vì dung dịch dinh dưỡng được tuần hoàn liên tục ('continuously recirculated').",
+            "evidenceQuote": "However, their water usage is ninety-two percent lower because nutrient solutions are continuously recirculated."
+          },
+          {
+            "id": "m1-l-4",
+            "type": "tfng",
+            "question": "Liam plans to interview local residents to find out whether they prefer organic vegetables.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 1,
+            "explanationVi": "Thông tin sai (False): Liam nói rõ họ không phỏng vấn trực tiếp cư dân mà khảo sát 16 cửa hàng tạp hóa độc lập.",
+            "evidenceQuote": "Not residents directly, no. Instead, we are surveying sixteen independent grocers within a two-kilometre radius of each site"
+          },
+          {
+            "id": "m1-l-5",
+            "type": "tfng",
+            "question": "The municipal council has already agreed to fund the twelve-week monitoring cycle.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 2,
+            "explanationVi": "Không được đề cập (Not Given): Tiến sĩ Patel chỉ nhắc kiểm tra dữ liệu cách nhiệt mái từ hội đồng thành phố trước thứ Sáu, không nói hội đồng tài trợ cho chu kỳ quan trắc.",
+            "evidenceQuote": "Also, check the roof insulation data from the municipal council before Friday."
+          },
+          {
+            "id": "m1-l-6",
+            "type": "mcq",
+            "question": "What will the students do immediately before starting the twelve-week monitoring cycle?",
+            "options": [
+              "Submit their final dissertation draft to Dr. Patel",
+              "Expand their survey to twenty grocers",
+              "Calibrate their humidity measuring equipment",
+              "Install solar panels on the warehouse roofs"
+            ],
+            "answer": 2,
+            "explanationVi": "Maya nói rằng sau khi hiệu chỉnh xong cảm biến độ ẩm vào sáng mai, họ sẽ chạy chu kỳ quan trắc 12 tuần.",
+            "evidenceQuote": "Once we finish calibrating the humidity sensors tomorrow morning, we will run the full twelve-week monitoring cycle."
+          }
+        ]
+      },
+      "reading": {
+        "title": "Rewilding Urban Waterways: Ecological Gains and Social Trade-offs",
+        "passage": "[A] Throughout the nineteenth and early twentieth centuries, rapidly industrialising cities treated urban rivers primarily as drainage channels and waste conduits. To prevent seasonal flooding and free up land for railways, warehouses, and roads, municipal engineers encased hundreds of kilometres of streams in concrete culverts beneath street level. While this subterranean network initially accelerated industrial expansion and simplified surface transport layouts, it severed residents from natural water systems and eliminated riparian habitats that had once supported native fish, amphibians, and migratory birds.\n\n[B] Over the past two decades, however, an international movement known as 'daylighting' has sought to uncover buried waterways and restore their natural meanders. In Seoul, the demolition of an elevated expressway in 2005 exposed the Cheonggyecheon stream, transforming a congested traffic corridor into a six-kilometre linear park. Similar projects in Zurich, Sheffield, and Portland have replaced rigid concrete embankments with vegetated floodplains, permeable gravel beds, and stepped stone terraces that slow storm-water runoff rather than rushing it downstream. In each case, engineers combined hydraulic modelling with landscape architecture so the reopened channels could safely absorb heavy rainfall.\n\n[C] Hydrological monitoring confirms that these restored channels offer measurable climate resilience. By allowing floodwaters to spread laterally across absorbent riverbanks, daylighted streams reduce peak discharge volumes during extreme rainfall events by up to thirty percent compared with culverted pipes. Furthermore, shaded water corridors generate localised evaporative cooling, lowering summer air temperatures in adjacent neighbourhoods by one to two degrees Celsius. Ecological surveys also document rapid recolonisation by aquatic insects and kingfishers within just three years of restoration, demonstrating that even fragmented urban corridors can recover biological complexity once water quality improves.\n\n[D] Yet urban geographers caution that ecological success does not automatically guarantee social equity. When neglected industrial canals are converted into scenic waterfront promenades, surrounding property values and commercial rents frequently climb. Without complementary housing safeguards, long-standing lower-income tenants and small workshops risk being priced out of the very neighbourhoods the projects were meant to revitalise—a phenomenon researchers term 'ecological gentrification'. Consequently, planners increasingly argue that river restoration must be paired with rent-stabilisation policies, public land trusts, and community-led design so that environmental amenities benefit existing residents as well as newcomers.",
+        "questions": [
+          {
+            "id": "m1-r-1",
+            "type": "matching_info",
+            "question": "Which paragraph mentions specific quantitative evidence regarding temperature reduction and flood peak control?",
+            "options": [
+              "Paragraph A",
+              "Paragraph B",
+              "Paragraph C",
+              "Paragraph D"
+            ],
+            "answer": 2,
+            "explanationVi": "Đoạn C đưa ra số liệu định lượng cụ thể: giảm lưu lượng đỉnh lũ tới 30% và hạ nhiệt độ không khí mùa hè từ 1 đến 2 độ C.",
+            "evidenceQuote": "daylighted streams reduce peak discharge volumes during extreme rainfall events by up to thirty percent compared with culverted pipes. Furthermore, shaded water corridors generate localised evaporative cooling, lowering summer air temperatures in adjacent neighbourhoods by one to two degrees Celsius."
+          },
+          {
+            "id": "m1-r-2",
+            "type": "matching_info",
+            "question": "Which paragraph explains the historical reasons why urban streams were originally covered over?",
+            "options": [
+              "Paragraph A",
+              "Paragraph B",
+              "Paragraph C",
+              "Paragraph D"
+            ],
+            "answer": 0,
+            "explanationVi": "Đoạn A giải thích bối cảnh thế kỷ 19–đầu 20 khi các kỹ sư bọc bê tông sông ngòi để chống ngập theo mùa và lấy đất cho đường sắt, kho bãi, đường bộ.",
+            "evidenceQuote": "To prevent seasonal flooding and free up land for railways, warehouses, and roads, municipal engineers encased hundreds of kilometres of streams in concrete culverts beneath street level."
+          },
+          {
+            "id": "m1-r-3",
+            "type": "tfng",
+            "question": "The Cheonggyecheon project in Seoul required removing an overhead road structure.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 0,
+            "explanationVi": "Đúng (True): Đoạn B nêu rõ việc phá dỡ một tuyến đường cao tốc trên cao năm 2005 đã làm lộ ra dòng suối Cheonggyecheon.",
+            "evidenceQuote": "In Seoul, the demolition of an elevated expressway in 2005 exposed the Cheonggyecheon stream, transforming a congested traffic corridor into a six-kilometre linear park."
+          },
+          {
+            "id": "m1-r-4",
+            "type": "tfng",
+            "question": "Zurich spent more public funding on river daylighting than Sheffield and Portland combined.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 2,
+            "explanationVi": "Không được đề cập (Not Given): Bài đọc chỉ nhắc tên Zurich, Sheffield và Portland là những nơi có dự án tương tự, hoàn toàn không so sánh ngân sách chi tiêu.",
+            "evidenceQuote": "Similar projects in Zurich, Sheffield, and Portland have replaced rigid concrete embankments with vegetated floodplains, permeable gravel beds, and stepped stone terraces"
+          },
+          {
+            "id": "m1-r-5",
+            "type": "tfng",
+            "question": "Aquatic insects and kingfishers typically take at least a decade to return to restored urban rivers.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 1,
+            "explanationVi": "Sai (False): Đoạn C cho biết côn trùng thủy sinh và chim bói cá quay trở lại nhanh chóng chỉ trong vòng 3 năm ('within just three years'), chứ không phải ít nhất một thập kỷ.",
+            "evidenceQuote": "Ecological surveys also document rapid recolonisation by aquatic insects and kingfishers within just three years of restoration"
+          },
+          {
+            "id": "m1-r-6",
+            "type": "mcq",
+            "question": "What does the author imply about 'ecological gentrification' in Paragraph D?",
+            "options": [
+              "It happens because lower-income residents oppose green spaces.",
+              "It can displace existing residents unless housing protections are introduced alongside environmental upgrades.",
+              "It only occurs in cities that have dismantled their industrial railways.",
+              "It prevents commercial rents from rising near restored waterways."
+            ],
+            "answer": 1,
+            "explanationVi": "Đoạn D chỉ ra rằng nếu không có các biện pháp bảo vệ nhà ở đi kèm (như ổn định giá thuê), người thuê nhà thu nhập thấp và xưởng nhỏ có nguy cơ bị đẩy ra khỏi khu vực do giá bất động sản tăng.",
+            "evidenceQuote": "Without complementary housing safeguards, long-standing lower-income tenants and small workshops risk being priced out of the very neighbourhoods the projects were meant to revitalise"
+          }
+        ]
+      },
+      "writing": {
+        "task1TopicId": "wt1-ac-bar-01",
+        "task1Prompt": "The bar chart shows the percentage of total electricity generated from renewable sources in four countries between 2010 and 2025.",
+        "minWordsTask1": 150,
+        "task2TopicId": "wt2-01",
+        "task2Prompt": "Some people believe that online education will eventually replace traditional classroom learning in universities. To what extent do you agree or disagree?",
+        "minWordsTask2": 250
+      },
+      "speaking": {
+        "topicId": "sp-01",
+        "part1Questions": [
+          "Do you prefer studying alone or with a group of friends? Why?",
+          "What was your favourite subject when you were at primary school?"
+        ],
+        "part2CueCard": {
+          "prompt": "Describe a teacher who has influenced you.",
+          "points": [
+            "Who this person is",
+            "How you know this person",
+            "What they taught you"
+          ],
+          "closing": "and explain why this person influenced you so much."
+        },
+        "part3Questions": [
+          "Do you think teachers are as respected today as in the past?",
+          "How has technology changed the role of teachers?"
+        ]
+      }
+    },
+    {
+      "id": "mock-ac-02",
+      "title": "IELTS Academic Mock Test 02 — Neuroscience of Sleep, Urban Mobility & Hybrid Study",
+      "level": "IELTS Academic (Band 5.5–8.0)",
+      "durationMinutes": 45,
+      "descriptionVi": "Đề thi thử IELTS Academic 4 kỹ năng xoay quanh chủ đề khoa học giấc ngủ, quy hoạch giao thông đô thị 15 phút và xu hướng học tập kết hợp. Bao gồm Listening (Section 4), Reading học thuật 4 đoạn, Writing Task 1 & 2, và Speaking 3 phần.",
+      "listening": {
+        "title": "Section 4: Lecture on Circadian Rhythms and University Student Performance",
+        "audioUrl": "assets/audio/placement-section1.mp3",
+        "transcript": "Good morning, everyone. Today we are examining how circadian biology interacts with cognitive performance in young adults. Contrary to popular belief, university students who struggle to wake up before nine o'clock are not simply undisciplined. During late adolescence and the early twenties, the human biological clock shifts later by roughly two hours, delaying the evening release of melatonin, the hormone that signals sleep onset.\nIn a recent longitudinal study conducted across three European universities, researchers tracked the sleep-wake cycles of four hundred undergraduates using wrist actigraphy rather than self-reported diaries, because students consistently overestimate how early they fall asleep. The findings were striking: participants scheduled for eight-a-m lectures averaged just five hours and forty minutes of sleep on weekdays, whereas peers whose classes began at eleven o'clock averaged nearly seven and a half hours.\nImportantly, sleep deprivation did not affect every mental task equally. Simple reaction-time tests showed only modest declines after two nights of restricted sleep. However, tasks requiring working memory, emotional regulation, and abstract problem-solving deteriorated sharply. Even more concerning, students who attempted to 'catch up' by sleeping until noon on weekends experienced what chronobiologists call social jetlag—a weekly mismatch that impairs attention every Monday and Tuesday.\nConsequently, several faculties have piloted later start times for first-year seminars. Early evaluations indicate a fourteen percent drop in missed morning attendance and measurable gains in semester exam scores, without reducing total study hours.",
+        "questions": [
+          {
+            "id": "m2-l-1",
+            "type": "mcq",
+            "question": "According to the lecturer, why do many university students find it difficult to wake up early?",
+            "options": [
+              "They consume excessive caffeine late at night.",
+              "Their biological clock shifts later during their late teens and early twenties.",
+              "They produce too much melatonin early in the afternoon.",
+              "University dormitories are usually too noisy before nine o'clock."
+            ],
+            "answer": 1,
+            "explanationVi": "Giảng viên giải thích rằng trong giai đoạn cuối tuổi vị thành niên và đầu tuổi 20, đồng hồ sinh học dịch chuyển muộn hơn khoảng 2 tiếng, làm chậm quá trình tiết melatonin buổi tối.",
+            "evidenceQuote": "During late adolescence and the early twenties, the human biological clock shifts later by roughly two hours, delaying the evening release of melatonin"
+          },
+          {
+            "id": "m2-l-2",
+            "type": "mcq",
+            "question": "Why did the European researchers use wrist actigraphy instead of sleep diaries?",
+            "options": [
+              "Wrist devices were cheaper to distribute to four hundred students.",
+              "Sleep diaries could not measure melatonin levels.",
+              "Students tend to inaccurately report falling asleep earlier than they actually do.",
+              "Actigraphy prevented students from waking up during the night."
+            ],
+            "answer": 2,
+            "explanationVi": "Nghiên cứu dùng thiết bị đeo cổ tay thay cho nhật ký tự ghi vì sinh viên thường xuyên ước lượng quá mức (overestimate) việc mình ngủ sớm đến mức nào.",
+            "evidenceQuote": "using wrist actigraphy rather than self-reported diaries, because students consistently overestimate how early they fall asleep."
+          },
+          {
+            "id": "m2-l-3",
+            "type": "tfng",
+            "question": "Students with 11 a.m. classes slept over ninety minutes longer on weekdays than those with 8 a.m. lectures.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 0,
+            "explanationVi": "Đúng (True): Nhóm học lúc 8 giờ sáng ngủ trung bình 5 giờ 40 phút, trong khi nhóm học 11 giờ ngủ gần 7 giờ 30 phút (chênh lệch khoảng 1 giờ 50 phút, tức hơn 90 phút).",
+            "evidenceQuote": "participants scheduled for eight-a-m lectures averaged just five hours and forty minutes of sleep on weekdays, whereas peers whose classes began at eleven o'clock averaged nearly seven and a half hours."
+          },
+          {
+            "id": "m2-l-4",
+            "type": "tfng",
+            "question": "Sleep deprivation causes the steepest decline in simple reaction-time speed.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 1,
+            "explanationVi": "Sai (False): Các bài kiểm tra thời gian phản ứng đơn giản chỉ giảm nhẹ, trong khi trí nhớ làm việc, điều tiết cảm xúc và giải quyết vấn đề trừu tượng mới suy giảm mạnh.",
+            "evidenceQuote": "Simple reaction-time tests showed only modest declines after two nights of restricted sleep. However, tasks requiring working memory, emotional regulation, and abstract problem-solving deteriorated sharply."
+          },
+          {
+            "id": "m2-l-5",
+            "type": "tfng",
+            "question": "The pilot programme with later seminar start times was opposed by most senior professors.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 2,
+            "explanationVi": "Không được đề cập (Not Given): Bài giảng chỉ nói một số khoa đã thí điểm lùi giờ học và nêu kết quả tích cực, không nhắc đến thái độ phản đối của giảng viên.",
+            "evidenceQuote": "Consequently, several faculties have piloted later start times for first-year seminars."
+          },
+          {
+            "id": "m2-l-6",
+            "type": "mcq",
+            "question": "What problem is associated with sleeping until noon on weekends?",
+            "options": [
+              "It permanently stops melatonin production.",
+              "It reduces total study hours on Saturdays.",
+              "It creates 'social jetlag' that harms focus early in the week.",
+              "It makes wrist actigraphy readings invalid."
+            ],
+            "answer": 2,
+            "explanationVi": "Ngủ bù đến trưa cuối tuần gây ra hiện tượng 'social jetlag', làm suy giảm khả năng tập trung vào thứ Hai và thứ Ba.",
+            "evidenceQuote": "students who attempted to 'catch up' by sleeping until noon on weekends experienced what chronobiologists call social jetlag—a weekly mismatch that impairs attention every Monday and Tuesday."
+          }
+        ]
+      },
+      "reading": {
+        "title": "The Economics and Equity of the Fifteen-Minute City",
+        "passage": "[A] For most of the twentieth century, metropolitan planning operated on the principle of spatial segregation: residential suburbs were zoned far from office districts, industrial parks, and shopping centres. This model assumed cheap fossil fuels and expanding highway networks would allow commuters to traverse vast distances daily. Today, however, soaring infrastructure maintenance costs, chronic traffic gridlock, and transport-related carbon emissions have prompted urban theorists to advocate a return to proximity-based design, most famously articulated as the 'fifteen-minute city'—an approach that prioritises local accessibility over high-speed peripheral expansion.\n\n[B] Popularised by urbanist Carlos Moreno and adopted as municipal policy in Paris, Melbourne, and Bogota, the fifteen-minute city proposes that residents should be able to reach essential services—groceries, primary healthcare, schools, and green spaces—within a quarter-hour walk or cycle from home. Achieving this requires shifting from monocentric cities, where jobs cluster in a single downtown core, to polycentric neighbourhoods that blend housing, small-scale workspaces, and public amenities on the same streets. Digital remote-working tools have further accelerated this transition by reducing daily peak-hour trips to central office towers.\n\n[C] Economists studying early implementations report notable commercial benefits alongside environmental gains. When streets are redesigned with widened pavements, protected cycle lanes, and traffic-calming measures, pedestrian footfall typically rises by twenty to thirty-five percent. Contrary to fears voiced by some motorists' associations that fewer parking bays would hurt local commerce, independent retailers and cafes often record higher daily turnover because walkers and cyclists shop more frequently, albeit in smaller basket sizes, than drivers visiting big-box supermarkets. Additionally, vibrant street-level commerce strengthens informal community ties.\n\n[D] Nevertheless, critics warn that the fifteen-minute model is far easier to retrofit in historic, densely populated inner districts than in sprawling post-war suburbs. Outer-ring neighbourhoods often lack the population density needed to sustain frequent bus routes or neighbourhood clinics without heavy public subsidy. Moreover, if walkable neighbourhoods become prestige zones, lower-income service workers may still face long commutes from affordable outer areas. Planners therefore emphasise that proximity planning must include mixed-income housing quotas, targeted municipal investment, and rapid regional transit links rather than focusing solely on affluent city centres.",
+        "questions": [
+          {
+            "id": "m2-r-1",
+            "type": "matching_info",
+            "question": "Which paragraph contrasts the shopping habits of pedestrians and cyclists with those of car drivers?",
+            "options": [
+              "Paragraph A",
+              "Paragraph B",
+              "Paragraph C",
+              "Paragraph D"
+            ],
+            "answer": 2,
+            "explanationVi": "Đoạn C đối chiếu hành vi mua sắm: người đi bộ và đi xe đạp mua sắm thường xuyên hơn (dù giỏ hàng nhỏ hơn) so với người lái xe đến siêu thị lớn.",
+            "evidenceQuote": "independent retailers and cafes often record higher daily turnover because walkers and cyclists shop more frequently, albeit in smaller basket sizes, than drivers visiting big-box supermarkets."
+          },
+          {
+            "id": "m2-r-2",
+            "type": "matching_info",
+            "question": "Which paragraph outlines the historical planning assumptions that made long daily commutes standard?",
+            "options": [
+              "Paragraph A",
+              "Paragraph B",
+              "Paragraph C",
+              "Paragraph D"
+            ],
+            "answer": 0,
+            "explanationVi": "Đoạn A trình bày nguyên tắc phân vùng không gian thế kỷ 20 dựa trên giả định nhiên liệu hóa thạch rẻ và mạng lưới cao tốc mở rộng.",
+            "evidenceQuote": "This model assumed cheap fossil fuels and expanding highway networks would allow commuters to traverse vast distances daily."
+          },
+          {
+            "id": "m2-r-3",
+            "type": "tfng",
+            "question": "A fifteen-minute city aims to concentrate all employment opportunities in a single central business district.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 1,
+            "explanationVi": "Sai (False): Đoạn B nêu rõ mô hình này đòi hỏi chuyển từ đô thị đơn tâm (monocentric) sang các khu phố đa tâm (polycentric) kết hợp nhà ở, nơi làm việc nhỏ và tiện ích.",
+            "evidenceQuote": "Achieving this requires shifting from monocentric cities, where jobs cluster in a single downtown core, to polycentric neighbourhoods that blend housing, small-scale workspaces, and public amenities on the same streets."
+          },
+          {
+            "id": "m2-r-4",
+            "type": "tfng",
+            "question": "Removing car parking spaces in Paris led to a sharp decline in café revenues.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 1,
+            "explanationVi": "Sai (False): Đoạn C cho biết trái với lo ngại của một số hiệp hội lái xe, các cửa hàng bán lẻ độc lập và quán cà phê thường ghi nhận doanh thu hàng ngày cao hơn khi đường phố thân thiện với người đi bộ.",
+            "evidenceQuote": "Contrary to fears voiced by some motorists' associations that fewer parking bays would hurt local commerce, independent retailers and cafes often record higher daily turnover"
+          },
+          {
+            "id": "m2-r-5",
+            "type": "tfng",
+            "question": "Bogota has achieved the highest pedestrian footfall increase among all cities adopting the model.",
+            "options": [
+              "True",
+              "False",
+              "Not Given"
+            ],
+            "answer": 2,
+            "explanationVi": "Không được đề cập (Not Given): Bài đọc chỉ nhắc Bogota nằm trong số các thành phố áp dụng chính sách này, không so sánh mức tăng lưu lượng người đi bộ giữa các thành phố.",
+            "evidenceQuote": "Popularised by urbanist Carlos Moreno and adopted as municipal policy in Paris, Melbourne, and Bogota"
+          },
+          {
+            "id": "m2-r-6",
+            "type": "mcq",
+            "question": "Why do critics consider outer suburbs harder to adapt to the fifteen-minute city model?",
+            "options": [
+              "Suburban residents refuse to use protected cycle lanes.",
+              "Low population density makes local clinics and frequent transit financially difficult to maintain without subsidies.",
+              "Historic preservation laws forbid building new offices in outer areas.",
+              "Outer suburbs already have too many independent supermarkets."
+            ],
+            "answer": 1,
+            "explanationVi": "Đoạn D giải thích các khu ngoại ô trải rộng thường thiếu mật độ dân số đủ lớn để duy trì tuyến xe buýt thường xuyên hoặc phòng khám địa phương nếu không có trợ cấp công lớn.",
+            "evidenceQuote": "Outer-ring neighbourhoods often lack the population density needed to sustain frequent bus routes or neighbourhood clinics without heavy public subsidy."
+          }
+        ]
+      },
+      "writing": {
+        "task1TopicId": "wt1-ac-line-01",
+        "task1Prompt": "The line graph shows the proportions of university students studying on campus, in hybrid programmes and fully online between 2012 and 2024.",
+        "minWordsTask1": 150,
+        "task2TopicId": "wt2-02",
+        "task2Prompt": "Many cities around the world are facing severe traffic congestion and rising air pollution. What are the causes of these problems, and what measures can governments take to resolve them?",
+        "minWordsTask2": 250
+      },
+      "speaking": {
+        "topicId": "sp-02",
+        "part1Questions": [
+          "What do you like most about your hometown?",
+          "Where do you usually go when you want to relax?"
+        ],
+        "part2CueCard": {
+          "prompt": "Describe a place in your city where you like to relax.",
+          "points": [
+            "Where it is",
+            "How often you go there",
+            "What you do there"
+          ],
+          "closing": "and explain why it helps you relax."
+        },
+        "part3Questions": [
+          "Why do people in cities need green spaces?",
+          "How do leisure habits differ between generations?"
+        ]
+      }
+    }
+  ]
+}
