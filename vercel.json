@@ -2,7 +2,8 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "includeFiles": "{*.html,config.json,css/**,js/**,assets/**}"
+      "includeFiles": "**/*",
+      "excludeFiles": "{node_modules/**,.git/**,results/**,tests/**}"
     }
   },
   "rewrites": [

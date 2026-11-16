@@ -49,6 +49,15 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Normalize Vercel Serverless rewrite paths (e.g. when "/" is rewritten to "/api/index.js")
+app.use((req, _res, next) => {
+  if (req.url === '/api/index.js' || req.url === '/api/index' || req.url.startsWith('/api/index.js?') || req.url.startsWith('/api/index?')) {
+    const qIndex = req.url.indexOf('?');
+    req.url = '/' + (qIndex >= 0 ? req.url.slice(qIndex) : '');
+  }
+  next();
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -58,16 +67,30 @@ app.use((req, res, next) => {
 const store = createStore(resultsDir);
 installAuth(app, store);
 
+// Explicit literal paths so @vercel/nft static file tracer always bundles HTML & static assets on Vercel
+const STATIC_PAGES = {
+  '/': path.join(__dirname, 'index.html'),
+  '/index': path.join(__dirname, 'index.html'),
+  '/index.html': path.join(__dirname, 'index.html'),
+  '/writing': path.join(__dirname, 'writing.html'),
+  '/writing.html': path.join(__dirname, 'writing.html'),
+  '/speaking': path.join(__dirname, 'speaking.html'),
+  '/speaking.html': path.join(__dirname, 'speaking.html'),
+  '/study': path.join(__dirname, 'study.html'),
+  '/study.html': path.join(__dirname, 'study.html'),
+  '/analytics': path.join(__dirname, 'analytics.html'),
+  '/analytics.html': path.join(__dirname, 'analytics.html')
+};
+
 // Only publish application assets. Never expose source, environment, tests or results.
-app.get(['/', '/index.html', '/writing.html', '/speaking.html', '/study.html', '/analytics.html'], (req, res) => {
-  const page = req.path === '/' ? 'index.html' : req.path.slice(1);
-  res.sendFile(path.join(__dirname, page));
+app.get(Object.keys(STATIC_PAGES), (req, res) => {
+  res.sendFile(STATIC_PAGES[req.path] || STATIC_PAGES['/']);
 });
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/config.json', (req, res) => res.sendFile(configPath));
-for (const publicDir of ['css', 'js', 'assets']) {
-  app.use(`/${publicDir}`, express.static(path.join(__dirname, publicDir), { dotfiles: 'deny', index: false }));
-}
+app.use('/css', express.static(path.join(__dirname, 'css'), { dotfiles: 'deny', index: false }));
+app.use('/js', express.static(path.join(__dirname, 'js'), { dotfiles: 'deny', index: false }));
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
 
 // Shared per-IP rate limit for all AI endpoints: 10 requests per 15 minutes.
 const GEMINI_RATE_WINDOW_MS = 15 * 60 * 1000;
@@ -1759,8 +1782,8 @@ app.get('/api/study/streak-stats.svg', async (req, res) => {
 // Export the app so tests can mount it in-process
 export default app;
 
-// Start listening only when run directly (node server.js), not when imported by tests
-const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === __filename;
+// Start listening only when run directly (node server.js), not when imported by tests or Vercel Serverless
+const isDirectRun = !process.env.VERCEL && process.argv[1] && path.resolve(process.argv[1]) === __filename;
 if (isDirectRun) app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(` IELTS Master Server is running on port ${PORT}`);

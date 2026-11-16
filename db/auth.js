@@ -53,7 +53,7 @@ export function installAuth(app, store) {
     next();
   });
   // Establish the cookie on the document response before its scripts issue parallel API calls.
-  app.use(['/api', /^\/(?:index|writing|speaking|study|analytics)\.html$/, /^\/$/], async (req, res, next) => {
+  app.use(['/api', /^\/(?:index|writing|speaking|study|analytics)(?:\.html)?$/, /^\/$/], async (req, res, next) => {
     if (req.baseUrl === '/api' && req.path === '/health') return next();
     try {
       const auth = await store.withLock('auth', async () => {
